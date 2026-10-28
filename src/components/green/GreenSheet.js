@@ -10,6 +10,8 @@ import { useLang } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { goToTab } from '../../lib/mapBus';
 import { isOwner } from '../../services/music';
+import { lazyOverlay } from '../../lib/lazyScreen';
+const ImpactDrops = lazyOverlay(() => import('../WeeklyDrops').then((m) => ({ default: () => <m.DropsSection max={4} only="impact" /> })));
 import { SUPABASE_READY } from '../../lib/supabase';
 import { explain } from '../../lib/explain';
 import {
@@ -424,7 +426,12 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
               </>
             )}
 
-            {/* ── START ONE, OR PICK AN IDEA ───────────────────────── */}
+            {/* ── THIS WEEK'S IMPACT DROPS ── (Ayser, October 2026: real, curated
+                Cairo volunteering days, never an idea to start yourself) */}
+            <ImpactDrops />
+
+            {/* ── START ONE, OR PICK AN IDEA ── the team only (Studio) */}
+            {isOwner(user) ? (<>
             <Pressable onPress={() => { tapMedium(); startFrom(null); }} accessibilityRole="button" style={{ marginTop: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: GREEN, borderRadius: 999, paddingVertical: 15 }}>
                 <Ionicons name="add" size={20} color="#FFF" />
@@ -443,6 +450,7 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
                 </ScrollView>
               </View>
             ) : null}
+            </>) : null}
 
             <Pressable onPress={() => { tapLight(); setMore(more === 'how' ? null : 'how'); }} accessibilityRole="button" style={{ marginTop: 22, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
               <MaterialCommunityIcons name="hand-heart-outline" size={18} color={GREEN} />

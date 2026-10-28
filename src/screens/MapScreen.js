@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from '../ui/Gradient';
 import { C, DARK_MAP } from '../constants/theme';
+import { jw } from '../constants/joinWords';
 import { useTheme } from '../context/ThemeContext';
 import { ME, DOING_OPTIONS, av, AV_NEUTRAL } from '../constants/mockData';
 import { listOffers, photoUrl, money } from '../services/offers';
@@ -1022,11 +1023,10 @@ export const MapScreen = () => {
             contentContainerStyle={{ paddingRight: 12 }}
           >
             {[
+              /* Ayser, October 2026: four lenses — no Stories (gone), no People */
               { k: 'all', label: t('lens_all'), emoji: '🌍', n: mapMarkers.length },
-              { k: 'activities', label: t('lens_activities'), emoji: '🎉', n: mapMarkers.filter((m) => m.kind === 'activity').length + campfires.length + trips.length },
-              { k: 'places', label: t('lens_places'), emoji: '📍', n: realPlaces.length + realVenues.length + DESTINATIONS.length },
-              { k: 'people', label: t('lens_people'), emoji: '🟢', n: nearbyPeople.length + campfires.length },
-              { k: 'stories', label: t('lens_stories'), emoji: '📸', n: storyPins.length + momentPins.length },
+              { k: 'activities', label: jw(lang, 'lensDrops'), emoji: '🎉', n: mapMarkers.filter((m) => m.kind === 'activity').length + campfires.length + trips.length },
+              { k: 'places', label: jw(lang, 'lensPartners'), emoji: '📍', n: realPlaces.length + realVenues.length + DESTINATIONS.length },
               { k: 'trips', label: t('lens_trips'), emoji: '🧳', n: trips.length },
             ].map((o) => {
               const on = lens === o.k;
@@ -1053,18 +1053,6 @@ export const MapScreen = () => {
           Five circles stacked down the side of the map hid a third of
           Egypt. Only the two you reach for constantly stay out; the
           rest live behind one button and come out when you ask. */}
-      {/* ── GO OUT NOW ── "I'm going for a walk at dawn — show me and let
-          anyone around join". One tap from the map itself. */}
-      {panelUp ? null : (
-      <Pressable onPress={() => { tapLight(); setGoNow(true); }} accessibilityRole="button" accessibilityLabel={t('gn_cta')}
-        style={{ position: 'absolute', left: 14, bottom: aboveBottom }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: C.purple,
-            shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}>
-          <Text style={{ fontSize: 17 }}>🏃</Text>
-          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', marginStart: 7 }}>{t('gn_cta_short')}</Text>
-        </View>
-      </Pressable>
-      )}
       <View style={{ position: 'absolute', right: 14, bottom: aboveBottom, alignItems: 'center', display: panelUp ? 'none' : 'flex' }}>
         {tools ? (
           <>

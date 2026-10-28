@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { View, Text, ScrollView, Pressable, Image, PanResponder, ActivityIndicator, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
+import { jw } from '../constants/joinWords';
 import { lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { whyText } from '../lib/recommend';
 import { HostBadge } from './HostCard';
@@ -79,9 +80,10 @@ export const MapPanel = ({
           {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
           {going || g.why ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-              {going ? (
+              {/* seats left when the plan has a size; a head count only once it says something */}
+              {Number(g.capacity) || going >= 3 ? (
                 <View style={{ backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginEnd: 8 }}>
-                  <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '700' }}>{going + ' ' + t('green_going')}</Text>
+                  <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '700' }}>{Number(g.capacity) ? jw(lang, 'seats', { n: Math.min(going, Number(g.capacity)), m: Number(g.capacity), l: Math.max(0, Number(g.capacity) - going) }) : jw(lang, 'going', { n: going })}</Text>
                 </View>
               ) : null}
               {/* why it is here, from real counts — see src/lib/recommend.js */}
@@ -93,12 +95,12 @@ export const MapPanel = ({
           <Text style={{ color: C.green, fontSize: 12, fontWeight: '900', marginStart: 8 }}>{t('tg_hosting')}</Text>
         ) : g.im_going ? (
           <Pressable onPress={() => onJoin(g)} disabled={!!joining[g.id]} accessibilityRole="button" style={{ marginStart: 8, paddingVertical: 8 }}>
-            <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', opacity: joining[g.id] ? 0.5 : 1 }}>✓ {t('green_joined')}</Text>
+            <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', opacity: joining[g.id] ? 0.5 : 1 }}>{jw(lang, 'reserved').split(' • ')[0]}</Text>
           </Pressable>
         ) : (
           <Pressable onPress={() => onJoin(g)} disabled={!!joining[g.id]} accessibilityRole="button"
-            style={{ marginStart: 8, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9, opacity: joining[g.id] ? 0.6 : 1 }}>
-            <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('green_join')}</Text>
+            style={{ marginStart: 8, backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9, opacity: joining[g.id] ? 0.6 : 1 }}>
+            <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '800' }}>{jw(lang, 'claim')}</Text>
           </Pressable>
         )}
       </Pressable>
@@ -165,21 +167,8 @@ export const MapPanel = ({
              "nothing here" a second before five things appear */
           <View style={{ height: 86 }} />
         ) : (
-          /* nothing here yet: a real photo of people out together (a mood,
-             not anybody on Moments — src/lib/mood.js) and the one button */
-          <Pressable onPress={() => { tapLight(); onGoNow(); }} accessibilityRole="button" style={{ marginTop: 10 }}>
-            <View style={{ height: 118, borderRadius: 20, overflow: 'hidden', backgroundColor: C.glassHi }}>
-              <Image source={{ uri: publicMedia(moodOfToday()) }} accessibilityIgnoresInvertColors style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }} />
-              <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.62)']} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-              <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12, flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ flex: 1, color: '#FFF', fontSize: 16.5, fontWeight: '900' }} numberOfLines={2}>{t('map_start_one')}</Text>
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="add" size={22} color="#FFF" />
-                </View>
-              </View>
-              <Text style={{ position: 'absolute', top: 4, right: 8, color: 'rgba(255,255,255,0.4)', fontSize: 6.5 }}>{'Pexels'}</Text>
-            </View>
-          </Pressable>
+          /* nothing here yet: no button to start one — the team curates the plans */
+          <View style={{ height: 8 }} />
         )}
 
         {open && people.length ? (
@@ -284,10 +273,7 @@ export const PeoplePanel = ({ t, people, hereNow = 0, loading = false, open, onO
           {people.slice(0, 20).map(renderFace)}
         </ScrollView>
       ) : (
-        <Pressable onPress={() => { tapLight(); onGoNow(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 }}>
-          <Text style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800' }}>{t('gn_cta_short')}</Text>
-          <Ionicons name="chevron-forward" size={18} color={C.faint} />
-        </Pressable>
+        <View style={{ height: 12 }} />
       )}
     </View>
   );

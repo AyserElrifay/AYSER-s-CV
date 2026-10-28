@@ -8,6 +8,7 @@ import { setStanding } from '../services/studioPeople';
 import { safetyList, safetyPhotoUrl, safetyDecide } from '../services/mvp';
 import { studioGlobalList, studioGlobalContacted } from '../services/loop';
 import { ownerTripApplications, ownerTripDecide } from '../services/mvp';
+import { ownerPayList, ownerPayDecide, payProofUrl } from '../services/pay';
 
 /* ─── THE OWNER'S MEMBERS DESK ────────────────────────────────────────
    Ayser: promo codes made here, with the discount she chooses, and
@@ -203,6 +204,7 @@ const Everybody = () => {
 
 export const MembersTab = () => (
   <View>
+    <Payments />
     <Promos />
     <Everybody />
   </View>
@@ -316,6 +318,50 @@ const TripApplications = () => {
             )}
           </View>
         ))}
+    </View>
+  );
+};
+
+/* InstaPay transfers waiting (RUN_ME.sql, "INSTAPAY"): the screenshot for
+   five minutes from the private bucket; Approve gives the plan for 30 or
+   365 days; either way the screenshot is deleted at once. Owner only. */
+const PayRow = ({ x, onDone }) => {
+  const [url, setUrl] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (x.path) payProofUrl(x.path).then(setUrl); }, [x.path]);
+  const decide = async (yes) => { tapLight(); setBusy(true); const r = await ownerPayDecide(x.id, yes); setBusy(false); if (r && r.ok) tapSuccess(); onDone(); };
+  return (
+    <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Image source={{ uri: x.avatar_url || AV_NEUTRAL }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+        <View style={{ flex: 1, marginStart: 10 }}>
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700' }}>{(x.name || 'Member') + (x.handle ? '  @' + x.handle : '')}</Text>
+          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{(x.tier === 'vip' ? 'Black' : 'Moments+') + ' · ' + (x.period === 'year' ? 'year' : 'month') + (x.amount ? ' · ' + x.amount + ' EGP' : '') + (x.ref ? ' · ref ' + x.ref : '') + ' · ' + new Date(x.at).toLocaleString()}</Text>
+        </View>
+      </View>
+      {url ? <Image source={{ uri: url }} style={{ width: 160, height: 260, borderRadius: 12, marginTop: 10 }} resizeMode="contain" /> : null}
+      <View style={{ flexDirection: 'row', marginTop: 10 }}>
+        <Pressable disabled={busy} onPress={() => decide(true)} accessibilityRole="button" style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, marginEnd: 8 }}>
+          <Text style={{ color: C.bg, fontSize: 13, fontWeight: '700' }}>Approve subscription</Text>
+        </Pressable>
+        <Pressable disabled={busy} onPress={() => decide(false)} accessibilityRole="button" style={{ borderWidth: 1, borderColor: C.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
+          <Text style={{ color: C.text, fontSize: 13, fontWeight: '700' }}>Reject</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+};
+const Payments = () => {
+  const [r, setR] = useState(null);
+  const load = () => ownerPayList().then(setR);
+  useEffect(() => { load(); }, []);
+  return (
+    <View style={{ marginBottom: 26 }}>
+      <Head sub="Transfers sent by InstaPay. Check the amount arrived in your account, then approve: the plan starts at once. The screenshot is deleted either way.">Payments to check</Head>
+      {r == null ? <ActivityIndicator color={C.text} style={{ marginTop: 20 }} />
+        : !r.ok ? <Text style={{ color: C.dim, fontSize: 13 }}>Owner only — unlock the Studio again.</Text>
+        : !r.rows.length ? <Text style={{ color: C.dim, fontSize: 13.5 }}>Nothing waiting.</Text>
+        : r.rows.map((x) => <PayRow key={x.id} x={x} onDone={load} />)}
     </View>
   );
 };

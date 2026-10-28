@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { buyTier, promoCode, setPromoCode } from '../services/payments';
+import { promoCode, setPromoCode } from '../services/payments';
+import { InstaPaySheet } from './InstaPaySheet';
 import { promoRedeem } from '../services/gifts';
 import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -172,25 +173,26 @@ const WhySheet = ({ lang, onClose }) => {
   );
 };
 
+/* Becoming a member opens the InstaPay page (Ayser, October 2026: Lemon
+   Squeezy refused Egypt) — the amount is the owner's price for that plan
+   and period; the owner approves the transfer in the Studio */
 const useBuy = (lang, m) => {
-  const [busy, setBusy] = useState(null);
-  const [note, setNote] = useState(null);
-  const buy = async (tier, period) => {
-    if (busy) return;
-    tapMedium(); setBusy(tier); setNote(null);
-    const r = await buyTier(tier, m, period);
-    setBusy(null);
-    if (r.ok && r.changed) { tapSuccess(); setNote(w(lang, 'changed')); }
-    else if (!r.ok) setNote(w(lang, r.reason === 'not_configured' ? 'soon' : 'err'));
+  const [pay, setPay] = useState(null);
+  const pr = (m && m.prices) || {};
+  const buy = (tier, period) => {
+    tapMedium();
+    const amount = tier === 'vip' ? (period === 'year' ? pr.vip || 1300 : pr.vip_month || 299) : (period === 'year' ? pr.basic_year || 990 : pr.basic || 129);
+    setPay({ tier: tier === 'vip' ? 'vip' : 'basic', period: period === 'year' ? 'year' : 'month', amount, currency: pr.currency || 'EGP' });
   };
-  return { busy, note, buy };
+  const sheet = pay ? <InstaPaySheet {...pay} onClose={() => setPay(null)} /> : null;
+  return { busy: null, note: null, buy, sheet };
 };
 
 /* a promo code: one quiet line that opens into a field. Lemon Squeezy
    checks the code at the checkout and takes it off there. */
 const PROMO = {
-  en: ['Have a promo code?', 'Promo code', 'Apply', 'Code {c} — it comes off at checkout', 'Remove', '{t} is yours until {d}.', 'You already used this code.', 'This code has ended.', 'You already pay for longer than this.', 'This code is all used up.'],
-  ar: ['معاك كود خصم؟', 'كود الخصم', 'تمام', 'الكود {c} — هيتخصم في صفحة الدفع', 'شيله', '{t} بقى عندك لحد {d}.', 'انت استخدمت الكود ده قبل كده.', 'الكود ده خلص.', 'انت دافع لمدة أطول من كده.', 'الكود ده اتستخدم بالكامل.'],
+  en: ['Have a promo code?', 'Promo code', 'Apply', 'Code {c} — it comes off at checkout', 'Remove', '{t} is yours until {d}.', 'You already used this code.', 'This code has ended.', 'You already pay for longer than this.', 'This code is all used up.', 'This code isn’t valid.'],
+  ar: ['معاك كود خصم؟', 'كود الخصم', 'تمام', 'الكود {c} — هيتخصم في صفحة الدفع', 'شيله', '{t} بقى عندك لحد {d}.', 'انت استخدمت الكود ده قبل كده.', 'الكود ده خلص.', 'انت دافع لمدة أطول من كده.', 'الكود ده اتستخدم بالكامل.', 'الكود ده مش صحيح.'],
 };
 const pw = (lang, i) => (PROMO[lang] || PROMO.en)[i];
 const Promo = ({ lang }) => {
@@ -239,8 +241,9 @@ const Promo = ({ lang }) => {
       setTimeout(() => setMsg(null), 3500);
       return;
     }
-    const kept = setPromoCode(c);
-    if (kept) { tapSuccess(); setCode(kept); setOpen(false); }
+    // there is no checkout to carry a code to any more: a code that is not ours is just not valid
+    setDraft(''); setOpen(false); setMsg(pw(lang, 10));
+    setTimeout(() => setMsg(null), 3500);
   };
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
@@ -263,7 +266,7 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
   const { lang } = useLang();
   const insets = useSafeAreaInsets();
   const [why, setWhy] = useState(false);
-  const { busy, note, buy } = useBuy(lang, m);
+  const { busy, note, buy, sheet } = useBuy(lang, m);
   const pr = (m && m.prices) || { basic: 129, basic_year: 990, vip_month: 299, vip: 1300, vip_period: 'year', currency: 'EGP' };
   const tier = m ? m.tier : 'FREE';
   const [period, setPeriod] = useState('month');
@@ -298,6 +301,7 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
           cta={w(lang, 'becomeVip')} busy={busy === 'vip'} onPress={() => buy('vip', period)} current={tier === 'VIP'} />
         {note ? <Text style={{ color: '#FFF', fontSize: 14.5, textAlign: 'center', marginTop: 18 }}>{note}</Text> : null}
         <Promo lang={lang} />
+        {sheet}
         <Pressable onPress={() => { tapLight(); setWhy(true); }} accessibilityRole="link" hitSlop={10} style={{ alignSelf: 'center', marginTop: 10 }}>
           <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' }}>{w(lang, 'why')}</Text>
         </Pressable>
@@ -337,7 +341,7 @@ export const VipSheet = ({ m, onClose }) => {
   useSheetBack(onClose);
   const { lang } = useLang();
   const insets = useSafeAreaInsets();
-  const { busy, note, buy } = useBuy(lang, m);
+  const { busy, note, buy, sheet } = useBuy(lang, m);
   const pr = (m && m.prices) || { vip: 1300, vip_month: 299, vip_period: 'year', currency: 'EGP' };
   // monthly or yearly, as on the pricing page (Ayser: "مش فيه أوبشن الشهر")
   const [period, setPeriod] = useState('month');
@@ -374,6 +378,7 @@ export const VipSheet = ({ m, onClose }) => {
         </Pressable>
         {note ? <Text style={{ color: '#A3A3A3', fontSize: 14, textAlign: 'center', marginTop: 12 }}>{note}</Text> : null}
         <Promo lang={lang} />
+        {sheet}
         <Pressable onPress={onClose} accessibilityRole="button" hitSlop={10} style={{ alignSelf: 'center', marginTop: 14 }}>
           <Text style={{ color: '#737373', fontSize: 14 }}>{w(lang, 'notNow')}</Text>
         </Pressable>

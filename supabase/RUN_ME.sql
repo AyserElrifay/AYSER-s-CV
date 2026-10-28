@@ -23721,7 +23721,7 @@ begin
        and case f when 'free' then b.tier = 'FREE'
                   when 'plus' then b.tier = 'BASIC'
                   when 'black' then b.tier = 'VIP'
-                  when 'paying' then b.source = 'lemonsqueezy'
+                  when 'paying' then b.source in ('lemonsqueezy', 'instapay')
                   when 'gift' then b.source in ('gift', 'promo')
                   when 'closed' then b.standing = 'closed'
                   else true end
@@ -23729,7 +23729,7 @@ begin
   select jsonb_build_object('ok', true,
     'counts', (select jsonb_build_object('all', count(*), 'free', count(*) filter (where tier = 'FREE'),
                  'plus', count(*) filter (where tier = 'BASIC'), 'black', count(*) filter (where tier = 'VIP'),
-                 'paying', count(*) filter (where source = 'lemonsqueezy'), 'gift', count(*) filter (where source in ('gift', 'promo')),
+                 'paying', count(*) filter (where source in ('lemonsqueezy', 'instapay')), 'gift', count(*) filter (where source in ('gift', 'promo')),
                  'closed', count(*) filter (where standing = 'closed')) from base),
     'total', (select count(*) from picked),
     'people', coalesce((select jsonb_agg(to_jsonb(x) - 'subscription_id' || jsonb_build_object('has_sub', x.subscription_id is not null) order by x.created_at desc)
@@ -24528,6 +24528,177 @@ begin
 end $$;
 revoke execute on function public.owner_trip_decide(uuid, uuid, boolean) from public, anon;
 grant execute on function public.owner_trip_decide(uuid, uuid, boolean) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ════════════════════════════════════════════════════════════════════
+--  THE VENUE APPEARS 12 HOURS BEFORE, AND ONLY FOR A RESERVED SEAT
+--  (Ayser, October 2026: claim a seat → the table chat → the exact place)
+--  green_list sends the exact place name and pin only to the host, the
+--  owner, or somebody going, from 12 hours before the start. Everybody
+--  else gets the city and a pin rounded to about a kilometre, so the map
+--  still shows the area and nothing more. 'revealed' and 'reveal_at' say
+--  which. Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+create or replace function public.green_list(p_country text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  with my_mates as (
+    select case when m.requester_id = auth.uid() then m.addressee_id else m.requester_id end as mate_id
+      from public.mates m
+     where m.status = 'accepted' and auth.uid() is not null and auth.uid() in (m.requester_id, m.addressee_id)
+  )
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.starts_at), '[]'::jsonb)
+    from (
+      select y.id, y.kind, y.title, y.about, y.country, y.city,
+             case when y.revealed then y.place_name end as place_name,
+             case when y.revealed then y.lat else round(y.lat::numeric, 2)::double precision end as lat,
+             case when y.revealed then y.lng else round(y.lng::numeric, 2)::double precision end as lng,
+             y.revealed, y.starts_at - interval '12 hours' as reveal_at,
+             y.starts_at, y.minutes, y.capacity, y.language, y.host_id, y.host_name, y.host_role, y.weekly_id, y.announced_at, y.squad_id,
+             y.photo_url, y.past_photos, y.audience, y.blind, y.age_min, y.age_max, y.weekly_photo, y.going, y.mates_going, y.mate_faces,
+             y.im_going, y.checked_in, y.xp
+        from (
+      select g.id, g.kind, g.title, g.about, g.country, g.city, g.place_name,
+             g.lat, g.lng, g.starts_at, g.minutes, g.capacity, g.language,
+             g.host_id, p.name as host_name, p.host_role as host_role, g.weekly_id, g.announced_at, g.squad_id,
+             g.photo_url, public.green_past_photos(g) as past_photos, coalesce(g.audience, 'all') as audience, coalesce(g.blind, false) as blind, g.age_min, g.age_max,
+             (select o.photo_url from public.green_gatherings o
+               where g.weekly_id is not null and o.weekly_id = g.weekly_id and o.photo_url is not null and o.cancelled_at is null
+               order by o.starts_at desc limit 1) as weekly_photo,
+             (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
+             (select count(*) from public.green_joins j join my_mates mm on mm.mate_id = j.user_id
+               where j.gathering_id = g.id) as mates_going,
+             case when coalesce(g.blind, false) then '[]'::jsonb else
+               (select coalesce(jsonb_agg(jsonb_build_object('id', f.id, 'name', split_part(coalesce(f.name, ''), ' ', 1), 'avatar', f.avatar_url)), '[]'::jsonb)
+                  from (select p2.id, p2.name, p2.avatar_url
+                          from public.green_joins j join my_mates mm on mm.mate_id = j.user_id
+                          join public.profiles p2 on p2.id = j.user_id
+                         where j.gathering_id = g.id order by j.joined_at limit 3) f)
+             end as mate_faces,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid() and j.checked_in_at is not null) as checked_in,
+             case when g.kind = 'cleanup' then 50 else 30 end as xp,
+             (g.host_id = auth.uid() or public.owner_ok()
+               or (now() >= g.starts_at - interval '12 hours'
+                   and exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id = auth.uid()))) as revealed
+        from public.green_gatherings g
+        left join public.profiles p on p.id = g.host_id
+       where g.cancelled_at is null
+         and g.starts_at > now() - interval '3 hours'
+         and (p_country is null or g.country = p_country)
+       order by g.starts_at
+       limit 60
+        ) y
+    ) x;
+$$;
+
+-- and the table itself no longer hands the place out: everything else on
+-- a plan stays readable, the place name, the pin and the venue do not
+-- (the functions above, which decide who may see them, still can)
+revoke select on public.green_gatherings from anon, authenticated;
+grant select (id, kind, title, about, country, city, starts_at, minutes, capacity, host_id, language, cancelled_at, created_at,
+              age_max, age_min, announced_at, audience, blind, official, photo_url, squad_id, weekly_id, xp_awarded_at)
+  on public.green_gatherings to anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ════════════════════════════════════════════════════════════════════
+--  INSTAPAY · PAY BY TRANSFER, THE TEAM APPROVES
+--  (Ayser, October 2026: Lemon Squeezy refused Egypt; the web checkout is
+--   an InstaPay transfer to the owner's handle)
+--  · pay_submit: after the transfer, a member sends the screenshot (to
+--    their own folder in the private "verification" bucket) with the plan
+--    and the period. One waiting at a time.
+--  · owner_pay_list / owner_pay_decide (owner only, on the server):
+--    approving gives Moments+ or Black for 30 or 365 days from today (or
+--    from the end of what they already have); either way the screenshot's
+--    path comes back so the Studio deletes the file at once.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+
+create table if not exists public.payment_proofs (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  tier       text not null check (tier in ('basic','vip')),
+  period     text not null check (period in ('month','year')),
+  amount     numeric,
+  ref        text,
+  path       text,
+  status     text not null default 'pending' check (status in ('pending','approved','rejected')),
+  created_at timestamptz not null default now(),
+  decided_at timestamptz,
+  until      timestamptz
+);
+create index if not exists payment_proofs_status on public.payment_proofs (status, created_at);
+alter table public.payment_proofs enable row level security;
+revoke all on public.payment_proofs from anon, authenticated;
+
+create or replace function public.pay_submit(p_tier text, p_period text, p_path text, p_ref text, p_amount numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_tier not in ('basic','vip') or p_period not in ('month','year') then return jsonb_build_object('ok', false, 'reason', 'plan'); end if;
+  if p_path is null or split_part(p_path, '/', 1) <> me::text or p_path !~ '^[0-9a-f-]+/pay-[0-9]+\.(jpg|webp|png)$' then
+    return jsonb_build_object('ok', false, 'reason', 'path');
+  end if;
+  if exists (select 1 from public.payment_proofs where user_id = me and status = 'pending') then
+    return jsonb_build_object('ok', false, 'reason', 'waiting');
+  end if;
+  insert into public.payment_proofs (user_id, tier, period, amount, ref, path)
+  values (me, p_tier, p_period, nullif(p_amount, 0), nullif(left(btrim(coalesce(p_ref, '')), 60), ''), p_path);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.pay_submit(text, text, text, text, numeric) from public, anon;
+grant execute on function public.pay_submit(text, text, text, text, numeric) to authenticated;
+
+-- what the app shows: a transfer waiting to be checked
+create or replace function public.my_payment()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce((select jsonb_build_object('status', status, 'tier', tier, 'period', period, 'at', created_at, 'until', until)
+                     from public.payment_proofs where user_id = auth.uid() order by created_at desc limit 1), '{}'::jsonb);
+$$;
+revoke execute on function public.my_payment() from public, anon;
+grant execute on function public.my_payment() to authenticated;
+
+create or replace function public.owner_pay_list()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  return jsonb_build_object('ok', true, 'rows', (select coalesce(jsonb_agg(jsonb_build_object(
+      'id', x.id, 'user_id', x.user_id, 'name', p.name, 'handle', p.handle, 'avatar_url', p.avatar_url,
+      'tier', x.tier, 'period', x.period, 'amount', x.amount, 'ref', x.ref, 'path', x.path, 'status', x.status, 'at', x.created_at)
+      order by x.created_at), '[]'::jsonb)
+    from public.payment_proofs x join public.profiles p on p.id = x.user_id where x.status = 'pending'));
+end $$;
+revoke execute on function public.owner_pay_list() from public, anon;
+grant execute on function public.owner_pay_list() to authenticated;
+
+create or replace function public.owner_pay_decide(p_id uuid, p_approve boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare x public.payment_proofs%rowtype; cur public.plus_members%rowtype; base timestamptz; u timestamptz;
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select * into x from public.payment_proofs where id = p_id and status = 'pending' for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_pending'); end if;
+  if coalesce(p_approve, false) then
+    select * into cur from public.plus_members where user_id = x.user_id;
+    base := case when found and cur.status = 'active' and cur.until > now() then cur.until else now() end;
+    u := base + case when x.period = 'year' then interval '365 days' else interval '30 days' end;
+    insert into public.plus_members as m (user_id, status, until, source, tier)
+    values (x.user_id, 'active', u, 'instapay', x.tier)
+    on conflict (user_id) do update set status = 'active', until = u, source = 'instapay', tier = x.tier;
+    update public.payment_proofs set status = 'approved', decided_at = now(), until = u, path = null where id = x.id;
+  else
+    update public.payment_proofs set status = 'rejected', decided_at = now(), path = null where id = x.id;
+  end if;
+  return jsonb_build_object('ok', true, 'delete_path', x.path, 'until', u);
+end $$;
+revoke execute on function public.owner_pay_decide(uuid, boolean) from public, anon;
+grant execute on function public.owner_pay_decide(uuid, boolean) to authenticated;
 
 notify pgrst, 'reload schema';
 

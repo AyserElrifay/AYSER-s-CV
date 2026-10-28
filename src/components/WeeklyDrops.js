@@ -15,6 +15,7 @@ import { lazyOverlay } from '../lib/lazyScreen';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { dropClip } from '../lib/mediaFit';
 import { readPlan } from '../lib/feedGate';
+import { jw } from '../constants/joinWords';
 import { useSheetBack } from '../hooks/useSheetBack';
 
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -375,13 +376,16 @@ const DropCard = ({ d, lang, onChanged }) => {
       </Text>
       {/* the café: kept until 12 hours before, and only for a confirmed seat */}
       {d.mine && d.venue ? (
-        <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ color: C.text, fontSize: 15, fontWeight: '600', flex: 1 }} numberOfLines={1}>{d.venue.name || ''}</Text>
+        <View style={{ marginTop: 12 }}>
+          <Text style={{ color: C.text, fontSize: 15, fontWeight: '600' }} numberOfLines={2}>{d.venue.name || ''}</Text>
           {d.venue.map_url ? (
-            <Pressable onPress={() => { tapLight(); Linking.openURL(d.venue.map_url).catch(() => {}); }} accessibilityRole="link" hitSlop={8}>
-              <Text style={{ color: C.text, fontSize: 13.5, textDecorationLine: 'underline' }}>{mv(lang, 'map')}</Text>
+            <Pressable onPress={() => { tapLight(); Linking.openURL(d.venue.map_url).catch(() => {}); }} accessibilityRole="link" hitSlop={8}
+              style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: C.text, paddingHorizontal: 14, paddingVertical: 8, marginTop: 8 }}>
+              <Ionicons name="location-outline" size={15} color={C.text} />
+              <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginHorizontal: 6 }}>{mv(lang, 'map')}</Text>
             </Pressable>
           ) : null}
+          <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>{jw(lang, 'arrive')}</Text>
         </View>
       ) : cat === 'roam' ? null : (
         <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
@@ -410,7 +414,7 @@ const DropCard = ({ d, lang, onChanged }) => {
       ) : full ? (
         <Btn label={mv(lang, d.waiting ? 'waiting' : 'wait')} solid={false} onPress={wait} busy={busy} />
       ) : (
-        <Btn label={mv(lang, 'claim')} onPress={claim} busy={busy} />
+        <Btn label={cat === 'impact' ? jw(lang, 'impact') : mv(lang, 'claim')} onPress={claim} busy={busy} />
       )}
       {note ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 10, lineHeight: 18 }}>{note}</Text> : null}
       {done ? <Confirmed q={done} place={place} at={d.starts_at} lang={lang} onClose={() => setDone(null)} /> : null}
@@ -419,20 +423,21 @@ const DropCard = ({ d, lang, onChanged }) => {
   );
 };
 
-export const DropsSection = ({ max = 3 }) => {
+export const DropsSection = ({ max = 3, only = null }) => {
   const { lang } = useLang();
   const [list, setList] = useState(null);
-  const [cat, setCat] = useState('all');
+  const [cat, setCat] = useState(only || 'all');
   const load = () => dropsList().then((x) => setList(Array.isArray(x) ? x : []));
   useEffect(() => { load(); }, []);
   // no Drops this week: nothing on Home, rather than a line saying so
   if (!list || !list.length) return null;
   const shown = list.filter((d) => cat === 'all' || (d.category || 'tables') === cat).slice(0, max);
+  if (only && !shown.length) return null;   // one kind asked for, none this week: nothing, never an empty card
   return (
     <View style={{ marginTop: 22 }}>
-      <Small>{mv(lang, 'drops').toUpperCase()}</Small>
+      <Small>{only ? catWord(lang, only).toUpperCase() : mv(lang, 'drops').toUpperCase()}</Small>
       {/* the four pillars: All · Tables · Culture · Impact · Roam */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 10 }}>
+      {only ? null : <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 10 }}>
         {['all'].concat(CATS).map((k) => {
           const on = cat === k;
           return (
@@ -443,7 +448,7 @@ export const DropsSection = ({ max = 3 }) => {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </ScrollView>}
       {shown.length ? shown.map((d) => <DropCard key={d.id} d={d} lang={lang} onChanged={load} />)
         : <Text style={{ color: C.dim, fontSize: 14, marginTop: 14 }}>{mv(lang, 'empty')}</Text>}
     </View>

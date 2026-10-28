@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, TextInput, Image, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, TextInput, Image, Platform, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from '../ui/Gradient';
 import { publicMedia } from '../lib/publicMedia';
 import { moodOfToday } from '../lib/mood';
-import { C } from '../constants/theme';
+import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
@@ -44,6 +44,7 @@ import { greenPic } from '../components/green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
 import { JourneyCard, JourneyMap } from '../components/JourneyMap';
+import { jw, mapsLink } from '../constants/joinWords';
 const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
 const EventRoom = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.EventRoom })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
@@ -716,27 +717,8 @@ export const TogetherScreen = () => {
             </Pressable>
             <Text style={{ color: C.text, fontSize: 30, fontWeight: '900', marginTop: 6 }}>{t('tg_title')}</Text>
           </View>
-{/* making a plan is the team's now (the final MVP: Weekly Drops) */}
-          {isOwner(user) ? (
-          <Pressable onPress={() => { tapMedium(); setSheet('start'); }} accessibilityRole="button" accessibilityLabel={t('tg_start')} hitSlop={8}>
-            <View style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.text }}>
-              <Ionicons name="add" size={26} color={C.text} />
-            </View>
-          </Pressable>
-          ) : null}
+{/* nobody starts a plan from here: the team curates them (Studio) */}
         </View>
-
-        {/* ── RIGHT NOW ── one line, one tap. Ayser: "زحمة أوي، بالذات الـ
-            people nearby ملهاش لازمة" — so "who is around" is gone and going
-            out now is a single row: put yourself on the map, anyone near joins. */}
-        <Pressable onPress={() => { tapMedium(); setSheet('gonow'); }} accessibilityRole="button" style={{ marginBottom: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingVertical: 12, paddingStart: 18, paddingEnd: 8, backgroundColor: C.purpleSoft }}>
-            <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', flex: 1 }} numberOfLines={1}>{t('gn_cta')}</Text>
-            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={lang === 'ar' ? 'arrow-back' : 'arrow-forward'} size={17} color="#FFF" />
-            </View>
-          </View>
-        </Pressable>
 
         <RateLast t={t} lang={lang} />
         {askPush ? <View style={{ marginBottom: 14 }}><PushRow ask onDone={() => setAskPush(false)} /></View> : null}
@@ -757,30 +739,7 @@ export const TogetherScreen = () => {
         {/* ── the week ── */}
         {rows === null ? (
           <ActivityIndicator color={C.purple} style={{ marginVertical: 40 }} />
-        ) : rows.length === 0 ? (
-          /* nothing this week: a picture of people out together, not a
-             seedling emoji on a grey box — the same open door as Home */
-          <View style={{ height: 290, borderRadius: 24, overflow: 'hidden', marginTop: 4, backgroundColor: C.glassHi }}>
-            <Image source={{ uri: publicMedia(moodOfToday(1)) }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
-            <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.82)']} locations={[0.2, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
-            <View style={{ position: 'absolute', left: 18, right: 18, bottom: 18 }}>
-              <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900', letterSpacing: -0.3 }}>{t('tg_empty_t')}</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, lineHeight: 19, marginTop: 5 }}>{t('nu_empty_s')}</Text>
-              <View style={{ alignItems: 'flex-start', marginTop: 14, display: isOwner(user) ? 'flex' : 'none' }}>
-                <Pressable onPress={() => { tapMedium(); setSheet('start'); }} accessibilityRole="button">
-                  <View style={{ borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: '#FFF' }}>
-                    <Text style={{ color: '#1A1A1A', fontSize: 14.5, fontWeight: '900' }}>{t('tg_start')}</Text>
-                  </View>
-                </Pressable>
-                {scope === 'near' ? (
-                  <Pressable onPress={() => { tapLight(); setScope('all'); }} accessibilityRole="button" style={{ marginTop: 12 }} hitSlop={8}>
-                    <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800', textDecorationLine: 'underline' }}>{t('tg_see_everywhere')}</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-          </View>
-        ) : (
+        ) : rows.length === 0 ? null /* never an empty card: the Drops above are the week */ : (
           <>
             {/* girls only · guys only · mixed — shown once any of them exists */}
             {(rows || []).some((g) => g.audience && g.audience !== 'all') ? (
@@ -809,8 +768,15 @@ export const TogetherScreen = () => {
                         <PlanHead g={g}>
                           <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 20 }}>{titleFor(g.title, lang)}</Text>
                           <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
-                            {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
+                            {hour(g.starts_at)}{g.revealed && g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
                           </Text>
+                          {/* the exact place waits: 12 hours before, for a reserved seat (green_list) */}
+                          {!g.revealed ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+                              <Ionicons name="lock-closed-outline" size={12} color={C.faint} />
+                              <Text numberOfLines={2} style={{ color: C.faint, fontSize: 12, marginStart: 5, flexShrink: 1 }}>{jw(lang, 'lock')}</Text>
+                            </View>
+                          ) : null}
                           {sig[g.id] && (sig[g.id].official || sig[g.id].match >= 60) ? (
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
                               {sig[g.id].official ? <OfficialBadge lang={lang} style={{ marginEnd: 6, marginBottom: 4 }} /> : null}
@@ -871,76 +837,53 @@ export const TogetherScreen = () => {
                           </View>
                         ) : null}
 
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
-                          {/* who is going: your mates' faces, by name — the reason to go */}
-                          <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' }}>
-                            {(g.mate_faces || []).length ? (
-                              <View style={{ flexDirection: 'row', marginEnd: 8 }}>
-                                {(g.mate_faces || []).map((f, fi) => (
-                                  f.avatar ? <Image key={f.id} source={{ uri: f.avatar }} style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: C.glass, marginStart: fi ? -8 : 0, backgroundColor: C.glassHi }} />
-                                    : <View key={f.id} style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: C.glass, marginStart: fi ? -8 : 0, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.purple, fontSize: 11, fontWeight: '900' }}>{(f.name || '?')[0].toUpperCase()}</Text></View>
-                                ))}
-                              </View>
-                            ) : null}
-                            <Text style={{ color: (g.mate_faces || []).length ? C.text : C.faint, fontSize: 12.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>
-                              {(g.mate_faces || []).length
-                                ? t((Number(g.going) || 0) > 1 ? 'tg_mate_and' : 'tg_mate_going').replace('{name}', g.mate_faces[0].name || '').replace('{n}', String((Number(g.going) || 0) - 1))
-                                : (g.im_going ? '✓ ' : '') + (Number(g.going) || 0) + ' ' + t('green_going')}
-                            </Text>
+                        {/* seats, then one button: Claim Seat → Seat Reserved → the place */}
+                        {(() => {
+                          const n = Number(g.going) || 0; const cap = Number(g.capacity) || 0;
+                          const line = cap ? jw(lang, 'seats', { n: Math.min(n, cap), m: cap, l: Math.max(0, cap - n) }) : n >= 3 ? jw(lang, 'going', { n }) : null;
+                          return line ? <Text style={[{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 10 }, NUM]}>{line}</Text> : null;
+                        })()}
+                        {g.revealed && (g.im_going || mine) && !g.checked_in ? (
+                          <View style={{ marginTop: 10 }}>
+                            <Pressable onPress={() => { tapLight(); Linking.openURL(mapsLink(g)).catch(() => {}); }} accessibilityRole="link"
+                              style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: C.text, paddingHorizontal: 14, paddingVertical: 8 }}>
+                              <Ionicons name="location-outline" size={15} color={C.text} />
+                              <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginHorizontal: 6 }}>{jw(lang, 'maps')}</Text>
+                            </Pressable>
+                            <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>{jw(lang, 'arrive')}</Text>
                           </View>
-                          {!g.blind && !(mine && !g.announced_at) ? (
-                            <Pressable onPress={() => sharePlan(g)} hitSlop={6} accessibilityRole="button" accessibilityLabel="share" style={{ marginEnd: 8 }}>
-                              <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.line }}>
-                                <Ionicons name="share-outline" size={17} color={C.text} />
-                              </View>
-                            </Pressable>
-                          ) : null}
-                          {g.im_going || mine ? (
-                            /* notes to the others on it, sealed until it ends (CapsuleSheet) */
-                            <Pressable onPress={() => { tapLight(); setSheet({ capsule: g }); }}
-                              hitSlop={6} accessibilityRole="button" accessibilityLabel={t('tk_title')} style={{ marginEnd: 8 }}>
-                              <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.line }}>
-                                <Text style={{ fontSize: 16 }}>{g.blind ? '🎭' : '✉️'}</Text>
-                              </View>
-                            </Pressable>
-                          ) : null}
-                          {(g.im_going || mine) && !g.blind ? (
-                            /* the plan's page: the host's pin, who is going, and a short chat that opens 30 minutes before (EventRoom) */
-                            <Pressable onPress={() => { tapLight(); setEventOf(g.id); }}
-                              hitSlop={6} accessibilityRole="button" accessibilityLabel={t('tg_chat')} style={{ marginEnd: 8 }}>
-                              <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.line }}>
-                                <Ionicons name="pin-outline" size={17} color={C.text} />
-                              </View>
-                            </Pressable>
-                          ) : null}
+                        ) : null}
+                        <View style={{ marginTop: 11 }}>
                           {g.checked_in ? (
                             <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900' }}>{'✓ ' + t('xp_checked_in')}</Text>
-                          ) : canCheckIn(g) ? (
+                          ) : canCheckIn(g) && (g.im_going || mine) ? (
                             <Pressable onPress={() => checkIn(g)} disabled={!!busy[g.id]} accessibilityRole="button">
-                              <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8, opacity: busy[g.id] ? 0.6 : 1 }}>
-                                <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('xp_im_here').replace('{n}', String(g.xp || 30))}</Text>
+                              <View style={{ backgroundColor: C.text, borderRadius: 999, paddingVertical: 12, alignItems: 'center', opacity: busy[g.id] ? 0.6 : 1 }}>
+                                <Text style={{ color: C.bg, fontSize: 14, fontWeight: '800' }}>{t('xp_im_here').replace('{n}', String(g.xp || 30))}</Text>
                               </View>
                             </Pressable>
                           ) : mine ? (
-                            g.announced_at ? (
-                              <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900' }}>{t('green_invited')}</Text>
-                            ) : (
-                              <Pressable onPress={() => invite(g)} hitSlop={6}>
-                                <View style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
-                                  <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '900' }}>{t('green_invite_all')}</Text>
-                                </View>
-                              </Pressable>
-                            )
+                            <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{jw(lang, 'hosting')}</Text>
+                          ) : g.im_going ? (
+                            <Pressable onPress={() => { tapLight(); setEventOf(g.id); }} accessibilityRole="button">
+                              <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: C.text }}>
+                                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{jw(lang, 'reserved')}</Text>
+                              </View>
+                            </Pressable>
+                          ) : notForMe(g) ? (
+                            <Pressable onPress={() => join(g)} hitSlop={6} accessibilityRole="button">
+                              <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: C.line }}>
+                                <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '800' }}>{t('au_' + g.audience)}</Text>
+                              </View>
+                            </Pressable>
+                          ) : Number(g.capacity) && (Number(g.going) || 0) >= Number(g.capacity) ? (
+                            <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{jw(lang, 'full')}</Text>
                           ) : (
-                            !g.im_going && notForMe(g) ? (
-                              <Pressable onPress={() => join(g)} hitSlop={6} accessibilityRole="button">
-                                <View style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: g.audience === 'women' ? '#FCE7F3' : '#DBEAFE' }}>
-                                  <Text style={{ color: g.audience === 'women' ? '#9D174D' : '#1E40AF', fontSize: 12.5, fontWeight: '900' }}>{(g.audience === 'women' ? '🌸 ' : '👨 ') + t('au_' + g.audience)}</Text>
-                                </View>
-                              </Pressable>
-                            ) : (
-                              <JoinPill going={!!g.im_going} busy={!!busy[g.id]} onPress={() => join(g)} t={t} />
-                            )
+                            <Pressable onPress={() => join(g)} disabled={!!busy[g.id]} accessibilityRole="button">
+                              <View style={{ backgroundColor: C.text, borderRadius: 999, paddingVertical: 12, alignItems: 'center', opacity: busy[g.id] ? 0.6 : 1 }}>
+                                <Text style={{ color: C.bg, fontSize: 14, fontWeight: '800' }}>{jw(lang, 'claim')}</Text>
+                              </View>
+                            </Pressable>
                           )}
                         </View>
                         {sent && sent.id === g.id ? (
@@ -1050,10 +993,6 @@ export const TogetherScreen = () => {
           </>
         ) : null}
 
-        {scope === 'near' ? (
-          <IdeasElsewhere ideas={elsewhere} t={t} lang={lang}
-            onStart={(g) => { tapMedium(); setSheet({ start: { kind: g.kind, title: ideaTitle(titleFor(g.title, lang)), about: g.about || '', minutes: g.minutes, audience: g.audience && g.audience !== 'all' ? g.audience : undefined } }); }} />
-        ) : null}
 
         {/* ── workshops ── Ayser: they are activities, so they sit with the
             activities — writing, poetry, dance, music, kids */}

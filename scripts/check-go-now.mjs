@@ -36,7 +36,8 @@ is('the map stays open to newcomers', !/trust_unlocked/.test(read('src/services/
 console.log('\nevery plan has a chat');
 const chatSql = sql.slice(sql.lastIndexOf('EVERY PLAN HAS A CHAT'));
 is('joining puts you in it, leaving takes you out — one trigger for every way in', /after insert or delete on public\.green_joins/.test(chatSql) && /delete from public\.squad_members where squad_id = sq and user_id = old\.user_id/.test(chatSql));
-is('only people going (and the host) see the event page', /\(g\.im_going \|\| mine\) && !g\.blind \? \(\s*\/\* the plan's page/.test(read('src/screens/TogetherScreen.js')));
+// Ayser, October 2026: the table chat opens from "Seat Reserved", which only a person going sees
+is('only people going see the table chat', /\) : g\.im_going \? \(\s*<Pressable onPress=\{\(\) => \{ tapLight\(\); setEventOf\(g\.id\); \}\}/.test(read('src/screens/TogetherScreen.js')));
 
 console.log('\nbring your people — counted, not claimed');
 const inv = sql.slice(sql.lastIndexOf('BRING YOUR PEOPLE'));

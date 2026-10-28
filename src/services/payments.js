@@ -58,15 +58,8 @@ export async function payBooking(bookingId) {
 
 /* ── MOMENTS PLUS ── the app names the plan; the server reads the
    owner's price, and Paymob's signed webhook adds the days. */
-/* The store's published checkout links (Lemon Squeezy → Products →
-   Share), one per plan and period. Public by design — a link only opens
-   the checkout; what anybody is given is decided by ls-webhook from what
-   was really paid for, never by which button was pressed. A period whose
-   link is not in yet answers "payments open very soon". */
-const LS_BUY = {
-  basic: { month: 'https://therealmoments.lemonsqueezy.com/checkout/buy/b837520d-74c4-4ca1-83a0-7dc8c9b65ef5', year: null },
-  vip: { month: null, year: 'https://therealmoments.lemonsqueezy.com/checkout/buy/e2e45438-a064-41a7-93e5-8a1eda55f7a1' },
-};
+/* Lemon Squeezy refused Egypt (Ayser, October 2026): its checkout links
+   are gone. Memberships are paid by InstaPay — src/services/pay.js. */
 
 /* ── PROMO CODES ── made in Lemon Squeezy (Store → Discounts); the app
    only carries one to the checkout, where Lemon Squeezy checks it and
@@ -97,46 +90,6 @@ export const setPromoCode = (c) => {
   try { if (promo) window.sessionStorage.setItem(PKEY, promo); else window.sessionStorage.removeItem(PKEY); } catch (e) {}
   return promo;
 };
-
-/* Moments+ or Black, monthly or yearly, through Lemon Squeezy.
-   Somebody not yet subscribed goes straight to that plan's checkout link,
-   carrying their account id (checkout[custom][user_id]) so the signed
-   webhook knows whose membership it is. Somebody already subscribed goes
-   through functions/ls-checkout: a change of tier moves their one
-   subscription (never a second one), the same tier opens the portal. */
-export async function buyTier(tier, member, period) {
-  if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
-  const t = tier === 'vip' ? 'vip' : 'basic';
-  if (!(member && member.manage)) {
-    try {
-      const { data } = await supabase.auth.getUser();
-      const u = data && data.user;
-      if (!u) return { ok: false, reason: 'signed_out' };
-      const q = '?checkout[custom][user_id]=' + encodeURIComponent(u.id)
-        + (u.email ? '&checkout[email]=' + encodeURIComponent(u.email) : '')
-        + (promo ? '&checkout[discount_code]=' + encodeURIComponent(promo) : '');
-      const link = LS_BUY[t][period === 'year' ? 'year' : 'month'];
-      if (link) { go(link + q); return { ok: true }; }
-      /* no published link for this period yet: a monthly plan can still be
-         made by functions/ls-checkout from its variant id, when that is set */
-      if (period === 'year') return { ok: false, reason: 'not_configured' };
-    } catch (e) {
-      return { ok: false, reason: 'offline' };
-    }
-  }
-  try {
-    const { data, error } = await supabase.functions.invoke('ls-checkout', { body: { tier: t, code: promo || undefined } });
-    if (error) {
-      const status = error.context && error.context.status;
-      return { ok: false, reason: status === 503 ? 'not_configured' : 'gateway' };
-    }
-    if (data && data.changed) return { ok: true, changed: true };
-    if (data && (data.checkoutUrl || data.portalUrl)) { go(data.checkoutUrl || data.portalUrl); return { ok: true }; }
-    return { ok: false, reason: 'gateway' };
-  } catch (e) {
-    return { ok: false, reason: 'offline' };
-  }
-}
 
 export async function buyPlus(plan) {
   if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
