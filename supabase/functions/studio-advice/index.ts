@@ -33,6 +33,38 @@ import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { encodeBase64 } from 'jsr:@std/encoding@1/base64';
 
 const KEY = Deno.env.get('ANTHROPIC_API_KEY') || '';
+/* Ayser's server has a Groq key (the members' Papyrus runs on it) and no
+   Anthropic key — so "what needs my attention" asks Groq when Anthropic
+   is not there. Reading an application's photos still needs Anthropic. */
+const GROQ = Deno.env.get('GROQ_API_KEY') || '';
+const GROQ_PREFERRED = ['openai/gpt-oss-120b', 'moonshotai/kimi-k2-instruct', 'llama-3.3-70b-versatile', 'qwen/qwen3-32b', 'llama-3.1-8b-instant'];
+let groqModel: string | null = null;
+async function pickGroqModel(): Promise<string> {
+  if (groqModel) return groqModel;
+  const r = await fetch('https://api.groq.com/openai/v1/models', { headers: { authorization: 'Bearer ' + GROQ } });
+  const have: string[] = r.ok ? ((await r.json()).data || []).map((m: any) => String(m.id || '')).filter((id: string) => id && !/whisper|tts|embed|guard|transcri/i.test(id)) : [];
+  groqModel = GROQ_PREFERRED.find((m) => have.includes(m)) || have[0] || 'llama-3.3-70b-versatile';
+  return groqModel;
+}
+async function groqActions(system: string, user: string): Promise<any[]> {
+  const model = await pickGroqModel();
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { authorization: 'Bearer ' + GROQ, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model, temperature: 0.2, max_tokens: 700, response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: system + '\nAnswer only with JSON: {"actions":[{"title":"…","why":"…","tab":"…"}]}' },
+        { role: 'user', content: user },
+      ],
+    }),
+  });
+  if (!r.ok) throw new Error('groq ' + r.status);
+  const j = await r.json();
+  const txt = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+  const parsed = JSON.parse(String(txt || '{}'));
+  return Array.isArray(parsed.actions) ? parsed.actions : [];
+}
 const URL_ = Deno.env.get('SUPABASE_URL')!;
 const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://therealmoments.com';
 const cors = {
@@ -138,7 +170,26 @@ async function overview(asUser: any, db: any, lang: string) {
     n(db.from('green_joins').select('user_id', head).gte('checked_in_at', since)),
   ]);
   const counts = { safetyOpen, threats, coachWaiting, hostsPending, venuesPending, reportsOpen, feedbackNew, users, usersNew, postsNew, plansSoon, checkIns };
-  if (!KEY) return json(200, { ok: true, counts, actions: [], error: 'not_configured' });
+  if (!KEY && !GROQ) return json(200, { ok: true, counts, actions: [], error: 'not_configured' });
+  const sysText = `You are Papyrus, the operations assistant inside the Moments Studio. Moments helps people meet in real life (plans, walks, trips), early stage, run by its founder Ayser with a small team.
+Give exactly three actions for today, most important first. Safety comes before everything (threat reports first), then people waiting on a decision (guides, organisations, reports, coach sessions), then growth — more plans happening and more people actually showing up.
+Each action: a short imperative title and one sentence on why, using the real numbers. No greetings, no questions back, no praise, nothing generic. If a queue is empty, do not mention it.
+"tab" is one of: ${[...TABS, 'none'].join(', ')}.
+Write in ${lang === 'ar' ? 'Egyptian Arabic' : 'English'}.`;
+  const numbers = 'The numbers right now:\n' + JSON.stringify({
+    open_chat_reports: safetyOpen, of_them_threats_violence_or_sexual: threats, waiting_for_a_coach_session: coachWaiting,
+    guide_and_host_applications_waiting: hostsPending, organisations_waiting: venuesPending, content_reports_open: reportsOpen,
+    new_feedback: feedbackNew, users_total: users, new_users_last_7_days: usersNew, posts_last_7_days: postsNew,
+    plans_in_the_next_7_days: plansSoon, check_ins_last_7_days: checkIns,
+  }, null, 1);
+  const shape = (list: any[]) => (list || []).slice(0, 3).map((a: any) => ({
+    title: String(a.title || '').slice(0, 120), why: String(a.why || '').slice(0, 300),
+    tab: TABS.includes(a.tab) ? a.tab : null,
+  }));
+  if (!KEY) {
+    try { return json(200, { ok: true, counts, actions: shape(await groqActions(sysText, numbers)) }); }
+    catch { return json(200, { ok: true, counts, actions: [], error: 'failed' }); }
+  }
   try {
     const client = new Anthropic({ apiKey: KEY });
     const msg = await client.messages.create({

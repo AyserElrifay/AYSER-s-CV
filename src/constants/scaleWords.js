@@ -6,7 +6,7 @@ const S = {
   en: ['Vibe Match', 'Official table', 'Near me', 'Cities', 'Moments lives in these cities. Pick one to see its tables.', '{n} upcoming', 'For this table', 'Written for who is here', 'Three more',
     'Certified Host', 'Your tables are Official Moments Tables: check-in QR and the card deck, ready from the first minute.', 'Host an official table', '{n}/5 stamps to become a Certified Host',
     'My Global Track goal', 'Youth exchange', 'Digital nomad', 'Study abroad', 'Work abroad', 'Travel', 'Global', 'in now from'],
-  ar: ['توافق', 'ترابيزة رسمية', 'جنبي', 'المدن', 'Moments موجودة في المدن دي. اختار واحدة تشوف ترابيزاتها.', '{n} ترابيزات', 'للترابيزة دي', 'مكتوبة للي قاعدين', 'تلاتة كمان',
+  ar: ['توافق', 'ترابيزة رسمية', 'جنبي', 'المدن', 'مومنتس موجودة في المدن دي. اختار واحدة تشوف ترابيزاتها.', '{n} ترابيزات', 'للترابيزة دي', 'مكتوبة للي قاعدين', 'تلاتة كمان',
     'هوست معتمد', 'ترابيزاتك بقت رسمية: QR الحضور وكروت اللعب جاهزين من أول دقيقة.', 'اعمل ترابيزة رسمية', '{n}/٥ أختام عشان تبقى هوست معتمد',
     'هدفي في Global Track', 'تبادل شبابي', 'ديجيتال نوماد', 'دراسة بره', 'شغل بره', 'سفر', 'عالمية', 'دلوقتي من'],
   cs: ['Shoda', 'Oficiální stůl', 'Poblíž', 'Města', 'Moments žije v těchto městech. Vyber jedno a uvidíš jeho stoly.', '{n} stolů', 'Pro tento stůl', 'Napsáno pro ty, kdo tu jsou', 'Další tři',

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Text } from 'react-native';
+import React from 'react';
+import { Text } from 'react-native';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 
@@ -13,33 +13,18 @@ const G = {
   day: { en: 'Hello', ar: 'أهلًا', es: 'Hola', fr: 'Salut', it: 'Ciao', pt: 'Olá', nl: 'Hallo', ro: 'Salut', ru: 'Привет', tr: 'Merhaba', cs: 'Ahoj', et: 'Tere', hi: 'नमस्ते', ja: 'こんにちは', ko: '안녕하세요', zh: '你好', uk: 'Привіт' },
   evening: { en: 'Good evening', ar: 'مساء الخير', es: 'Buenas noches', fr: 'Bonsoir', it: 'Buonasera', pt: 'Boa noite', nl: 'Goedenavond', ro: 'Bună seara', ru: 'Добрый вечер', tr: 'İyi akşamlar', cs: 'Dobrý večer', et: 'Tere õhtust', hi: 'शुभ संध्या', ja: 'こんばんは', ko: '좋은 저녁', zh: '晚上好', uk: 'Добрий вечір' },
 };
-const ORDER = ['en', 'ar', 'es', 'fr', 'it', 'pt', 'nl', 'ro', 'ru', 'tr', 'cs', 'et', 'hi', 'ja', 'ko', 'zh', 'uk'];
 
+/* Ayser, later: the whole app in your language, as if it were made in it —
+   so only your own hello now, not a tour of the others; and no emoji */
 export const Greeting = ({ name }) => {
   const { lang } = useLang();
   const h = new Date().getHours();
   const set = G[h < 12 ? 'morning' : h < 17 ? 'day' : 'evening'];
-  const list = [lang, ...ORDER.filter((l) => l !== lang)].filter((l) => set[l]);
   const first = String(name || '').trim().split(/\s+/)[0] || '';
-  const [i, setI] = useState(0);
-  const fade = useRef(new Animated.Value(1)).current;
-  const tick = useRef(false);
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (i === 0 && !tick.current) { tick.current = true; return; }   // your own hello stays twice as long
-      tick.current = false;
-      Animated.timing(fade, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
-        setI((x) => (x + 1) % list.length);
-        Animated.timing(fade, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-      });
-    }, 2600);
-    return () => clearInterval(id);
-  }, [list.length, i]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hello = set[lang] || set.en;
   return (
-    <Animated.View style={{ opacity: fade }}>
-      <Text style={{ color: i === 0 ? C.text : C.dim, fontSize: 14, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>
-        {set[list[i]] + (i === 0 && first ? (list[0] === 'ar' ? ' يا ' : ', ') + first : '') + ' 👋'}
-      </Text>
-    </Animated.View>
+    <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>
+      {hello + (first ? (lang === 'ar' ? ' يا ' : ', ') + first : '')}
+    </Text>
   );
 };

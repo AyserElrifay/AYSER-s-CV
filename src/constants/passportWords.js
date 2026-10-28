@@ -16,7 +16,7 @@ const S = {
     'Point at the QR on the table', 'No camera here. Open your phone’s camera on the QR — it opens Moments.',
     'Check-in QR', 'Guests scan this at the table. It changes every 30 seconds, so a photo of it is useless.', '{n} stamped', 'Stamp', 'Opens 30 minutes before it starts.', 'This table has closed.',
     'Black access expires in {t}', 'Keep the conversation going.', 'Upgrade to Moments Black or attend 3 more events.', 'Go Black', 'Find a table', 'Open to new conversations', 'Off: only your Buddies can write to you.', 'Scan again'],
-  ar: ['جواز سفر Moments', '{n} أختام', 'ختم واحد', '{n} الشهر ده', 'فاضل {n} قعدات وتفتح ٧ أيام رسائل مميزة', 'الرسائل المميزة · فاضل {t}',
+  ar: ['جواز سفر مومنتس', '{n} أختام', 'ختم واحد', '{n} الشهر ده', 'فاضل {n} قعدات وتفتح ٧ أيام رسائل مميزة', 'الرسائل المميزة · فاضل {t}',
     'رسائل ٧ أيام', 'قهوة ببلاش', 'خصم ٣٠٪ على المستوى التاني', 'أول ختم مستنيك على ترابيزة. امسح الـQR أول ما توصل.', 'امسح QR الترابيزة',
     'قهوة ببلاش أو خصم ٢٠٪', 'ورّي الكود ده في كافيه شريك', 'اتستخدم', 'لحد {d}', 'خصم ٣٠٪ على أي ورشة من المستوى التاني — بيتخصم وانت بتحجز.',
     'الختم اتسجّل!', 'حضرت {e}', 'انت نشيط جدًا!', 'فتحت ٧ أيام رسائل مميزة.', 'قهوة ببلاش ليك', 'خصم ٣٠٪ على المستوى التاني ليك', 'افتح الرسائل', 'تمام',

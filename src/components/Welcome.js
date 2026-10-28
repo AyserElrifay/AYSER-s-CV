@@ -114,6 +114,21 @@ const Earth = () => {
   );
 };
 
+/* ── THE OPENING SOUND ── Ayser's rising swell, cut to under two seconds
+   (public/media/open.mp3). A browser will not play sound before a tap,
+   so it plays on the first "Get started" (or "I have an account") — once
+   on this phone, quietly, never again after. */
+const OPENED = 'mm.opened.sound';
+const openSound = () => {
+  try {
+    if (typeof window === 'undefined' || window.localStorage.getItem(OPENED)) return;
+    window.localStorage.setItem(OPENED, '1');
+    const a = new window.Audio(publicMedia('open.mp3'));
+    a.volume = 0.6;
+    a.play().catch(() => {});
+  } catch (e) { /* no sound is fine */ }
+};
+
 /* "As simple as Steve Jobs would make it": black, the Earth, hello,
    one button. Everything else waits until after "Get started". */
 export const Welcome = ({ onStart, onSignIn }) => {
@@ -153,11 +168,11 @@ export const Welcome = ({ onStart, onSignIn }) => {
         </View>
 
         <Animated.View style={{ paddingHorizontal: 28, paddingBottom: insets.bottom + 26, width: '100%', maxWidth: 480, alignSelf: 'center', opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
-          <Pressable onPress={() => { tapLight(); onStart(); }} accessibilityRole="button"
+          <Pressable onPress={() => { tapLight(); openSound(); onStart(); }} accessibilityRole="button"
             style={{ backgroundColor: '#FFF', borderRadius: 999, paddingVertical: 17, alignItems: 'center' }}>
             <Text style={{ color: '#000', fontSize: 17, fontWeight: '700' }}>{t('welcome_start')}</Text>
           </Pressable>
-          <Pressable onPress={() => { tapLight(); onSignIn(); }} accessibilityRole="button" hitSlop={8} style={{ paddingVertical: 16, alignItems: 'center' }}>
+          <Pressable onPress={() => { tapLight(); openSound(); onSignIn(); }} accessibilityRole="button" hitSlop={8} style={{ paddingVertical: 16, alignItems: 'center' }}>
             <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 15, fontWeight: '600' }}>{t('welcome_have')}</Text>
           </Pressable>
         </Animated.View>

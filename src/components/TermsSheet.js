@@ -39,14 +39,17 @@ export const TermsSheet = ({ onClose }) => {
           <Text style={{ color: C.faint, fontSize: 12, marginBottom: 4 }}>Moments — Terms of Use · last updated {new Date().getFullYear()}</Text>
 
           <H>1. Using Moments</H>
-          <P>Moments is a social app for sharing photos, videos, moments, music and messages with real people. You must be old enough to use it under the laws of your country. Be kind and follow these terms — accounts that break them can be limited or removed.</P>
+          <P>Moments is a social app for meeting real people — tables, circles and plans — and sharing photos, videos and messages with them. You must be old enough to use it under the laws of your country. Be kind and follow these terms — accounts that break them can be limited or removed.</P>
 
           <H>2. Your content is yours — and your responsibility</H>
           <P>You keep ownership of everything you post or upload. By uploading, you confirm that you own it or have the right to share it, and you give Moments a licence to host and display it inside the app so other users can see it.</P>
           <P>You must NOT upload anything you don't have the rights to — including music, video, or work owned by someone else. Uploading copyrighted material you don't own is against these terms, and the responsibility for it is yours, not the app's.</P>
 
-          <H>3. Music</H>
-          <P>Tracks in the Music Hub are either supplied by Moments under a royalty-free / open licence (shown with the track), or uploaded by creators who confirm they own the rights. Only use a track in your own posts through the in-app tools, which keep the required credit attached.</P>
+          <H>3. Memberships, cancelling and refunds</H>
+          <P>Moments+ and Moments Black are paid through Lemon Squeezy, our reseller and merchant of record. You can cancel any time in one tap; your membership then runs to the end of the period you paid for and does not renew.</P>
+          <P>First-table guarantee: if your first table with a membership was not what we promised, tell us within 7 days and we refund that first payment.</P>
+          <P>If we close an account for breaking these terms, its membership stops renewing at once. We refund the unused part of what was paid in advance — except when the account was closed for threats, harassment, sexual content, fraud or anything illegal, where no refund is owed beyond what the law requires.</P>
+          <P>Gifts and promo codes have no cash value and end on the date shown.</P>
 
           <H>4. What's not allowed</H>
           <P>No content that is illegal, hateful, harassing, violent, sexual involving minors, or that infringes someone's copyright or privacy. No spam or scams. No impersonation.</P>

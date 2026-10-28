@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 
@@ -29,7 +30,9 @@ const MAP = {
 };
 export const glyphOf = (e) => MAP[String(e || '').trim()] || null;
 
+/* the icon sits in a View: margins (marginEnd above all) then follow the
+   writing direction, which a bare icon's text style did not in Arabic */
 export const Glyph = ({ e, size = 16, color, style }) => {
   const name = glyphOf(e);
-  return name ? <Ionicons name={name} size={size} color={color || C.text} style={style} /> : null;
+  return name ? <View style={style}><Ionicons name={name} size={size} color={color || C.text} /></View> : null;
 };

@@ -167,7 +167,7 @@ const Attention = ({ a, tabs, onTab, onClose }) => {
           </>
         ) : (
           <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 10 }}>
-            {a.error === 'not_configured' ? "Papyrus's three actions need ANTHROPIC_API_KEY." : a.error === 'no_function' ? "Papyrus's three actions need the studio-advice function deployed." : a.error ? 'Papyrus could not answer this time.' : ''}
+            {a.error === 'not_configured' ? 'Papyrus has no AI key on the server yet.' : a.error === 'no_function' ? 'Run the server setup once more, then ask again.' : a.error ? 'Papyrus could not answer this time — ask again in a minute.' : ''}
           </Text>
         )}
       </ScrollView>
@@ -670,6 +670,7 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
   const [bSaved, setBSaved] = useState(false);
   const [bKnow, setBKnow] = useState(null);   // knowledge entries
   const [bTitle, setBTitle] = useState('');
+  const [bTeach, setBTeach] = useState(false);
   const [bContent, setBContent] = useState('');
   const [bUrl, setBUrl] = useState('');
   const [bBusy, setBBusy] = useState(false);
@@ -815,7 +816,6 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
         {owner ? <View style={{ marginHorizontal: 16, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, flexDirection: 'row', paddingVertical: 14 }}>
           <Stat n={stats && stats.users} l="USERS" />
           <Stat n={stats && stats.posts} l="POSTS" />
-          <Stat n={stats && stats.tracks} l="TRACKS" />
           <Stat n={stats && stats.openReports} l="REPORTS" tint={stats && stats.openReports ? C.coral : C.text} />
           <Stat n={stats && stats.newFeedback} l="FEEDBACK" tint={stats && stats.newFeedback ? C.purple : C.text} />
         </View> : null}
@@ -1140,29 +1140,31 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
 
           {tab === 'bardi' ? (
             <>
-              <Text style={{ color: C.dim, fontSize: 12, lineHeight: 18, marginBottom: 12 }}>
-                This is your Papyrus control room. Steer Papyrus's persona and teach it from books/content — it applies to every user's Papyrus instantly, no code changes.
+              {/* Ayser: "ليه التعقيد". One box; teaching from a text waits behind a link */}
+              <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginBottom: 12 }}>
+                Write what Papyrus should always know or never do. It applies to everybody's Papyrus at once.
               </Text>
-
-              {/* Papyrus's steering instructions */}
-              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 6 }}>BARDI'S INSTRUCTIONS</Text>
+              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 6 }}>WHAT PAPYRUS SHOULD ALWAYS KNOW</Text>
               {bInstr == null ? <ActivityIndicator color={C.purple} style={{ marginVertical: 20 }} /> : (
                 <>
                   <TextInput
-                    placeholder="How Papyrus should behave, extra rules, tone, things it should always know…"
+                    placeholder="e.g. Answer in Egyptian Arabic. Never give medical advice. Weekly Drops are on Thursdays."
                     placeholderTextColor={C.faint} multiline value={bInstr} onChangeText={setBInstr}
                     style={{ color: C.text, fontSize: 13.5, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, minHeight: 100, textAlignVertical: 'top', marginBottom: 8 }}
                   />
                   <Pressable onPress={saveInstr}>
-                    <View style={{ backgroundColor: C.purple, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginBottom: 18 }}>
-                      <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{bSaved ? 'Saved ✓' : 'Save instructions'}</Text>
+                    <View style={{ backgroundColor: C.text, borderRadius: 999, paddingVertical: 12, alignItems: 'center', marginBottom: 18 }}>
+                      <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '700' }}>{bSaved ? 'Saved' : 'Save'}</Text>
                     </View>
                   </Pressable>
                 </>
               )}
 
-              {/* Knowledge / books */}
-              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 6 }}>📚 BOOKS & KNOWLEDGE BARDI LEARNS FROM</Text>
+              {/* teaching from a text: optional, folded away */}
+              <Pressable onPress={() => setBTeach((x) => !x)} accessibilityRole="button" style={{ marginBottom: 10 }}>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '600', textDecorationLine: 'underline' }}>{bTeach ? 'Hide' : 'Teach it from a text (optional)'}</Text>
+              </Pressable>
+              {bTeach ? <>
               <View style={{ backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginBottom: 14 }}>
                 <TextInput
                   placeholder="Title (e.g. My coaching method, Chapter 1…)" placeholderTextColor={C.faint}
@@ -1199,7 +1201,7 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
                 bKnow.map((k) => (
                   <View key={k.id} style={{ backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 12, marginBottom: 10 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', flex: 1 }} numberOfLines={1}>📖 {k.title}</Text>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', flex: 1 }} numberOfLines={1}>{k.title}</Text>
                       <Pressable onPress={() => removeKnowledge(k.id)} hitSlop={8}>
                         <Ionicons name="trash-outline" size={17} color={C.coral} />
                       </Pressable>
@@ -1207,6 +1209,7 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
                     <Text style={{ color: C.dim, fontSize: 12, marginTop: 4, lineHeight: 17 }} numberOfLines={3}>{k.content}</Text>
                   </View>
                 ))}
+              </> : null}
             </>
           ) : null}
         </ScrollView>

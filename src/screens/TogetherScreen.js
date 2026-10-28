@@ -237,7 +237,7 @@ const ideaKey = (g) => ((activityOf(String(g.title || '') + ' ' + String(g.kind 
    buddies you met at a table and both chose to keep */
 const MEET = {
   en: ['Live Language Lounges', 'Practise speaking, any time', 'Moments Buddies', 'People you met and kept'],
-  ar: ['غرف اللغات المباشرة', 'اتمرّن تتكلم في أي وقت', 'Moments Buddies', 'ناس قابلتهم وفضلتوا على تواصل'],
+  ar: ['غرف اللغات المباشرة', 'اتمرّن تتكلم في أي وقت', 'مومنتس Buddies', 'ناس قابلتهم وفضلتوا على تواصل'],
   cs: ['Živé jazykové lounge', 'Procvičuj mluvení kdykoli', 'Moments Buddies', 'Lidé, které jsi potkal/a a nechal/a si'],
   es: ['Salas de idiomas en vivo', 'Practica cuando quieras', 'Moments Buddies', 'Gente que conociste y conservas'],
   et: ['Keelelounge’id otse', 'Harjuta rääkimist millal tahes', 'Moments Buddies', 'Inimesed, keda kohtasid ja hoidsid'],
