@@ -11,7 +11,7 @@ import { ME, av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { createPost } from '../services/posts';
 import { uploadMedia, uploadCapture } from '../services/social';
-import { compressImage } from '../lib/storage';
+import { smallImage } from '../lib/storage';
 import { useAuth } from '../context/AuthContext';
 import { tapSuccess } from '../utils/feedback';
 import { Micro } from './Micro';
@@ -198,10 +198,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
         let mediaUrl = null;
         if (imageUri) {
           // shrink to feed size before uploading — same look, ~6x fewer bytes
-          const small = Platform.OS === 'web' ? await compressImage(imageUri, 1080, 0.8) : imageUri;
-          const shrunk = small !== imageUri;
-          const ext = shrunk ? 'jpg' : (imageMime.split('/')[1] === 'jpeg' ? 'jpg' : (imageMime.split('/')[1] || 'jpg'));
-          mediaUrl = await uploadCapture(user.id, small, ext, shrunk ? 'image/jpeg' : imageMime);
+          const s = Platform.OS === 'web' ? await smallImage(imageUri, 1080, 0.8) : { uri: imageUri, ext: null, type: null };
+          const ext = s.ext || (imageMime.split('/')[1] === 'jpeg' ? 'jpg' : (imageMime.split('/')[1] || 'jpg'));
+          mediaUrl = await uploadCapture(user.id, s.uri, ext, s.type || imageMime);
         }
         const row = await createPost({
           userId: user.id,

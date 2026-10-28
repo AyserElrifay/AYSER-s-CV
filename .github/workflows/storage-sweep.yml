@@ -1,0 +1,59 @@
+# ─── EMPTY THE STORAGE TRASH, ONCE A DAY ─────────────────────────────
+# Ayser: keep storage small and free. The database lists files nobody
+# can reach any more (a deleted moment's picture, an expired story's
+# clip, a replaced avatar — RUN_ME.sql, "KEEP STORAGE SMALL"). This job
+# deletes exactly those files from the "media" bucket through the
+# Storage API, then crosses them off the list. It also runs the daily
+# tidy-up of old rows, in case the database has no scheduler.
+#
+# Uses the SUPABASE_ACCESS_TOKEN secret that "Set up Moments backend"
+# already uses. The service key is read from the Supabase API inside
+# the job and masked; it is never printed or stored.
+name: Storage sweep
+
+on:
+  schedule:
+    - cron: '41 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    env:
+      REF: dvddiyztpyyuultndzso
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - name: Empty the trash
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then echo "::error::SUPABASE_ACCESS_TOKEN is missing."; exit 1; fi
+          T=$(printf '%s' "$SUPABASE_ACCESS_TOKEN" | tr -d '[:space:]')
+          echo "::add-mask::$T"
+          sql() { jq -n --arg q "$1" '{query: $q}' | curl -sS -f -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+                    -H "Authorization: Bearer $T" -H 'Content-Type: application/json' --data-binary @-; }
+
+          echo "Tidy-up of old rows:"; sql "select public.tidy_up() as done" | jq -c '.[0].done // .'
+
+          paths=$(sql "select coalesce(json_agg(path), '[]'::json) as p from (select path from public.storage_trash order by at limit 900) x" | jq -c '.[0].p')
+          n=$(printf '%s' "$paths" | jq 'length')
+          echo "Files to delete: $n"
+          [ "$n" = "0" ] && exit 0
+
+          KEY=$(curl -sS -f "https://api.supabase.com/v1/projects/$REF/api-keys?reveal=true" -H "Authorization: Bearer $T" \
+                 | jq -r '[.[] | select(.name == "service_role")][0].api_key // empty')
+          [ -n "$KEY" ] || { echo "::error::Could not read the service key."; exit 1; }
+          echo "::add-mask::$KEY"
+
+          code=$(jq -n --argjson p "$paths" '{prefixes: $p}' | curl -sS -o /tmp/del.json -w '%{http_code}' -X DELETE \
+                   "https://$REF.supabase.co/storage/v1/object/media" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
+                   -H 'Content-Type: application/json' --data-binary @-)
+          echo "Storage answered HTTP $code"
+          [ "$code" = "200" ] || { head -c 500 /tmp/del.json; echo; exit 1; }
+
+          # cross off what was sent (a file already gone counts as done)
+          list=$(printf '%s' "$paths" | jq -r 'map("'"'"'" + gsub("'"'"'"; "'"''"'") + "'"'"'") | join(",")')
+          sql "delete from public.storage_trash where path in ($list)" > /dev/null
+          echo "Done: $n files deleted."

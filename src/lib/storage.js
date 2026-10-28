@@ -296,7 +296,7 @@ async function uploadToSupabase(userId, uri, ext, contentType, opts) {
    JPEG q0.85 keeps the picture visually identical while slashing
    storage + bandwidth. Returns the original uri on any failure or on
    native (no canvas). */
-export function compressImage(uri, maxSide = 1600, quality = 0.85) {
+export function compressImage(uri, maxSide = 1600, quality = 0.85, type = 'image/jpeg') {
   return new Promise((resolve) => {
     if (typeof window === 'undefined' || !window.document) return resolve(uri);
     try {
@@ -310,7 +310,7 @@ export function compressImage(uri, maxSide = 1600, quality = 0.85) {
           canvas.width = Math.round(w * scale);
           canvas.height = Math.round(h * scale);
           canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          resolve(canvas.toDataURL(type, quality));
         } catch (e) { resolve(uri); }
       };
       img.onerror = () => resolve(uri);
@@ -319,12 +319,31 @@ export function compressImage(uri, maxSide = 1600, quality = 0.85) {
   });
 }
 
+/* Smaller still: WebP where the browser can write it (about a third
+   fewer bytes than JPEG at the same look — less storage, faster feed),
+   JPEG where it cannot (older Safari hands back a PNG, which is bigger,
+   so it is asked once and remembered). Returns the file and its type. */
+let webpOk = null;
+const canWebp = () => {
+  if (webpOk === null) {
+    try { const c = window.document.createElement('canvas'); c.width = c.height = 2; webpOk = c.toDataURL('image/webp', 0.8).indexOf('data:image/webp') === 0; } catch (e) { webpOk = false; }
+  }
+  return webpOk;
+};
+export async function smallImage(uri, maxSide = 1080, quality = 0.8) {
+  if (typeof window === 'undefined' || !window.document) return { uri, ext: null, type: null };
+  const webp = canWebp();
+  const out = await compressImage(uri, maxSide, quality, webp ? 'image/webp' : 'image/jpeg');
+  if (out === uri) return { uri, ext: null, type: null };
+  return webp ? { uri: out, ext: 'webp', type: 'image/webp' } : { uri: out, ext: 'jpg', type: 'image/jpeg' };
+}
+
 /* A plan's photo (green_set_photo in RUN_ME.sql): always to OUR
    storage, into the uploader's own folder — the database accepts no
    other address — and small, because it is shown on a phone list. */
 export async function uploadPlanPhoto(userId, file) {
-  const small = await compressImage(URL.createObjectURL(file), 1280, 0.82);
-  return uploadToSupabase(userId, small, 'jpg', 'image/jpeg');
+  const s = await smallImage(URL.createObjectURL(file), 1280, 0.82);
+  return uploadToSupabase(userId, s.uri, s.ext || 'jpg', s.type || 'image/jpeg');
 }
 
 /* One entry point for every upload. Tries R2, falls back to Supabase.

@@ -14,7 +14,7 @@ import { useLang } from '../context/LanguageContext';
 import { createPost } from '../services/posts';
 import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
-import { compressImage, MAX_UPLOAD_BYTES, uploadEphemeral } from '../lib/storage';
+import { smallImage, MAX_UPLOAD_BYTES, uploadEphemeral } from '../lib/storage';
 import { compressVideo, probeVideo, videoPlan, REEL_MAX_SECONDS } from '../lib/videoCompress';
 import { incrementTrackUse, publishSound } from '../services/music';
 /* Both called, neither imported — the same bug as the two sheets below,
@@ -1117,10 +1117,10 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
 
          Now that a reel can run the full three minutes, the bitrate has
          to be chosen so that the longest possible recording still fits
-         without needing a second pass: 1.8 Mbps is about 40MB for three
-         minutes, and still sharp on a phone. A shorter clip is simply a
-         smaller file. */
-      const opts = { videoBitsPerSecond: 1800000 };
+         without needing a second pass. 1.4 Mbps (Ayser: keep storage
+         small and free) is about 31MB for three minutes, still sharp at
+         720p on a phone. A shorter clip is simply a smaller file. */
+      const opts = { videoBitsPerSecond: 1400000 };
       if (mime) opts.mimeType = mime;
       const rec = new MediaRecorder(recStream, opts);
       recorderRef.current = rec;
@@ -1804,12 +1804,13 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
     const alreadyUp = !!shot.remote && !(shot.kind === 'photo' && needsBake);
     if (isWeb && shot.kind === 'photo' && needsBake) {
       const baked = await bakeAll(shot.uri);
-      workingShot = { ...shot, uri: baked, blob: null, ext: 'jpg', contentType: 'image/jpeg' };
+      const s = await smallImage(baked, 1080, 0.8);
+      workingShot = { ...shot, uri: s.uri, blob: null, ext: s.ext || 'jpg', contentType: s.type || 'image/jpeg' };
     } else if (isWeb && shot.kind === 'photo') {
       // gallery pictures arrive full-resolution — shrink to feed size
       // (invisible on a phone, ~6x fewer bytes stored & downloaded)
-      const small = await compressImage(shot.uri, 1080, 0.8);
-      workingShot = { ...shot, uri: small, blob: null, ext: 'jpg', contentType: 'image/jpeg' };
+      const s = await smallImage(shot.uri, 1080, 0.8);
+      workingShot = { ...shot, uri: s.uri, blob: null, ext: s.ext || 'jpg', contentType: s.type || 'image/jpeg' };
     }
     try {
       // ── Moment mode: send the snap straight into a chat ──

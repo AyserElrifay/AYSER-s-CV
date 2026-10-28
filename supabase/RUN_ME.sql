@@ -24260,6 +24260,109 @@ grant execute on function public.chat_unread(timestamptz) to authenticated;
 
 notify pgrst, 'reload schema';
 
+-- ════════════════════════════════════════════════════════════════════
+--  KEEP STORAGE SMALL · NOTHING STAYS THAT NOBODY CAN SEE
+--  (Ayser, October 2026: "خلّي التخزين دايماً في المكان الأوفر … نمسح
+--   الحاجات اللي ملهاش لزمة … وأنا مش هدفع فلوس")
+--  · A file nobody can reach any more is put in storage_trash: the
+--    picture or clip of a deleted moment (unless another moment uses the
+--    same file), an expired story's file (unless a moment uses it), an
+--    avatar somebody replaced. The daily GitHub job
+--    (.github/workflows/storage-sweep.yml) deletes those files through
+--    the Storage API and empties the list. Nothing else is ever deleted.
+--  · tidy_up(), once a day by pg_cron: stories gone for a day, story
+--    views older than a week, rate-limit tries older than two days,
+--    buddy pings older than a month, notifications older than 90 days.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+
+create table if not exists public.storage_trash (
+  path text primary key,          -- inside the public "media" bucket
+  at   timestamptz not null default now()
+);
+alter table public.storage_trash enable row level security;   -- server only
+revoke all on public.storage_trash from anon, authenticated;
+
+-- "…/storage/v1/object/public/media/<path>" → "<path>"; anything else → null
+create or replace function public.media_path(u text)
+returns text language sql immutable as $$
+  select nullif(split_part(split_part(coalesce(u, ''), '/object/public/media/', 2), '?', 1), '');
+$$;
+
+create or replace function public.media_in_use(u text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (
+    exists (select 1 from public.posts where media_url = u or thumb_url = u)
+    or exists (select 1 from public.stories where media_url = u and expires_at > now())
+    or exists (select 1 from public.profiles where avatar_url = u));
+$$;
+revoke all on function public.media_in_use(text) from public, anon, authenticated;
+
+create or replace function public.trash_media(u text)
+returns void language plpgsql security definer set search_path = public as $$
+declare p text := public.media_path(u);
+begin
+  if p is null or public.media_in_use(u) then return; end if;
+  delete from public.media_library where url = u;
+  insert into public.storage_trash (path) values (p) on conflict do nothing;
+end $$;
+revoke all on function public.trash_media(text) from public, anon, authenticated;
+
+create or replace function public.posts_trash_media()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  perform public.trash_media(old.media_url);
+  perform public.trash_media(old.thumb_url);
+  return null;
+end $$;
+drop trigger if exists posts_trash_media on public.posts;
+create trigger posts_trash_media after delete on public.posts
+  for each row execute function public.posts_trash_media();
+
+create or replace function public.stories_trash_media()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  perform public.trash_media(old.media_url);
+  return null;
+end $$;
+drop trigger if exists stories_trash_media on public.stories;
+create trigger stories_trash_media after delete on public.stories
+  for each row execute function public.stories_trash_media();
+
+create or replace function public.avatar_trash_media()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if old.avatar_url is distinct from new.avatar_url then perform public.trash_media(old.avatar_url); end if;
+  return null;
+end $$;
+drop trigger if exists avatar_trash_media on public.profiles;
+create trigger avatar_trash_media after update of avatar_url on public.profiles
+  for each row execute function public.avatar_trash_media();
+
+create or replace function public.tidy_up()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare s int := 0; v int := 0; b int := 0; p int := 0; n int := 0;
+begin
+  delete from public.stories where expires_at < now() - interval '1 day'; get diagnostics s = row_count;
+  delete from public.story_views where viewed_at < now() - interval '7 days'; get diagnostics v = row_count;
+  delete from public.biz_tries where at < now() - interval '2 days'; get diagnostics b = row_count;
+  delete from public.buddy_pings where at < now() - interval '30 days'; get diagnostics p = row_count;
+  delete from public.notifications where created_at < now() - interval '90 days'; get diagnostics n = row_count;
+  return jsonb_build_object('stories', s, 'story_views', v, 'biz_tries', b, 'buddy_pings', p, 'notifications', n,
+                            'trash', (select count(*) from public.storage_trash));
+end $$;
+revoke all on function public.tidy_up() from public, anon, authenticated;
+
+do $do$
+begin
+  create extension if not exists pg_cron;
+  perform cron.unschedule(jobid) from cron.job where jobname = 'tidy-up';
+  perform cron.schedule('tidy-up', '23 3 * * *', 'select public.tidy_up()');
+exception when others then raise notice 'pg_cron skipped: %', sqlerrm;
+end $do$;
+
+notify pgrst, 'reload schema';
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
