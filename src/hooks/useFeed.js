@@ -80,6 +80,8 @@ export const toCard = (row) => ({
     ? { id: row.reposted_by.id, name: row.reposted_by.name, avatar: row.reposted_by.avatar_url || AV_NEUTRAL }
     : null,
   tagged: row.tagged || [],
+  // a camera moment's end (RUN_ME.sql posts_lifetime); the card counts down to it
+  expiresAt: row.expires_at || null,
 });
 
 /* ─── THE FEED, WITHOUT THE WAIT ──────────────────────────────────────
@@ -121,7 +123,8 @@ function readCache() {
     if (!c || c.uid !== uid || !Array.isArray(c.posts)) return null;
     /* a day-old feed is a worse first look than a skeleton */
     if (Date.now() - (c.at || 0) > 24 * 3600e3) return null;
-    return actionFeed(c.posts, uid);
+    // a moment whose 48 hours ran out since then is not shown again
+    return actionFeed(c.posts.filter((x) => !x.expiresAt || new Date(x.expiresAt).getTime() > Date.now()), uid);
   } catch (e) { return null; }
 }
 

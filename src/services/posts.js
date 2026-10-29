@@ -3,6 +3,11 @@ import { supabase } from '../lib/supabase';
 /* Feed data access. Rows come back with the author profile joined in
    (posts.user_id → profiles) so the feed renders in a single query. */
 
+/* a camera moment lives 48 hours (posts.expires_at, RUN_ME.sql "A MOMENT
+   LIVES 48 HOURS"); past that nobody else sees it, and the server
+   deletes it that night unless a member kept it for themselves */
+export const alive = (r) => !r || !r.expires_at || new Date(r.expires_at).getTime() > Date.now();
+
 export async function fetchFeed() {
   const { data, error } = await supabase
     .from('posts')
@@ -11,7 +16,7 @@ export async function fetchFeed() {
     .limit(30);
   if (error) throw error;
   // flatten the embedded counts so every caller sees plain numbers
-  return (data || []).map((row) => ({
+  return (data || []).filter(alive).map((row) => ({
     ...row,
     vibes: (row.vibe_rows && row.vibe_rows[0] && row.vibe_rows[0].count) || 0,
     comments: (row.comment_rows && row.comment_rows[0] && row.comment_rows[0].count) || 0,
@@ -31,7 +36,7 @@ export async function fetchReposts(limit = 24) {
     .limit(limit);
   if (error) return [];                       // table/FK not there yet → feed still loads
   return (data || [])
-    .filter((r) => r.post && r.by)
+    .filter((r) => r.post && r.by && alive(r.post))
     .map((r) => ({
       ...r.post,
       vibes: (r.post.vibe_rows && r.post.vibe_rows[0] && r.post.vibe_rows[0].count) || 0,
@@ -52,7 +57,7 @@ export async function fetchRepostsByUser(userId) {
     .limit(60);
   if (error) return [];
   return (data || [])
-    .filter((r) => r.post)
+    .filter((r) => r.post && alive(r.post))
     .map((r) => ({
       ...r.post,
       vibesCount: (r.post.vibes && r.post.vibes[0] && r.post.vibes[0].count) || 0,
@@ -72,7 +77,7 @@ export async function searchPosts(q) {
     .order('created_at', { ascending: false })
     .limit(15);
   if (error) throw error;
-  return (data || []).map((row) => ({
+  return (data || []).filter(alive).map((row) => ({
     ...row,
     vibes: (row.vibe_rows && row.vibe_rows[0] && row.vibe_rows[0].count) || 0,
     comments: (row.comment_rows && row.comment_rows[0] && row.comment_rows[0].count) || 0,
@@ -100,7 +105,7 @@ export async function fetchPostsNearby({ lat, lng, name }, radiusKm = 0.4) {
     .order('created_at', { ascending: false })
     .limit(24);
   if (error) throw error;
-  return (data || []).map((row) => ({
+  return (data || []).filter(alive).map((row) => ({
     ...row,
     vibes: (row.vibe_rows && row.vibe_rows[0] && row.vibe_rows[0].count) || 0,
     comments: (row.comment_rows && row.comment_rows[0] && row.comment_rows[0].count) || 0,
@@ -116,14 +121,14 @@ export async function fetchMomentPins(days = 3, limit = 120) {
   const since = new Date(Date.now() - days * 86400000).toISOString();
   const { data, error } = await supabase
     .from('posts')
-    .select('id, user_id, type, media_url, caption, place, lat, lng, created_at, user:profiles!posts_user_id_fkey(name, avatar_url, country_flag)')
+    .select('id, user_id, type, media_url, caption, place, lat, lng, created_at, expires_at, user:profiles!posts_user_id_fkey(name, avatar_url, country_flag)')
     .not('lat', 'is', null)
     .not('lng', 'is', null)
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return data || [];
+  return (data || []).filter(alive);
 }
 
 /* One post by id — powers shared links (?post=…). */
@@ -156,14 +161,15 @@ export async function fetchVideos() {
 
 /* Your real moment grid — posts + a real star (vibe) count per post,
    used by the profile screen. */
-export async function fetchMyMoments(userId) {
+export async function fetchMyMoments(userId, own = false) {
   const { data, error } = await supabase
     .from('posts')
     .select('*, vibes:post_vibes(count)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []).map((row) => ({
+  // your own page also keeps what you saved; anybody else's shows what is still live
+  return (data || []).filter((r) => alive(r) || (own && r.keep)).map((row) => ({
     ...row,
     vibesCount: (row.vibes && row.vibes[0] && row.vibes[0].count) || 0,
   }));
@@ -266,7 +272,7 @@ export async function fetchTravelPlans({ q = '', limit = 40 } = {}) {
   return rows.slice(0, limit);
 }
 
-export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, durationSec, textBg, lat, lng, squadName, sound, soundReuse, plan, intent, gatheringId }) {
+export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, durationSec, textBg, lat, lng, squadName, sound, soundReuse, plan, intent, gatheringId, keep }) {
   let payload = {
     user_id: userId,
     type,
@@ -303,6 +309,8 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
        video that was. The credit and the "made with this sound" list
        both hang off this one column. */
     sound_post_id: (sound && sound.soundPostId) || null,
+    // "Save to my private memories" — the server keeps it only for members
+    keep: !!keep,
   };
   const insert = () => supabase
     .from('posts')
@@ -353,6 +361,13 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
    This asks only for the ones still in the future, soonest first, so a
    screen can show what there is to join rather than what was said
    recently. */
+/* keep one of your own moments past its 48 hours, or let it go */
+export async function keepPost(postId, keep) {
+  const { data, error } = await supabase.rpc('post_keep', { p_id: postId, p_keep: !!keep });
+  if (error) return { ok: false };
+  return data || { ok: false };
+}
+
 export async function fetchUpcoming({ limit = 30 } = {}) {
   const now = new Date().toISOString();
   const { data, error } = await supabase

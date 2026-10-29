@@ -43,6 +43,8 @@ import { setupNotice } from '../lib/plumbing';
 import { grabFrames, pickBest } from '../lib/frames';
 import { suggestTags } from '../lib/classify';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { lw, MOMENT_HOURS } from '../constants/loopWords';
+import { readPlan } from '../lib/feedGate';
 
 /* ─── THE CAPTURE SCREEN — easier than IG, TikTok and Snap combined ───
    One tap opens a LIVE viewfinder. Tap the shutter for a photo, hold it
@@ -804,6 +806,10 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
      ceiling: past that it stops being a subject and starts being spam. */
   const [tags, setTags] = useState([]);
   const [tagText, setTagText] = useState('');
+  // "Save to my private memories" — members only; the server checks it again
+  const member = readPlan().tier !== 'FREE';
+  const [keep, setKeep] = useState(false);
+  const [keepNote, setKeepNote] = useState(false);
   const [tagIdeas, setTagIdeas] = useState([]);
 
   /* iOS SOMETIMES THROWS THE PAGE AWAY.
@@ -1907,7 +1913,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
           onPosted && onPosted(row);
         } else {
           const row = await createPost({
-            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, soundReuse, thumbUrl, durationSec,
+            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, soundReuse, thumbUrl, durationSec, keep: member && keep,
             place: onMap ? (placeName.trim() || null) : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -2715,24 +2721,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                           </Pressable>
                         ))}
                       </ScrollView>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 12, marginTop: 7 }}>
-                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '900' }}>#</Text>
-                        <TextInput
-                          placeholder={t('cap_own_tag')}
-                          placeholderTextColor="rgba(255,255,255,0.45)"
-                          value={tagText}
-                          onChangeText={setTagText}
-                          onSubmitEditing={() => addTag(tagText)}
-                          returnKeyType="done"
-                          autoCapitalize="none"
-                          style={{ flex: 1, color: '#FFF', fontSize: 13, paddingVertical: Platform.OS === 'ios' ? 9 : 4, marginLeft: 4 }}
-                        />
-                        {tagText.trim() ? (
-                          <Pressable onPress={() => addTag(tagText)} hitSlop={8}>
-                            <Text style={{ color: C.gold, fontSize: 12.5, fontWeight: '900' }}>{t('add')}</Text>
-                          </Pressable>
-                        ) : null}
-                      </View>
                     </>
                   ) : null}
                 </View>
@@ -2839,10 +2827,32 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                 </Pressable>
               ) : null}
 
+              {/* a camera moment lives 48 hours in the feed; a member may keep it for themselves */}
+              {!sendMode && mode !== 'story' && mode !== 'video' ? (
+                <View style={{ marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="hourglass-outline" size={13} color="rgba(255,255,255,0.75)" />
+                    <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '700', marginHorizontal: 6 }}>{lw(lang, 'cap_life', { h: MOMENT_HOURS })}</Text>
+                  </View>
+                  <Pressable testID="btn-keep-moment" onPress={() => { tapSelection(); if (member) setKeep((v) => !v); else setKeepNote((v) => !v); }} accessibilityRole="switch" accessibilityState={{ checked: keep }} style={{ marginTop: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10 }}>
+                      <Ionicons name={member ? 'bookmark-outline' : 'lock-closed-outline'} size={15} color="#FFF" />
+                      <View style={{ flex: 1, minWidth: 0, marginHorizontal: 9 }}>
+                        <Text numberOfLines={1} style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800' }}>{lw(lang, 'cap_keep')}</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.62)', fontSize: 10.5, marginTop: 1 }}>{member || !keepNote ? lw(lang, 'cap_keep_hint') : lw(lang, 'cap_keep_lock')}</Text>
+                      </View>
+                      <View style={{ width: 42, height: 25, borderRadius: 13, backgroundColor: keep ? '#FFFFFF' : 'rgba(255,255,255,0.22)', padding: 3, justifyContent: 'center', opacity: member ? 1 : 0.5 }}>
+                        <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: keep ? '#000000' : '#FFF', marginLeft: keep ? 17 : 0 }} />
+                      </View>
+                    </View>
+                  </Pressable>
+                </View>
+              ) : null}
+
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 12 : 4, marginRight: 10 }}>
                   <TextInput
-                    placeholder={sendMode ? t('cap_ph_caption') : mode === 'story' ? t('cap_ph_say') : mode === 'video' ? t('cap_ph_title') : t('cap_ph_reel')}
+                    placeholder={sendMode ? t('cap_ph_caption') : mode === 'story' ? t('cap_ph_say') : mode === 'video' ? t('cap_ph_title') : lw(lang, 'cap_note')}
                     placeholderTextColor="rgba(255,255,255,0.55)"
                     value={caption}
                     onChangeText={setCaption}
@@ -2854,7 +2864,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                     <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>
                       {busy
                         ? (upPct > 0 ? t('cap_sending') + ' ' + Math.round(upPct * 100) + '%' : t('cap_sending'))
-                        : sendMode ? t('cap_send_moment') : mode === 'story' ? t('cap_add_story') : mode === 'video' ? t('cap_post_video') : t('cap_post_reel')}
+                        : sendMode ? t('cap_send_moment') : mode === 'story' ? t('cap_add_story') : mode === 'video' ? t('cap_post_video') : lw(lang, 'cap_share')}
                     </Text>
                     {sendMode ? null : <MaterialCommunityIcons name="star-four-points" size={15} color={C.gold} style={{ marginLeft: 6 }} />}
                   </LinearGradient>

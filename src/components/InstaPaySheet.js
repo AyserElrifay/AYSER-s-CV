@@ -8,6 +8,8 @@ import { publicMedia } from '../lib/publicMedia';
 import { smallImage } from '../lib/storage';
 import { INSTAPAY, sendTransfer, myPayment } from '../services/pay';
 import { tapLight, tapSuccess } from '../utils/feedback';
+import { myMembership } from '../services/membership';
+import { writePlan } from '../lib/feedGate';
 import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── PAY BY INSTAPAY ─────────────────────────────────────────────────
@@ -21,14 +23,22 @@ const W = {
     t: 'Pay by InstaPay', plus: 'Moments+', vip: 'Moments Black', month: 'a month', year: 'a year',
     s1: '1 · Send {a} by InstaPay to', copy: 'Copy', copied: 'Copied', qr: 'Or scan this in your bank’s app',
     s2: '2 · Send us the transfer’s screenshot', pick: 'Choose the screenshot', again: 'Choose another', ref: 'Transfer reference (optional)',
-    send: 'Send for approval', wait: 'We have your transfer. The team checks it, usually within a few hours, and your membership starts the moment it is approved. The screenshot is deleted right after.',
+    send: 'Upload Transfer Screenshot to Unlock Immediately',
+    to: 'Paid to the founder, Ayser A. — the name your bank app shows you',
+    toSub: 'While card payments are being set up, founding members pay by instant transfer to the founder’s own account. Every transfer is checked by hand.',
+    pass: 'You are in for the next 24 hours. The team checks the transfer, usually within a few hours, and your plan starts the moment it is approved. The screenshot is deleted right after.',
+    wait: 'We have your transfer. The team checks it, usually within a few hours, and your membership starts the moment it is approved. The screenshot is deleted right after.',
     already: 'Your last transfer is still being checked.', err: 'It did not go through. Try again.', close: 'Close',
   },
   ar: {
     t: 'ادفع بإنستاباي', plus: 'مومنتس+', vip: 'مومنتس بلاك', month: 'في الشهر', year: 'في السنة',
     s1: '١ · حوّل {a} بإنستاباي على', copy: 'انسخ', copied: 'اتنسخ', qr: 'أو امسح ده من أبلكيشن البنك',
     s2: '٢ · ابعتلنا سكرين شوت التحويل', pick: 'اختار السكرين شوت', again: 'اختار واحدة تانية', ref: 'رقم التحويل (اختياري)',
-    send: 'ابعت للمراجعة', wait: 'وصلنا تحويلك. الفريق بيراجعه، غالباً في كام ساعة، والعضوية بتبدأ أول ما يتوافق عليه. والسكرين شوت بيتمسح بعدها على طول.',
+    send: 'ارفع سكرين التحويل وافتح على طول',
+    to: 'الفلوس بتروح للمؤسس، أيسر أ. — ده الاسم اللي هيظهرلك في أبلكيشن البنك',
+    toSub: 'لحد ما الدفع بالكارت يشتغل، الأعضاء المؤسسين بيدفعوا بتحويل لحظي على حساب المؤسس نفسه. وكل تحويل بيتراجع بإيد.',
+    pass: 'العضوية مفتوحة ليك الـ٢٤ ساعة الجاية. الفريق بيراجع التحويل، غالباً في كام ساعة، والاشتراك بيبدأ أول ما يتوافق عليه. والسكرين شوت بيتمسح بعدها على طول.',
+    wait: 'وصلنا تحويلك. الفريق بيراجعه، غالباً في كام ساعة، والعضوية بتبدأ أول ما يتوافق عليه. والسكرين شوت بيتمسح بعدها على طول.',
     already: 'آخر تحويل ليك لسه بيتراجع.', err: 'ماتبعتش. جرّب تاني.', close: 'اقفل',
   },
 };
@@ -70,7 +80,11 @@ export const InstaPaySheet = ({ tier, period, amount, currency = 'EGP', onClose 
     const blob = await (await fetch(shot.uri)).blob();
     const r = await sendTransfer({ tier, period, blob, type: shot.type, ref: ref.trim(), amount });
     setBusy(false);
-    if (r && r.ok) { tapSuccess(); setDone(true); }
+    if (r && r.ok) {
+      tapSuccess(); setDone(r.pass_until ? 'pass' : true);
+      // a first transfer opens a 24-hour pass at once (RUN_ME.sql pay_submit): let the app know
+      if (r.pass_until) myMembership().then((m) => { if (m && m.tier) writePlan({ tier: m.tier }); });
+    }
     else setNote(r && r.reason === 'waiting' ? w.already : w.err);
   };
 
@@ -88,7 +102,7 @@ export const InstaPaySheet = ({ tier, period, amount, currency = 'EGP', onClose 
             <Text style={{ color: '#FFFFFF', fontSize: 30, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.8, marginTop: 8 }}>{w.t}</Text>
 
             {done ? (
-              <Text style={{ color: '#FFFFFF', fontSize: 16, lineHeight: 24, marginTop: 22 }}>{w.wait}</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 16, lineHeight: 24, marginTop: 22 }}>{done === 'pass' ? w.pass : w.wait}</Text>
             ) : (
               <>
                 <Text style={[{ color: '#FFFFFF', fontSize: 15, fontWeight: '600', marginTop: 24 }, NUM]}>{w.s1.replace('{a}', amt)}</Text>
@@ -114,9 +128,17 @@ export const InstaPaySheet = ({ tier, period, amount, currency = 'EGP', onClose 
                   style={{ color: '#FFFFFF', fontSize: 15, borderWidth: 1, borderColor: '#262626', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 12, marginTop: 12, outlineStyle: 'none' }} />
                 <Pressable onPress={send} disabled={!shot || busy} accessibilityRole="button" style={{ marginTop: 16, opacity: shot ? 1 : 0.4 }}>
                   <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-                    {busy ? <ActivityIndicator color="#000000" /> : <Text style={{ color: '#000000', fontSize: 16, fontWeight: '600' }}>{w.send}</Text>}
+                    {busy ? <ActivityIndicator color="#000000" /> : <Text style={{ color: '#000000', fontSize: 15, fontWeight: '600', textAlign: 'center', paddingHorizontal: 14 }}>{w.send}</Text>}
                   </View>
                 </Pressable>
+                {/* who the money goes to, said plainly */}
+                <View style={{ flexDirection: 'row', marginTop: 16 }}>
+                  <Ionicons name="lock-closed-outline" size={14} color="#A3A3A3" style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1, marginStart: 8 }}>
+                    <Text style={{ color: '#D4D4D4', fontSize: 13, fontWeight: '600', lineHeight: 19 }}>{w.to}</Text>
+                    <Text style={{ color: '#737373', fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>{w.toSub}</Text>
+                  </View>
+                </View>
               </>
             )}
             {note ? <Text style={{ color: '#A3A3A3', fontSize: 14, marginTop: 14, textAlign: 'center' }}>{note}</Text> : null}

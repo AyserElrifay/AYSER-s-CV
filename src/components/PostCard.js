@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { videosAround, getVideoQueue } from '../lib/videoQueue';
 import { addSeconds } from '../lib/feedGate';
-import { splitPrompt } from '../constants/loopWords';
+import { splitPrompt, timeLeft } from '../constants/loopWords';
 import { View, Text, Pressable, Image, ImageBackground, Animated, Easing, TextInput, Platform } from 'react-native';
 import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -32,7 +32,7 @@ const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ def
 /* Chips sit on photos, so they stay dark with light text for contrast. */
 const typeChip = (post) => {
   if (post.sponsored) return { label: 'SPONSORED', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.9)' };
-  if (post.type === 'reel') return { label: 'REEL ✦', tint: 'rgba(124,58,237,0.9)', color: '#FFF' };
+  if (post.type === 'reel') return { label: 'MOMENT ✦', tint: 'rgba(124,58,237,0.9)', color: '#FFF' };
   /* "▶ WATCH · undefined" was on every video in the feed. See
      src/lib/clock.js — the length is real now, and when there isn't one
      the chip is simply "▶ WATCH". */
@@ -317,6 +317,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
   const totalVibes = post.vibes + (joined ? 1 : 0) + (vibed ? 1 : 0);
 
   const { t, lang } = useLang();
+  const left = timeLeft(lang, post.expiresAt);
 
   return (
     <Glass style={{ marginBottom: 24, overflow: 'hidden' }}>
@@ -514,7 +515,14 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           <Backdrop post={post} style={mediaAspect ? { aspectRatio: mediaAspect, justifyContent: 'space-between' } : { height: mediaH, justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12 }}>
               <Chip label={tc.label} tint={tc.tint} color={tc.color} />
-              {post.startsIn === 'Live now' ? <Chip label={t('live_badge')} tint="rgba(244,63,94,0.9)" color="#fff" style={{ borderColor: 'transparent' }} /> : null}
+              {post.startsIn === 'Live now' ? <Chip label={t('live_badge')} tint="rgba(244,63,94,0.9)" color="#fff" style={{ borderColor: 'transparent' }} />
+                : left ? (
+                  /* how long this moment has left in the feed */
+                  <View testID="moment-left" style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 10, paddingVertical: 5 }}>
+                    <Ionicons name="hourglass-outline" size={12} color="#FFFFFF" />
+                    <Text style={[{ color: '#FFFFFF', fontSize: 11.5, fontWeight: '700', marginHorizontal: 5 }, { fontVariant: ['tabular-nums'] }]}>{left}</Text>
+                  </View>
+                ) : null}
             </View>
             {post.type === 'vod' ? (
               <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>

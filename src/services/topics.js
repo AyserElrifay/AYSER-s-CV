@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { suggestRooms, roomFor, FYP } from '../lib/classify';
+import { alive } from './posts';
 
 /* ── TOPICS ─────────────────────────────────────────────────────────
    A topic is a real hashtag with a name and a home. Tap one and you
@@ -64,7 +65,7 @@ export async function fetchTopic(slug) {
 export async function fetchTopicPosts(tag, mode = 'recommend', limit = 40, slug = null) {
   const clean = String(tag || '').replace(/[%_(),]/g, ' ').trim();
   if (!clean) return [];
-  const flat = (rows) => (rows || []).map((r) => ({
+  const flat = (rows) => (rows || []).filter(alive).map((r) => ({
     ...r,
     vibes: (r.vibe_rows && r.vibe_rows[0] && r.vibe_rows[0].count) || 0,
     comments: (r.comment_rows && r.comment_rows[0] && r.comment_rows[0].count) || 0,
@@ -133,7 +134,7 @@ export async function fetchFypPosts(limit = 40) {
       vibes: (r.vibe_rows && r.vibe_rows[0] && r.vibe_rows[0].count) || 0,
       comments: (r.comment_rows && r.comment_rows[0] && r.comment_rows[0].count) || 0,
     }))
-    .filter((r) => roomFor(r).slug === FYP)
+    .filter((r) => alive(r) && roomFor(r).slug === FYP)
     .slice(0, limit);
 }
 

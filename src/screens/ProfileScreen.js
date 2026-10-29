@@ -399,7 +399,7 @@ export const ProfileScreen = () => {
       setArtistGenre(p.artist_genre || '');
     }).catch(() => {});
     if (user) myVerificationStatus(user.id).then(setVerifStatus).catch(() => {});
-    fetchMyMoments(user.id).then(setMyMoments).catch(() => {});
+    fetchMyMoments(user.id, true).then(setMyMoments).catch(() => {});
     fetchTaggedPosts(user.id).then(setTaggedMoments).catch(() => {});
     fetchRepostsByUser(user.id).then(setRepostedMoments).catch(() => {});
     countMyCampfires(user.id).then(setCampfiresHosted).catch(() => {});

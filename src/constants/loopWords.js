@@ -27,6 +27,15 @@ const W = {
     fg_unlimited: 'No time limit',
     fg_more: 'Moments+ gives you {m} minutes a day. Black, and Level 4, have no limit.',
     fg_more_cta: 'See memberships',
+    cap_note: 'Add a note to your moment…',
+    cap_share: 'Share Moment',
+    cap_life: 'Lives in the feed for {h} hours',
+    cap_keep: 'Save to my private memories',
+    cap_keep_hint: 'After that only you see it, on your page.',
+    cap_keep_lock: 'Moments+ and Black can keep a moment for themselves.',
+    left_h: '{n}h left',
+    left_m: '{n}m left',
+    kept: 'Kept',
   },
   ar: {
     pp_label: 'صورة النهارده',
@@ -50,6 +59,15 @@ const W = {
     fg_unlimited: 'من غير حد للوقت',
     fg_more: 'مومنتس+ بيديك {m} دقيقة في اليوم. Black والمستوى ٤ من غير حد.',
     fg_more_cta: 'شوف الاشتراكات',
+    cap_note: 'اكتب كلمة على لحظتك…',
+    cap_share: 'شارك اللحظة',
+    cap_life: 'هتفضل في الفيد {h} ساعة',
+    cap_keep: 'احفظها في ذكرياتي الخاصة',
+    cap_keep_hint: 'بعد كده إنت بس اللي هتشوفها، على صفحتك.',
+    cap_keep_lock: 'مومنتس+ وBlack يقدروا يحتفظوا باللحظة لنفسهم.',
+    left_h: 'فاضل {n} ساعة',
+    left_m: 'فاضل {n} دقيقة',
+    kept: 'محفوظة',
   },
 };
 
@@ -60,6 +78,16 @@ export const lw = (lang, k, vars, given) => {
   if (typeof s !== 'string') return s;
   Object.keys(vars || {}).forEach((v) => { s = s.replace('{' + v + '}', lang === 'ar' ? AR(vars[v]) : String(vars[v])); });
   return s;
+};
+/* how long a camera moment stays in the feed (RUN_ME.sql posts_lifetime) */
+export const MOMENT_HOURS = 48;
+/* "18h left" on a moment that is still live, null on one with no end */
+export const timeLeft = (lang, expiresAt, now = Date.now()) => {
+  if (!expiresAt) return null;
+  const ms = new Date(expiresAt).getTime() - now;
+  if (!(ms > 0)) return null;
+  const h = Math.floor(ms / 3600000);
+  return h >= 1 ? lw(lang, 'left_h', { n: h }) : lw(lang, 'left_m', { n: Math.max(1, Math.ceil(ms / 60000)) });
 };
 /* the same prompt for everybody on the same day, in their own language */
 export const todaysPrompt = (lang, d = new Date()) => {
