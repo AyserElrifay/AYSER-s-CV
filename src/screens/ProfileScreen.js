@@ -797,7 +797,7 @@ export const ProfileScreen = () => {
         {/* the Moments Passport: a stamp for every table you sat at (StampKit) */}
         {SUPABASE_READY && user ? <StampBook /> : null}
 
-        {/* the Memory Book: where a moment goes after its 48 hours in the feed */}
+        {/* the Moments Book: one page a day — the photo, the reflection, the tables you checked into */}
         {SUPABASE_READY && user ? <MemoryBook /> : null}
 
         {/* tab strip — only the tabs with something in them. Five icons

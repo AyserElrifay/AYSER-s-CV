@@ -178,7 +178,7 @@ export const ProfileModal = ({ user, onClose }) => {
 
   // ── open their posts for real: text/photo → full PostCard, reel → viewer ──
   const [viewMoment, setViewMoment] = useState(null);
-  const [highlights, setHighlights] = useState([]);   // the moments they chose from their Memory Book
+  const [highlights, setHighlights] = useState([]);   // the pages they chose from their Moments Book
   const [reelView, setReelView] = useState(null);
   const [commentsPost, setCommentsPost] = useState(null);
   const rowToCard = (row) => ({
@@ -331,7 +331,7 @@ export const ProfileModal = ({ user, onClose }) => {
               </Pressable>
             ) : null}
 
-            {/* Highlights from their Memory Book (members choose them) */}
+            {/* Highlights from their Moments Book (members choose them) */}
             {!locked && highlights.length ? <MemoryHighlights items={highlights} onOpen={(it) => { tapSelection(); setViewMoment(rowToCard({ ...it, user_id: user.id })); }} /> : null}
 
             {/* their REAL moments — same grid as your own profile */}

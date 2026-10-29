@@ -2,8 +2,8 @@ import { supabase, SUPABASE_READY } from '../lib/supabase';
 import { smallImage, dataBlob } from '../lib/storage';
 import { uploadCapture } from './social';
 
-/* ─── THE MEMORY BOOK ── (RUN_ME.sql, "THE MEMORY BOOK")
-   Members keep every moment; everybody else pins five. The server
+/* ─── THE MOMENTS BOOK ── (RUN_ME.sql, "THE MOMENTS BOOK")
+   One page a day. Members keep every page; everybody else keeps five. The server
    decides both — these only ask. */
 
 const rpc = async (fn, args) => {
@@ -13,20 +13,14 @@ const rpc = async (fn, args) => {
 
 export const memoryBook = () => rpc('memory_book');
 export const myMemoryPins = () => rpc('my_memory_pins');
-export const pinMoment = (id, on) => rpc('post_keep', { p_id: id, p_keep: !!on });
-export const highlightMoment = (id, on) => rpc('post_highlight', { p_id: id, p_on: !!on });
+export const keepPage = (day, on) => rpc('page_keep', { p_day: day, p_keep: !!on });
+export const highlightPage = (day, on) => rpc('page_highlight', { p_day: day, p_on: !!on });
 
-/* someone's Highlights, for their profile (the read policy lets these through after the feed) */
+/* the pages someone chose for their profile (RUN_ME.sql profile_highlights) */
 export async function fetchHighlights(userId) {
-  if (!SUPABASE_READY || !userId) return [];
-  const { data, error } = await supabase
-    .from('posts')
-    .select('id, type, media_url, thumb_url, caption, place, created_at')
-    .eq('user_id', userId)
-    .eq('highlight', true)
-    .order('created_at', { ascending: false })
-    .limit(24);
-  return error ? [] : data || [];
+  if (!userId) return [];
+  const r = await rpc('profile_highlights', { p_user: userId });
+  return Array.isArray(r) ? r : [];
 }
 
 /* ─── LIGHTER FOR GOOD ────────────────────────────────────────────────

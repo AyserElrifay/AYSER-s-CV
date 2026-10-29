@@ -807,9 +807,10 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
      ceiling: past that it stops being a subject and starts being spam. */
   const [tags, setTags] = useState([]);
   const [tagText, setTagText] = useState('');
-  // the Memory Book: members keep every moment; free pins five (the server counts)
+  // the Moments Book: members keep every page; free keeps five (the server counts)
   const [pins, setPins] = useState(null);       // { pins, limit, member }
-  const member = pins ? !!pins.member : readPlan().tier !== 'FREE';
+  // a member, or a free page already kept today: this moment is kept with it
+  const member = pins ? !!pins.member || !!pins.today_kept : readPlan().tier !== 'FREE';
   const pinFull = !!pins && !pins.member && pins.pins >= pins.limit;
   const [keep, setKeep] = useState(false);
   useEffect(() => { if (SUPABASE_READY && user) myMemoryPins().then((r) => { if (r) setPins(r); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps

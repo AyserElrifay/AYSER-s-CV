@@ -25,7 +25,6 @@ const act = async (name, args) => {
 
 export const reflectionToday = () => call('reflection_today');
 export const reflect = (body, mood) => act('reflect', { p_body: body, p_mood: mood || null });
-export const myJourney = async () => { const r = await call('my_journey'); return Array.isArray(r) ? r : []; };
 export const myPromptAccess = () => call('my_prompt_access');
 export const submitPrompt = (body) => act('submit_prompt', { p_body: body });
 export const myTextLeft = () => call('my_text_left');
@@ -51,26 +50,3 @@ export const fallbackPrompt = () => {
 };
 
 export const MOODS = ['😔', '😐', '🙂', '😊', '🤩'];
-
-/* a month in your words — counted on the phone from your own answers */
-export function monthSummary(rows, now = new Date()) {
-  const y = now.getFullYear(); const m = now.getMonth();
-  const inMonth = rows.filter((r) => { const d = new Date(r.day); return d.getFullYear() === y && d.getMonth() === m; });
-  const days = new Set(rows.map((r) => String(r.day).slice(0, 10)));
-  let streak = 0;
-  for (let i = 0; i < 400; i++) {
-    const d = new Date(now); d.setDate(d.getDate() - i);
-    const k = d.toISOString().slice(0, 10);
-    if (days.has(k)) streak += 1; else if (i > 0) break;
-  }
-  const moods = inMonth.map((r) => r.mood).filter(Boolean);
-  const avg = moods.length ? moods.reduce((a, b) => a + b, 0) / moods.length : null;
-  const STOP = new Set('the a an and or of to in on at for with my me i is it was this that we you so but be are am our your just very really من في على و يا انا أنا ده دي اللي مع عن كان كانت هو هي'.split(' '));
-  const count = new Map();
-  inMonth.forEach((r) => String(r.body || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).forEach((w) => {
-    if (w.length < 3 || STOP.has(w)) return;
-    count.set(w, (count.get(w) || 0) + 1);
-  }));
-  const words = [...count.entries()].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([w]) => w);
-  return { count: inMonth.length, streak, mood: avg ? MOODS[Math.max(0, Math.min(4, Math.round(avg) - 1))] : null, words };
-}

@@ -4,18 +4,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { reflectionToday, reflect, fallbackPrompt, MOODS } from '../services/reflection';
-import { lazyOverlay } from '../lib/lazyScreen';
+import { goToTab } from '../lib/mapBus';
+import { mw } from '../constants/memoryWords';
 import { earnBonus } from '../lib/feedGate';
 import { usePrivacyShield, NO_SAVE } from '../hooks/usePrivacyShield';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { AV_NEUTRAL } from '../constants/mockData';
 
-const JourneySheet = lazyOverlay(() => import('./JourneySheet').then((m) => ({ default: m.JourneySheet })));
 
 /* ─── REFLECTION · TODAY'S QUESTION ───────────────────────────────────
    One question for everybody today. Answer it first — then the others'
    answers open, like a door you walked through yourself. They are
-   today's only; your own stays with you in My journey. */
+   today's only; your own goes on today's page of your Moments Book. */
 
 const ago = (iso, t) => {
   const m = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -30,7 +30,6 @@ export const ReflectionPane = ({ user }) => {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [editing, setEditing] = useState(false);
-  const [journey, setJourney] = useState(false);
 
   /* other people's answers are theirs: no screenshots in the apps, and
      covered on the web when the page loses focus */
@@ -122,17 +121,17 @@ export const ReflectionPane = ({ user }) => {
         </View>
       )}
 
-      <Pressable onPress={() => { tapLight(); setJourney(true); }} accessibilityRole="button" style={{ marginTop: 18 }}>
+      {/* your answer is kept on today's page of your Moments Book (Space), with the day's photo */}
+      <Pressable testID="btn-open-book" onPress={() => { tapLight(); goToTab('SPACE'); setTimeout(() => { try { window.dispatchEvent(new CustomEvent('mm-open-book')); } catch (e) {} }, 400); }} accessibilityRole="button" style={{ marginTop: 18 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-          <Text style={{ fontSize: 22 }}>📔</Text>
+          <Ionicons name="book-outline" size={20} color={C.text} />
           <View style={{ flex: 1, marginStart: 12 }}>
-            <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }}>{t('jr_title')}</Text>
-            <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{t('jr_sub')}</Text>
+            <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }}>{mw(lang, 'kicker2')}</Text>
+            <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{mw(lang, 'fromReflect')}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={C.faint} />
+          <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color={C.faint} />
         </View>
       </Pressable>
-      {journey ? <JourneySheet onClose={() => setJourney(false)} /> : null}
     </View>
   );
 };

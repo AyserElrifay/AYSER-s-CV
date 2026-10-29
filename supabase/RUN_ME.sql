@@ -24956,6 +24956,214 @@ create trigger posts_trash_replaced after update of media_url, thumb_url on publ
 
 notify pgrst, 'reload schema';
 
+-- ════════════════════════════════════════════════════════════════════
+--  THE MOMENTS BOOK · ONE PAGE A DAY
+--  (Ayser, October 2026) The Memory Book above kept photos one by one.
+--  This makes it one book of days: each day you were here is a page —
+--  the day's camera moment(s), your Reflection, your Daily Moment
+--  answer and the tables you checked into (passport_stamps), together.
+--  · What you keep is a PAGE (book_pages). Free keeps 5 pages; members
+--    keep every page and may show some on their profile (Highlights).
+--  · A page you have not kept keeps its words (they are yours and tiny);
+--    its photos leave with the feed and the 48-hour grace (tidy_up).
+--  · post_keep / post_highlight now act on the whole page of that day.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+create table if not exists public.book_pages (
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  day       date not null,
+  keep      boolean not null default false,
+  highlight boolean not null default false,
+  at        timestamptz not null default now(),
+  primary key (user_id, day)
+);
+alter table public.book_pages enable row level security;   -- read and written only through the functions below
+
+-- photos kept one by one before today become kept pages
+insert into public.book_pages (user_id, day, keep, highlight)
+select user_id, (created_at)::date, true, bool_or(highlight) from public.posts
+ where keep and expires_at is not null group by user_id, (created_at)::date
+on conflict (user_id, day) do nothing;
+
+-- the five free pins are pages now
+create or replace function public.memory_pins(u uuid, not_this uuid default null)
+returns int language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.book_pages where user_id = u and keep;
+$$;
+revoke all on function public.memory_pins(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.page_kept(u uuid, d date)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.book_pages where user_id = u and day = d and keep);
+$$;
+revoke all on function public.page_kept(uuid, date) from public, anon, authenticated;
+
+create or replace function public.posts_lifetime()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare member boolean := public.is_plus(new.user_id); d date := coalesce(new.created_at, now())::date;
+begin
+  if tg_op = 'INSERT' then
+    if new.type = 'reel' and new.expires_at is null then new.expires_at := now() + interval '48 hours'; end if;
+    if new.expires_at is not null then
+      if member then
+        new.keep := true;
+        insert into public.book_pages (user_id, day, keep) values (new.user_id, d, true)
+        on conflict (user_id, day) do update set keep = true;
+      elsif public.page_kept(new.user_id, d) then
+        new.keep := true;                                          -- today's page is already kept
+      elsif coalesce(new.keep, false) and public.memory_pins(new.user_id) < 5 then
+        insert into public.book_pages (user_id, day, keep) values (new.user_id, d, true)
+        on conflict (user_id, day) do update set keep = true;
+      else
+        new.keep := false;
+      end if;
+    end if;
+  else
+    new.expires_at := old.expires_at;                              -- nobody stretches it by hand
+    -- keep and highlight follow the page; only the functions below change them
+    if new.expires_at is not null and (new.keep is distinct from old.keep or new.highlight is distinct from old.highlight)
+       and coalesce(current_setting('moments.page_write', true), '') <> 'on' then
+      new.keep := old.keep; new.highlight := old.highlight;
+    end if;
+  end if;
+  return new;
+end $$;
+
+-- keep a page (free: up to five) or let it go
+create or replace function public.page_keep(p_day date, p_keep boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); member boolean := public.is_plus(auth.uid()); k boolean := coalesce(p_keep, false);
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if k and not member and not public.page_kept(me, p_day) and public.memory_pins(me) >= 5 then
+    return jsonb_build_object('ok', false, 'reason', 'full', 'pins', public.memory_pins(me), 'limit', 5);
+  end if;
+  if not k and member then return jsonb_build_object('ok', false, 'reason', 'member'); end if;   -- members keep every page
+  insert into public.book_pages (user_id, day, keep) values (me, p_day, k)
+  on conflict (user_id, day) do update set keep = k, highlight = case when k then book_pages.highlight else false end;
+  perform set_config('moments.page_write', 'on', true);
+  update public.posts set keep = k, highlight = case when k then highlight else false end
+   where user_id = me and expires_at is not null and created_at::date = p_day
+     and (k or expires_at > now() - interval '48 hours');          -- a page let go keeps its grace, no more
+  perform set_config('moments.page_write', 'off', true);
+  return jsonb_build_object('ok', true, 'keep', k, 'pins', public.memory_pins(me), 'limit', 5);
+end $$;
+revoke execute on function public.page_keep(date, boolean) from public, anon;
+grant execute on function public.page_keep(date, boolean) to authenticated;
+
+-- show a page on your profile (members)
+create or replace function public.page_highlight(p_day date, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); h boolean := coalesce(p_on, false);
+begin
+  if not public.is_plus(me) then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  insert into public.book_pages (user_id, day, keep, highlight) values (me, p_day, true, h)
+  on conflict (user_id, day) do update set keep = true, highlight = h;
+  perform set_config('moments.page_write', 'on', true);
+  update public.posts set keep = true, highlight = h where user_id = me and expires_at is not null and created_at::date = p_day;
+  perform set_config('moments.page_write', 'off', true);
+  return jsonb_build_object('ok', true, 'highlight', h);
+end $$;
+revoke execute on function public.page_highlight(date, boolean) from public, anon;
+grant execute on function public.page_highlight(date, boolean) to authenticated;
+
+-- the old one-photo doors now turn the whole page
+create or replace function public.post_keep(p_id uuid, p_keep boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare d date;
+begin
+  select created_at::date into d from public.posts where id = p_id and user_id = auth.uid();
+  if d is null then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
+  return public.page_keep(d, p_keep);
+end $$;
+create or replace function public.post_highlight(p_id uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare d date;
+begin
+  select created_at::date into d from public.posts where id = p_id and user_id = auth.uid();
+  if d is null then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
+  return public.page_highlight(d, p_on);
+end $$;
+
+create or replace function public.my_memory_pins()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('pins', public.memory_pins(auth.uid()), 'limit', 5, 'member', public.is_plus(auth.uid()),
+                            'today_kept', public.page_kept(auth.uid(), current_date));
+$$;
+
+-- one day, everything in it (the owner's view)
+create or replace function public.book_day(me uuid, d date)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'day', d,
+    'keep', public.page_kept(me, d) or public.is_plus(me),
+    'highlight', coalesce((select highlight from public.book_pages where user_id = me and day = d), false),
+    'photos', coalesce((select jsonb_agg(jsonb_build_object(
+        'id', p.id, 'type', p.type, 'media_url', p.media_url, 'thumb_url', p.thumb_url, 'caption', p.caption, 'place', p.place,
+        'created_at', p.created_at, 'expires_at', p.expires_at, 'grace_until', p.expires_at + interval '48 hours', 'keep', p.keep,
+        'notes', (select coalesce(jsonb_agg(c order by c.buddy desc, c.at), '[]'::jsonb) from (
+                    select cm.body, cm.created_at as at, pr.name, public.are_buddies(me, cm.user_id) as buddy
+                      from public.comments cm join public.profiles pr on pr.id = cm.user_id
+                     where cm.post_id = p.id and cm.user_id <> me and not public.blocked_between(me, cm.user_id)
+                     order by public.are_buddies(me, cm.user_id) desc, cm.created_at limit 3) c))
+        order by p.created_at)
+      from public.posts p
+     where p.user_id = me and p.expires_at is not null and p.media_url is not null and p.created_at::date = d
+       and (p.keep or p.expires_at > now() - interval '48 hours')), '[]'::jsonb),
+    'reflection', (select jsonb_build_object('prompt', r.prompt, 'body', r.body, 'mood', r.mood)
+                     from public.reflections r where r.user_id = me and r.day = d),
+    'moment', (select jsonb_build_object('body', a.body, 'q', q.q, 'q_ar', q.q_ar, 'kind', q.kind,
+                                         'choice', case when q.kind = 'poll' and a.choice is not null then q.opts -> a.choice::int end)
+                 from public.moment_answers a
+                 left join public.moment_pool q on q.n = 1 + ((d - date '2026-01-01') % greatest(1, (select count(*) from public.moment_pool))::int)
+                where a.user_id = me and a.day = d),
+    'stamps', coalesce((select jsonb_agg(jsonb_build_object('title', s.title, 'place', s.place, 'kind', s.kind, 'at', s.at) order by s.at)
+                          from public.passport_stamps s where s.user_id = me and s.at::date = d), '[]'::jsonb));
+$$;
+revoke all on function public.book_day(uuid, date) from public, anon, authenticated;
+
+create or replace function public.memory_book()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  return jsonb_build_object('ok', true, 'tier', public.member_tier(me), 'member', public.is_plus(me),
+    'pins', public.memory_pins(me), 'limit', 5,
+    'price', (select value ->> 'basic' from public.app_settings where key = 'tier_prices'),
+    'currency', coalesce((select value ->> 'currency' from public.app_settings where key = 'tier_prices'), 'EGP'),
+    'pages', coalesce((select jsonb_agg(public.book_day(me, d.day) order by d.day desc) from (
+        select day from (
+          select created_at::date as day from public.posts where user_id = me and expires_at is not null and media_url is not null
+                 and (keep or expires_at > now() - interval '48 hours')
+          union select day from public.reflections where user_id = me
+          union select day from public.moment_answers where user_id = me and body is not null
+          union select at::date from public.passport_stamps where user_id = me) u
+        order by day desc limit 400) d), '[]'::jsonb));
+end $$;
+revoke execute on function public.memory_book() from public, anon;
+grant execute on function public.memory_book() to authenticated;
+
+-- the pages someone chose for their profile: photos, the reflection, the check-ins
+create or replace function public.profile_highlights(p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x->>'day' desc), '[]'::jsonb) from (
+    select jsonb_build_object(
+      'day', b.day,
+      'photos', coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'type', p.type, 'media_url', p.media_url, 'thumb_url', p.thumb_url,
+                                                              'caption', p.caption, 'place', p.place, 'created_at', p.created_at) order by p.created_at)
+                            from public.posts p where p.user_id = p_user and p.created_at::date = b.day and p.keep and p.expires_at is not null), '[]'::jsonb),
+      'reflection', (select jsonb_build_object('prompt', r.prompt, 'body', r.body) from public.reflections r where r.user_id = p_user and r.day = b.day),
+      'stamps', coalesce((select jsonb_agg(jsonb_build_object('title', s.title, 'place', s.place)) from public.passport_stamps s
+                           where s.user_id = p_user and s.at::date = b.day), '[]'::jsonb)) as x
+      from public.book_pages b
+     where b.user_id = p_user and b.highlight and auth.uid() is not null and not public.blocked_between(auth.uid(), p_user)
+     order by b.day desc limit 12) h;
+$$;
+revoke execute on function public.profile_highlights(uuid) from public, anon;
+grant execute on function public.profile_highlights(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
