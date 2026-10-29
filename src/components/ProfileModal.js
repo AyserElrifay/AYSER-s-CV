@@ -33,13 +33,15 @@ import { sharePost, shareNote } from '../utils/share';
    resolve it lazily at render time instead. */
 const getCommentsSheet = () => require('./CommentsSheet').CommentsSheet;
 import { sfxSuccess } from '../utils/sfx';
+import { fetchHighlights } from '../services/memory';
+import { lazyOverlay } from '../lib/lazyScreen';
 import { setupNotice } from '../lib/plumbing';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { fetchMyBlocks, unblockPerson } from '../services/standing';
-import { lazyOverlay } from '../lib/lazyScreen';
 // opened only on a tap: fetched then, not with the first download
 const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 const StoryViewer = lazyOverlay(() => import('./StoryViewer').then((m) => ({ default: m.StoryViewer })));
+const MemoryHighlights = lazyOverlay(() => import('./MemoryBook').then((m) => ({ default: m.MemoryHighlights })));
 
 const { width: W } = Dimensions.get('window');
 const CELL = (W - 48) / 3;
@@ -168,6 +170,7 @@ export const ProfileModal = ({ user, onClose }) => {
     fetchMyMoments(user.id).then((rows) => setPosts(rows || [])).catch(() => setPosts([]));
     fetchTaggedPosts(user.id).then(setTaggedPosts).catch(() => setTaggedPosts([]));
     fetchRepostsByUser(user.id).then(setRepostedPosts).catch(() => setRepostedPosts([]));
+    fetchHighlights(user.id).then(setHighlights).catch(() => setHighlights([]));
     countMates(user.id).then(setMates).catch(() => setMates(0));
     getProfile(user.id).then(setFullProfile).catch(() => {});
     if (!isMe) getMateStatus(me.id, user.id).then(setMateState).catch(() => {});
@@ -175,6 +178,7 @@ export const ProfileModal = ({ user, onClose }) => {
 
   // ── open their posts for real: text/photo → full PostCard, reel → viewer ──
   const [viewMoment, setViewMoment] = useState(null);
+  const [highlights, setHighlights] = useState([]);   // the moments they chose from their Memory Book
   const [reelView, setReelView] = useState(null);
   const [commentsPost, setCommentsPost] = useState(null);
   const rowToCard = (row) => ({
@@ -326,6 +330,9 @@ export const ProfileModal = ({ user, onClose }) => {
                 </View>
               </Pressable>
             ) : null}
+
+            {/* Highlights from their Memory Book (members choose them) */}
+            {!locked && highlights.length ? <MemoryHighlights items={highlights} onOpen={(it) => { tapSelection(); setViewMoment(rowToCard({ ...it, user_id: user.id })); }} /> : null}
 
             {/* their REAL moments — same grid as your own profile */}
             {/* the same tab row your own space has, so a profile looks

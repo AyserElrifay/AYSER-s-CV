@@ -404,7 +404,7 @@ console.log('index.html patched: PWA + OG tags');
     "img-src 'self' data: blob: https:",
     "media-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https: wss://*.supabase.co",
+    "connect-src 'self' https: wss://*.supabase.co blob: data:",
     "worker-src 'self' blob:",
     "frame-src https:",
     "object-src 'none'",

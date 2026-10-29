@@ -46,8 +46,22 @@ export const VIDEO_QUALITIES = { hd: 720, sd: 480 }; // we never store above 720
    "the upload didn't reach the server" even on a perfect connection.
    So whenever we still hold the actual Blob, we use it directly and
    never ask the browser to go and fetch it back. */
+export function dataBlob(u) {
+  const i = u.indexOf(',');
+  const head = u.slice(5, i);
+  const type = head.split(';')[0] || 'application/octet-stream';
+  const raw = /;base64/.test(head) ? atob(u.slice(i + 1)) : decodeURIComponent(u.slice(i + 1));
+  const bytes = new Uint8Array(raw.length);
+  for (let k = 0; k < raw.length; k++) bytes[k] = raw.charCodeAt(k);
+  return new Blob([bytes], { type });
+}
+
 async function asBlob(uriOrBlob) {
   if (uriOrBlob && typeof uriOrBlob !== 'string') return uriOrBlob;  // already a Blob/File
+  /* a compressed photo comes back as a data: url; reading it with fetch()
+     is refused by the page's own security policy (connect-src), so it is
+     decoded here instead */
+  if (/^data:/.test(uriOrBlob)) return dataBlob(uriOrBlob);
   const res = await fetch(uriOrBlob);
   if (!res.ok) throw new Error('Could not read the file (' + res.status + ')');
   return res.blob();

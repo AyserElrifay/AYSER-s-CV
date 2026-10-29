@@ -45,6 +45,7 @@ import { suggestTags } from '../lib/classify';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { lw, MOMENT_HOURS } from '../constants/loopWords';
 import { readPlan } from '../lib/feedGate';
+import { myMemoryPins } from '../services/memory';
 
 /* ─── THE CAPTURE SCREEN — easier than IG, TikTok and Snap combined ───
    One tap opens a LIVE viewfinder. Tap the shutter for a photo, hold it
@@ -806,10 +807,12 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
      ceiling: past that it stops being a subject and starts being spam. */
   const [tags, setTags] = useState([]);
   const [tagText, setTagText] = useState('');
-  // "Save to my private memories" — members only; the server checks it again
-  const member = readPlan().tier !== 'FREE';
+  // the Memory Book: members keep every moment; free pins five (the server counts)
+  const [pins, setPins] = useState(null);       // { pins, limit, member }
+  const member = pins ? !!pins.member : readPlan().tier !== 'FREE';
+  const pinFull = !!pins && !pins.member && pins.pins >= pins.limit;
   const [keep, setKeep] = useState(false);
-  const [keepNote, setKeepNote] = useState(false);
+  useEffect(() => { if (SUPABASE_READY && user) myMemoryPins().then((r) => { if (r) setPins(r); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [tagIdeas, setTagIdeas] = useState([]);
 
   /* iOS SOMETIMES THROWS THE PAGE AWAY.
@@ -1913,7 +1916,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
           onPosted && onPosted(row);
         } else {
           const row = await createPost({
-            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, soundReuse, thumbUrl, durationSec, keep: member && keep,
+            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, soundReuse, thumbUrl, durationSec, keep: !member && keep && !pinFull,
             place: onMap ? (placeName.trim() || null) : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -2834,18 +2837,25 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                     <Ionicons name="hourglass-outline" size={13} color="rgba(255,255,255,0.75)" />
                     <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '700', marginHorizontal: 6 }}>{lw(lang, 'cap_life', { h: MOMENT_HOURS })}</Text>
                   </View>
-                  <Pressable testID="btn-keep-moment" onPress={() => { tapSelection(); if (member) setKeep((v) => !v); else setKeepNote((v) => !v); }} accessibilityRole="switch" accessibilityState={{ checked: keep }} style={{ marginTop: 8 }}>
+{member ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                      <Ionicons name="bookmark" size={13} color="rgba(255,255,255,0.75)" />
+                      <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '700', marginHorizontal: 6 }}>{lw(lang, 'cap_auto')}</Text>
+                    </View>
+                  ) : (
+                  <Pressable testID="btn-keep-moment" disabled={pinFull} onPress={() => { tapSelection(); setKeep((v) => !v); }} accessibilityRole="switch" accessibilityState={{ checked: keep, disabled: pinFull }} style={{ marginTop: 8 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10 }}>
-                      <Ionicons name={member ? 'bookmark-outline' : 'lock-closed-outline'} size={15} color="#FFF" />
+                      <Ionicons name={pinFull ? 'lock-closed-outline' : keep ? 'bookmark' : 'bookmark-outline'} size={15} color="#FFF" />
                       <View style={{ flex: 1, minWidth: 0, marginHorizontal: 9 }}>
                         <Text numberOfLines={1} style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800' }}>{lw(lang, 'cap_keep')}</Text>
-                        <Text style={{ color: 'rgba(255,255,255,0.62)', fontSize: 10.5, marginTop: 1 }}>{member || !keepNote ? lw(lang, 'cap_keep_hint') : lw(lang, 'cap_keep_lock')}</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.62)', fontSize: 10.5, marginTop: 1 }}>{pinFull ? lw(lang, 'cap_keep_lock', { max: pins.limit }) : lw(lang, 'cap_keep_hint', { n: (pins && pins.pins) || 0, max: (pins && pins.limit) || 5 })}</Text>
                       </View>
-                      <View style={{ width: 42, height: 25, borderRadius: 13, backgroundColor: keep ? '#FFFFFF' : 'rgba(255,255,255,0.22)', padding: 3, justifyContent: 'center', opacity: member ? 1 : 0.5 }}>
+                      <View style={{ width: 42, height: 25, borderRadius: 13, backgroundColor: keep ? '#FFFFFF' : 'rgba(255,255,255,0.22)', padding: 3, justifyContent: 'center', opacity: pinFull ? 0.5 : 1 }}>
                         <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: keep ? '#000000' : '#FFF', marginLeft: keep ? 17 : 0 }} />
                       </View>
                     </View>
                   </Pressable>
+                  )}
                 </View>
               ) : null}
 

@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { publicMedia } from '../lib/publicMedia';
-import { smallImage } from '../lib/storage';
+import { smallImage, dataBlob } from '../lib/storage';
 import { INSTAPAY, sendTransfer, myPayment } from '../services/pay';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { myMembership } from '../services/membership';
@@ -77,7 +77,7 @@ export const InstaPaySheet = ({ tier, period, amount, currency = 'EGP', onClose 
   const send = async () => {
     if (!shot || busy) return;
     setBusy(true); setNote(null);
-    const blob = await (await fetch(shot.uri)).blob();
+    const blob = /^data:/.test(shot.uri) ? dataBlob(shot.uri) : await (await fetch(shot.uri)).blob();
     const r = await sendTransfer({ tier, period, blob, type: shot.type, ref: ref.trim(), amount });
     setBusy(false);
     if (r && r.ok) {

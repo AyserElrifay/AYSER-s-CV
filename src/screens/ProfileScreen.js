@@ -87,6 +87,7 @@ const QuotaLine = lazyOverlay(() => import('../components/WeeklyDrops').then((m)
 const GlobalTrack = lazyOverlay(() => import('../components/GlobalTrack').then((m) => ({ default: m.GlobalTrack })));
 const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
+const MemoryBook = lazyOverlay(() => import('../components/MemoryBook').then((m) => ({ default: m.MemoryBook })));
 const StampBook = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.StampBook })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
 
@@ -795,6 +796,9 @@ export const ProfileScreen = () => {
 
         {/* the Moments Passport: a stamp for every table you sat at (StampKit) */}
         {SUPABASE_READY && user ? <StampBook /> : null}
+
+        {/* the Memory Book: where a moment goes after its 48 hours in the feed */}
+        {SUPABASE_READY && user ? <MemoryBook /> : null}
 
         {/* tab strip — only the tabs with something in them. Five icons
             over five empty pages was a new profile's first sight; with

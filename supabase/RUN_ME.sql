@@ -24819,6 +24819,143 @@ grant execute on function public.owner_pay_decide(uuid, boolean) to authenticate
 
 notify pgrst, 'reload schema';
 
+-- ════════════════════════════════════════════════════════════════════
+--  THE MEMORY BOOK · FIVE FREE PINS, A 48-HOUR GRACE, MEMBERS KEEP ALL
+--  (Ayser, October 2026)
+--  A camera moment leaves the feed after 48 hours (above). Where it goes
+--  next is the Memory Book on Space:
+--  · Moments+ and Black: every moment is kept, automatically, and they
+--    may pick some as Highlights on their profile (posts.highlight).
+--  · Free: up to 5 pinned for good (posts.keep). Anything else stays in
+--    the owner's own book, locked, for 48 hours after it leaves the feed
+--    — then tidy_up() deletes it and its file goes to storage_trash.
+--  · Once a moment is out of the feed, only its owner can read it —
+--    unless it is a Highlight (a restrictive read policy below).
+--  · A file replaced by a lighter one (the client re-compresses a kept
+--    photo to WebP) goes to the trash too.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.posts add column if not exists highlight boolean not null default false;
+create index if not exists posts_kept_by_user on public.posts (user_id, created_at desc) where keep;
+
+create or replace function public.memory_pins(u uuid, not_this uuid default null)
+returns int language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.posts where user_id = u and keep and expires_at is not null and id is distinct from not_this;
+$$;
+revoke all on function public.memory_pins(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.posts_lifetime()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare member boolean := public.is_plus(new.user_id);
+begin
+  if tg_op = 'INSERT' then
+    if new.type = 'reel' and new.expires_at is null then new.expires_at := now() + interval '48 hours'; end if;
+    if new.expires_at is not null and member then new.keep := true;                    -- members keep everything
+    elsif coalesce(new.keep, false) and public.memory_pins(new.user_id) >= 5 then new.keep := false;  -- five free pins
+    end if;
+  else
+    new.expires_at := old.expires_at;                                                   -- nobody stretches it by hand
+    if coalesce(new.keep, false) and not coalesce(old.keep, false) and not member
+       and public.memory_pins(new.user_id, new.id) >= 5 then new.keep := false; end if;
+    if coalesce(new.highlight, false) and not coalesce(old.highlight, false) and not member then new.highlight := false; end if;
+  end if;
+  if coalesce(new.highlight, false) and new.expires_at is not null then new.keep := true; end if;
+  return new;
+end $$;
+
+create or replace function public.post_keep(p_id uuid, p_keep boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); member boolean := public.is_plus(auth.uid()); r public.posts%rowtype;
+begin
+  select * into r from public.posts where id = p_id and user_id = me;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
+  if coalesce(p_keep, false) and not r.keep and not member and public.memory_pins(me, p_id) >= 5 then
+    return jsonb_build_object('ok', false, 'reason', 'full', 'pins', public.memory_pins(me), 'limit', 5);
+  end if;
+  update public.posts set keep = coalesce(p_keep, false), highlight = case when coalesce(p_keep, false) then highlight else false end where id = p_id;
+  return jsonb_build_object('ok', true, 'keep', coalesce(p_keep, false), 'pins', public.memory_pins(me), 'limit', 5);
+end $$;
+revoke execute on function public.post_keep(uuid, boolean) from public, anon;
+grant execute on function public.post_keep(uuid, boolean) to authenticated;
+
+create or replace function public.post_highlight(p_id uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_plus(auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  update public.posts set highlight = coalesce(p_on, false) where id = p_id and user_id = auth.uid();
+  return jsonb_build_object('ok', found, 'highlight', coalesce(p_on, false));
+end $$;
+revoke execute on function public.post_highlight(uuid, boolean) from public, anon;
+grant execute on function public.post_highlight(uuid, boolean) to authenticated;
+
+-- the book itself: what you kept, what is still in the feed, and what is in its 48 hours of grace
+create or replace function public.memory_book()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  return jsonb_build_object('ok', true, 'tier', public.member_tier(me), 'member', public.is_plus(me),
+    'pins', public.memory_pins(me), 'limit', 5,
+    'items', coalesce((select jsonb_agg(x order by x.created_at desc) from (
+      select p.id, p.type, p.media_url, p.thumb_url, p.caption, p.place, p.created_at, p.expires_at, p.keep, p.highlight,
+             p.expires_at + interval '48 hours' as grace_until,
+             (select coalesce(jsonb_agg(c order by c.buddy desc, c.at), '[]'::jsonb) from (
+                select cm.body, cm.created_at as at, pr.name, public.are_buddies(me, cm.user_id) as buddy
+                from public.comments cm join public.profiles pr on pr.id = cm.user_id
+                where cm.post_id = p.id and cm.user_id <> me and not public.blocked_between(me, cm.user_id)
+                order by public.are_buddies(me, cm.user_id) desc, cm.created_at limit 3) c) as notes
+      from public.posts p
+      where p.user_id = me and p.media_url is not null and p.expires_at is not null
+        and (p.keep or p.expires_at > now() - interval '48 hours')
+      order by p.created_at desc limit 400) x), '[]'::jsonb));
+end $$;
+revoke execute on function public.memory_book() from public, anon;
+grant execute on function public.memory_book() to authenticated;
+
+-- the camera asks this before offering a pin
+create or replace function public.my_memory_pins()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('pins', public.memory_pins(auth.uid()), 'limit', 5, 'member', public.is_plus(auth.uid()));
+$$;
+revoke execute on function public.my_memory_pins() from public, anon;
+grant execute on function public.my_memory_pins() to authenticated;
+
+-- out of the feed = its owner's alone, unless it is a Highlight
+drop policy if exists "a finished moment is its owner's" on public.posts;
+create policy "a finished moment is its owner's" on public.posts as restrictive for select
+  using (expires_at is null or expires_at > now() or user_id = auth.uid() or highlight);
+
+create or replace function public.tidy_up()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare s int := 0; v int := 0; b int := 0; p int := 0; n int := 0; m int := 0;
+begin
+  -- 48 hours in the feed, then 48 more in its owner's book, then gone (unless kept)
+  delete from public.posts where expires_at < now() - interval '48 hours' and not keep; get diagnostics m = row_count;
+  delete from public.stories where expires_at < now() - interval '1 day'; get diagnostics s = row_count;
+  delete from public.story_views where viewed_at < now() - interval '7 days'; get diagnostics v = row_count;
+  delete from public.biz_tries where at < now() - interval '2 days'; get diagnostics b = row_count;
+  delete from public.buddy_pings where at < now() - interval '30 days'; get diagnostics p = row_count;
+  delete from public.notifications where created_at < now() - interval '90 days'; get diagnostics n = row_count;
+  update public.plus_members set status = 'expired' where source = 'preview' and status = 'active' and until < now();
+  return jsonb_build_object('moments', m, 'stories', s, 'story_views', v, 'biz_tries', b, 'buddy_pings', p, 'notifications', n,
+                            'trash', (select count(*) from public.storage_trash));
+end $$;
+revoke all on function public.tidy_up() from public, anon, authenticated;
+
+-- a lighter file in place of the old one: the old one goes to the trash
+create or replace function public.posts_trash_replaced()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if old.media_url is distinct from new.media_url then perform public.trash_media(old.media_url); end if;
+  if old.thumb_url is distinct from new.thumb_url then perform public.trash_media(old.thumb_url); end if;
+  return null;
+end $$;
+drop trigger if exists posts_trash_replaced on public.posts;
+create trigger posts_trash_replaced after update of media_url, thumb_url on public.posts
+  for each row execute function public.posts_trash_replaced();
+
+notify pgrst, 'reload schema';
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
