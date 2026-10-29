@@ -11,6 +11,10 @@ const rpc = async (fn, args) => {
 
 export const eventRoom = (kind, id) => rpc('event_room', { p_kind: kind, p_id: id });
 export const eventPin = (kind, id, text) => rpc('event_pin', { p_kind: kind, p_id: id, p_text: text || null });
+// the host's line for arrival time: a phone number and the exact pin (RUN_ME.sql event_host_line)
+export const eventHostLine = (id, tel, map) => rpc('event_host_line', { p_id: id, p_tel: tel || null, p_map: map || null });
+// Messages → Table Chats
+export const myTableChats = () => rpc('my_table_chats');
 export const classRoomJoin = (offerId) => rpc('class_room_join', { p_offer: offerId });
 export const classRoomLeave = (offerId) => rpc('class_room_leave', { p_offer: offerId });
 export const classRoomEnd = (offerId) => rpc('class_room_end', { p_offer: offerId });

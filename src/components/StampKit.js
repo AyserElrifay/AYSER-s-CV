@@ -14,6 +14,7 @@ import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
 import { publicMedia } from '../lib/publicMedia';
+import { flagOf, tableNo, tbw, lookFor } from '../constants/tableWords';
 
 /* ─── THE MOMENTS PASSPORT ────────────────────────────────────────────
    Ayser: attendance is counted, not claimed — a stamp for every table
@@ -421,6 +422,69 @@ export const HostQr = ({ kind, id, onClose }) => {
               </View>
             </>
           )}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+};
+
+/* ─── THE TABLE BEACON ────────────────────────────────────────────────
+   Ayser, October 2026: when there is no physical flag on the table, the
+   host's phone becomes one — the pillar's colour, glowing slowly, the
+   moments ✦ mark, the table's number big enough to read across a café,
+   and the live check-in QR under it. The screen is kept awake while it
+   is open (where the browser allows it). */
+const WORD_WHITE = require('../assets/brand/wordmark-white.png');
+const WORD_DARK = require('../assets/brand/wordmark.png');
+export const TableBeacon = ({ kind, id, cat, no, onClose }) => {
+  useSheetBack(onClose);
+  const { lang } = useLang();
+  const insets = useSafeAreaInsets();
+  const f = flagOf(cat);
+  const [q, setQ] = useState(null);
+  const glow = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(glow, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(glow, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+    ]));
+    loop.start();
+    let lock = null;
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then((l) => { lock = l; }).catch(() => {}); } catch (e) {}
+    let alive = true; let t = null;
+    const get = () => eventQr(kind, id).then((r) => {
+      if (!alive) return;
+      setQ(r || { ok: false });
+      t = setTimeout(get, Math.min(r && r.ok ? Math.max(1, Number(r.seconds) || 30) : 15, 6) * 1000 + 300);
+    });
+    get();
+    return () => { alive = false; loop.stop(); if (t) clearTimeout(t); try { if (lock) lock.release(); } catch (e) {} };
+  }, [kind, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const light = f.ink !== '#FAF9F6';
+  return (
+    <Modal visible animationType="fade" onRequestClose={onClose}>
+      <View testID="table-beacon" style={{ flex: 1, backgroundColor: f.bg }}>
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: light ? '#FFFFFF' : '#000000', opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0, light ? 0.35 : 0.22] }) }} />
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={tbw(lang, 'beaconClose')} style={{ position: 'absolute', top: insets.top + 12, left: 20 }}>
+            <Ionicons name="close" size={28} color={f.ink} />
+          </Pressable>
+          <Image source={light ? WORD_DARK : WORD_WHITE} style={{ width: 190, height: 64 }} resizeMode="contain" accessibilityLabel="moments" />
+          <Text style={{ color: f.ink, fontSize: 15, fontWeight: '800', letterSpacing: 3, marginTop: 18 }}>{f.name}</Text>
+          <Text style={[{ color: f.ink, fontSize: 150, fontWeight: '900', letterSpacing: -6, lineHeight: 160, marginTop: 4 }, NUM]}>{'#' + tableNo(no)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+            <Ionicons name="flag" size={18} color={f.ink} />
+            <Text style={{ color: f.ink, fontSize: 18, fontWeight: '700', marginHorizontal: 8 }}>{lookFor(lang, cat, no)}</Text>
+          </View>
+          {q && q.ok ? (
+            <View style={{ marginTop: 26, alignItems: 'center' }}>
+              <View style={{ padding: 12, borderRadius: 22, backgroundColor: '#FFFFFF' }}>
+                <Qr value={stampLink(q.code)} size={200} />
+              </View>
+              <Text style={{ color: f.ink, fontSize: 14, fontWeight: '700', marginTop: 10 }}>{tbw(lang, 'scan')}</Text>
+            </View>
+          ) : null}
+          <Text style={{ color: f.ink, opacity: 0.75, fontSize: 13, marginTop: 18, textAlign: 'center' }}>{tbw(lang, 'beaconSub')}</Text>
         </ScrollView>
       </View>
     </Modal>

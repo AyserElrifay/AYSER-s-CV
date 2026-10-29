@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { titleFor } from '../lib/activityPins';
-import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
-import { eventRoom, eventArrived, eventArrivals, eventPin, classRoomJoin, classRoomLeave, classRoomEnd, classRoomState } from '../services/eventRooms';
+import { eventRoom, eventArrived, eventArrivals, eventPin, eventHostLine, classRoomJoin, classRoomLeave, classRoomEnd, classRoomState } from '../services/eventRooms';
 import { fetchMessages, sendMessage, subscribeMessages } from '../services/messages';
 import { joinMesh } from '../lib/talkMesh';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
@@ -13,7 +13,11 @@ import { useSheetBack } from '../hooks/useSheetBack';
 import { eventExtras, eventCheckin } from '../services/live';
 import { ActivitiesHub, AfterParty } from './ActivitiesHub';
 import { pw } from '../constants/passportWords';
-import { StampScanner, HostQr } from './StampKit';   // the same chunk (LiveKit)
+import { StampScanner, HostQr, TableBeacon } from './StampKit';   // the same chunk (LiveKit)
+import { tbw, countdown, lookFor } from '../constants/tableWords';
+import { FlagBadge } from './TableFlag';
+import { lazyOverlay } from '../lib/lazyScreen';
+const CallScreen = lazyOverlay(() => import('./CallScreen').then((m) => ({ default: m.CallScreen })));
 import { TableIcebreakers } from './ScaleKit';
 
 /* ─── THE EVENT PAGE ──────────────────────────────────────────────────
@@ -160,6 +164,47 @@ const ClassRoom = ({ lang, room, onOut }) => {
   );
 };
 
+/* ─── THE TABLE WALKIE-TALKIE ─────────────────────────────────────────
+   Push-to-talk for the people walking to the same table: one small audio
+   room on the private channel table:<offer id> (RUN_ME.sql, "only the
+   people at a table"), capped at 16 kbit/s so it holds on weak mobile
+   data. The mic is open only while the button is held. */
+const Walkie = ({ lang, id, onOut }) => {
+  const { user } = useAuth();
+  const mesh = useRef(null);
+  const [people, setPeople] = useState([]);
+  const [talking, setTalking] = useState(false);
+  const [err, setErr] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const m = await joinMesh({ topic: 'table:' + id, me: { id: user.id, name: '' }, maxBitrate: 16000, startMuted: true,
+        onPeople: (list) => alive && setPeople(list), onError: (why) => alive && setErr(why) });
+      if (!alive) { if (m) m.close(); return; }
+      mesh.current = m;
+    })();
+    return () => { alive = false; if (mesh.current) { mesh.current.close(); mesh.current = null; } };
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const talk = (on) => { setTalking(on); if (mesh.current) mesh.current.setMuted(!on); if (on) tapMedium(); };
+  return (
+    <View testID="walkie" style={{ marginTop: 10, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={[{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1 }, NUM]}>{tbw(lang, 'walkieHere', { n: Math.max(1, people.length) })}</Text>
+        <Pressable onPress={() => { tapLight(); onOut(); }} accessibilityRole="button" hitSlop={8}>
+          <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{tbw(lang, 'walkieLeave')}</Text>
+        </Pressable>
+      </View>
+      {err === 'mic' ? <Text style={{ color: C.coral, fontSize: 13, marginTop: 6 }}>{tbw(lang, 'walkieMic')}</Text> : null}
+      <Pressable onPressIn={() => talk(true)} onPressOut={() => talk(false)} accessibilityRole="button" accessibilityLabel={tbw(lang, 'walkieHold')} style={{ marginTop: 12 }}>
+        <View style={{ borderRadius: 999, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', backgroundColor: talking ? C.purple : C.text }}>
+          <Ionicons name={talking ? 'mic' : 'mic-outline'} size={19} color={talking ? '#FFF' : C.bg} />
+          <Text style={{ color: talking ? '#FFF' : C.bg, fontSize: 15.5, fontWeight: '800', marginHorizontal: 8 }}>{talking ? tbw(lang, 'walkieTalking') : tbw(lang, 'walkieHold')}</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+};
+
 export const EventRoom = ({ kind, id, lang, onClose }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -176,11 +221,20 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
   const [hostQr, setHostQr] = useState(false);
   const [here, setHere] = useState(null);         // who pinged "I've arrived"
   const [pinged, setPinged] = useState(false);
+  const [beacon, setBeacon] = useState(false);     // the host's phone as the table's flag
+  const [calling, setCalling] = useState(false);   // the in-app call to the host
+  const [walkie, setWalkie] = useState(false);
+  const [tel, setTel] = useState(null);            // the host's own line: phone and exact pin
+  const [mapUrl, setMapUrl] = useState(null);
+  const [lineSaved, setLineSaved] = useState(false);
 
   const load = () => {
     eventExtras(kind, id).then((x) => setEx(x && x.ok ? x : null));
     eventArrivals(kind, id).then((x) => { if (Array.isArray(x)) { setHere(x); if (user && x.some((p) => p.id === user.id)) setPinged(true); } });
-    return eventRoom(kind, id).then((x) => { setR(x || { ok: false }); if (x && x.ok && x.is_host) setPin((p) => p || x.pin || ''); });
+    return eventRoom(kind, id).then((x) => {
+      setR(x || { ok: false });
+      if (x && x.ok && x.is_host) { setPin((p) => p || x.pin || ''); setTel((v) => (v == null ? x.my_tel || '' : v)); setMapUrl((v) => (v == null ? x.my_map || '' : v)); }
+    });
   };
   const checkin = async () => { tapMedium(); const x = await eventCheckin(kind, id); if (x && x.ok) { tapSuccess(); load(); } else setMsg(w(lang, 'err')); };
   useEffect(() => { load(); const h = setInterval(load, 30000); return () => clearInterval(h); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -206,6 +260,11 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
     const x = await eventArrived(kind, id);
     if (x && x.ok) { tapSuccess(); setPinged(true); setHere(x.arrived || []); } else setMsg(w(lang, 'err'));
   };
+  const saveLine = async () => {
+    tapMedium(); setLineSaved(false);
+    const x = await eventHostLine(id, tel, mapUrl);
+    if (x && x.ok) { tapSuccess(); setLineSaved(true); load(); } else setMsg(tbw(lang, 'err'));
+  };
   const savePin = async () => {
     tapMedium();
     const x = await eventPin(kind, id, pin);
@@ -226,7 +285,59 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
           <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="close">
             <Ionicons name="chevron-down" size={26} color={C.text} />
           </Pressable>
+          {/* the table's flag: what to look for when you walk in */}
+          {r && r.ok && r.is_drop && !r.online ? (
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
+              <FlagBadge cat={r.category} no={r.table_no} lang={lang} />
+            </View>
+          ) : null}
         </View>
+        {/* the host's pinned note, always on top, with the exact pin */}
+        {r && r.ok && !r.online ? (
+          <View testID="host-banner" style={{ marginHorizontal: 16, marginTop: 10, borderRadius: 16, backgroundColor: C.text, padding: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="megaphone-outline" size={14} color={C.bg} />
+              <Text style={{ color: C.bg, opacity: 0.7, fontSize: 11, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.2, marginHorizontal: 6 }}>{tbw(lang, 'pinned')}</Text>
+            </View>
+            <Text selectable numberOfLines={4} style={{ color: C.bg, fontSize: 15, lineHeight: 21, marginTop: 6 }}>{r.pin || tbw(lang, 'pinEmpty')}</Text>
+            {r.is_drop ? <Text style={{ color: C.bg, opacity: 0.8, fontSize: 13, fontWeight: '700', marginTop: 6 }}>{lookFor(lang, r.category, r.table_no)}</Text> : null}
+            {r.map ? (
+              <Pressable onPress={() => { tapLight(); Linking.openURL(r.map).catch(() => {}); }} accessibilityRole="link" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.bg, paddingHorizontal: 12, paddingVertical: 7 }}>
+                  <Ionicons name="location" size={14} color={C.text} />
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginHorizontal: 6 }}>{tbw(lang, 'openPin')}</Text>
+                </View>
+              </Pressable>
+            ) : null}
+            {/* arrival time (4 hours before → 2 hours after): the host line and the walkie-talkie */}
+            {r.arrival && r.arrival.open ? (
+              <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                {!r.is_host && r.host ? (
+                  <Pressable testID="btn-call-host" onPress={() => { tapMedium(); setCalling(true); }} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
+                    <View style={{ borderRadius: 999, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple }}>
+                      <Ionicons name="call" size={15} color="#FFF" />
+                      <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800', marginHorizontal: 6 }}>{tbw(lang, 'callHost')}</Text>
+                    </View>
+                  </Pressable>
+                ) : null}
+                <Pressable testID="btn-walkie" onPress={() => { tapMedium(); setWalkie((v) => !v); }} accessibilityRole="button" style={{ flex: 1 }}>
+                  <View style={{ borderRadius: 999, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.bg }}>
+                    <Ionicons name="mic" size={15} color={C.bg} />
+                    <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '800', marginHorizontal: 6 }}>{tbw(lang, 'walkie')}</Text>
+                  </View>
+                </Pressable>
+              </View>
+            ) : null}
+            {r.arrival && r.arrival.open && r.host_tel ? (
+              <Pressable onPress={() => { tapLight(); Linking.openURL('tel:' + r.host_tel).catch(() => {}); }} accessibilityRole="link" hitSlop={8} style={{ marginTop: 10, alignSelf: 'center' }}>
+                <Text style={{ color: C.bg, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' }}>{tbw(lang, 'callPhone')}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+        {walkie && r && r.ok && r.arrival && r.arrival.open ? <View style={{ marginHorizontal: 16 }}><Walkie lang={lang} id={r.id} onOut={() => setWalkie(false)} /></View> : null}
+        {calling && r && r.host ? <CallScreen peer={{ id: r.host.id, name: r.host.name, avatar: r.host.avatar }} video={false} onClose={() => setCalling(false)} /> : null}
+        {beacon && r && r.ok ? <TableBeacon kind={kind} id={id} cat={r.category} no={r.table_no} onClose={() => setBeacon(false)} /> : null}
         {r == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 40 }} /> : !r.ok ? (
           <Text style={{ color: C.dim, fontSize: 14, margin: 24 }}>{w(lang, 'err')}</Text>
         ) : (
@@ -255,8 +366,8 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
               ) : null}
             </View>
 
-            {/* the host's pin: read-only, except for the host */}
-            <View style={{ marginTop: 20, borderRadius: 24, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 20 }}>
+            {/* the host writes the pinned note (everyone else reads it in the banner on top) */}
+            {r.is_host || r.online ? <View style={{ marginTop: 20, borderRadius: 24, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 20 }}>
               <Text style={{ color: C.dim, fontSize: 12, fontWeight: '600', letterSpacing: 0.4 }}>{w(lang, 'pin')}</Text>
               {r.is_host ? (
                 <>
@@ -271,7 +382,32 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
               ) : (
                 <Text selectable style={{ color: r.pin ? C.text : C.dim, fontSize: 15.5, lineHeight: 22, marginTop: 6 }}>{r.pin || w(lang, 'pinEmpty')}</Text>
               )}
-            </View>
+            </View> : null}
+
+            {/* the host's own line and flag: a phone number and the exact pin for arrival time, and the phone as the table's flag */}
+            {r.is_host && !r.online && r.kind === 'offer' ? (
+              <View style={{ marginTop: 14, borderRadius: 24, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 20 }}>
+                <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }}>{tbw(lang, 'lineTitle')}</Text>
+                <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>{tbw(lang, 'lineSub')}</Text>
+                <TextInput value={tel || ''} onChangeText={(v) => { setTel(v); setLineSaved(false); }} placeholder={tbw(lang, 'telPh')} placeholderTextColor={C.faint} keyboardType="phone-pad" maxLength={20}
+                  style={{ color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 10, marginTop: 10, textAlign: lang === 'ar' ? 'right' : 'left' }} />
+                <TextInput value={mapUrl || ''} onChangeText={(v) => { setMapUrl(v); setLineSaved(false); }} placeholder={tbw(lang, 'mapPh')} placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false} maxLength={300}
+                  style={{ color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 10, marginTop: 8, textAlign: lang === 'ar' ? 'right' : 'left' }} />
+                <Pressable onPress={saveLine} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+                  <View style={{ borderRadius: 999, paddingVertical: 9, paddingHorizontal: 18, backgroundColor: C.purple }}>
+                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800' }}>{lineSaved ? tbw(lang, 'saved') : tbw(lang, 'save')}</Text>
+                  </View>
+                </Pressable>
+                {r.is_drop ? (
+                  <Pressable testID="btn-beacon" onPress={() => { tapMedium(); setBeacon(true); }} accessibilityRole="button" style={{ marginTop: 14 }}>
+                    <View style={{ borderRadius: 999, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.text }}>
+                      <Ionicons name="flag" size={17} color={C.bg} />
+                      <Text style={{ color: C.bg, fontSize: 15, fontWeight: '800', marginHorizontal: 8 }}>{tbw(lang, 'beacon')}</Text>
+                    </View>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
 
             {/* at the table: the host shows the live QR; everybody else scans it — that is the check-in and the stamp */}
             {r.is_host && !r.call && ex && (ex.phase === 'before' || ex.phase === 'live') ? (
@@ -326,7 +462,7 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
               </View>
             ) : null}
 
-            {/* "Ping table — I've arrived": while the table's chat is open (2 hours before → the end) */}
+            {/* "Ping table — I've arrived": while the table's chat is open (4 hours before → the end) */}
             {chatState === 'open' && !r.online ? (
               <View style={{ marginTop: 18 }}>
                 {pinged ? (
@@ -348,7 +484,16 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
             {chatState ? (
               <View style={{ marginTop: 18 }}>
                 <Text style={{ color: C.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.4 }}>{w(lang, 'chat')}</Text>
-                {chatState === 'soon' ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{w(lang, 'chatSoon')}</Text> : null}
+                {chatState === 'soon' ? (
+                  /* in the chat from the moment you claimed; it opens 4 hours before */
+                  <View testID="chat-locked" style={{ marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 12, flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="hourglass-outline" size={16} color={C.text} />
+                    <View style={{ flex: 1, marginStart: 8 }}>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '600', lineHeight: 19 }}>{tbw(lang, 'locked')}</Text>
+                      <Text style={[{ color: C.dim, fontSize: 12.5, marginTop: 2 }, NUM]}>{tbw(lang, 'unlocksIn', { t: countdown(lang, r.chat.opens_at) })}</Text>
+                    </View>
+                  </View>
+                ) : null}
                 {chatState === 'capsule' ? <Text style={{ color: C.purple, fontSize: 14, marginTop: 6 }}>{w2(lang, 3)}</Text> : null}
                 {chatState === 'over' ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{ex && ex.phase === 'archived' ? w2(lang, 4) : w(lang, 'chatOver')}</Text> : null}
                 {msgs.map((m) => (

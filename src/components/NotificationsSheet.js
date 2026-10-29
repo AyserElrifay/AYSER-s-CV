@@ -82,7 +82,7 @@ const DailyLine = ({ body, lang, t }) => {
 
 /* notices Moments itself sends: the name on them is Moments, never the
    reader's own (they are stored with the reader as the actor) */
-const SYSTEM_KINDS = new Set(['daily_line', 'app_problem', 'partner_watch', 'team_reply', 'trip_open', 'plan_soon', 'xp_award', 'trip_invite', 'level_up', 'event_update']);
+const SYSTEM_KINDS = new Set(['daily_line', 'app_problem', 'partner_watch', 'team_reply', 'trip_open', 'plan_soon', 'xp_award', 'trip_invite', 'level_up', 'event_update', 'drop_open']);
 
 /* the verb, in the reader's language, with no emoji: one per kind, and
    a plural for the kinds that merge several people into one line */
@@ -209,7 +209,7 @@ export const NotificationsSheet = ({ onClose }) => {
       if (k === 'offer' && id) openTrip(id); else goToTab('TOGETHER');
       return;
     }
-    if (n.kind === 'plan_soon' || n.kind === 'creator_plan') { tapSelection(); onClose(); goToTab('TOGETHER'); return; }
+    if (n.kind === 'plan_soon' || n.kind === 'creator_plan' || n.kind === 'drop_open') { tapSelection(); onClose(); goToTab('TOGETHER'); return; }
     if (n.kind === 'trip_open') { tapSelection(); onClose(); openTrip(String(n.body || '').split('|')[0]); return; }
     if (n.kind === 'trip_invite') { tapSelection(); onClose(); openInvite(String(n.body || '').split('|')[0]); return; }
     if (n.kind === 'bardi_match') { const m = readMatch(n.body); if (m) { tapSelection(); setGoNowFrom(m); } return; }
@@ -351,7 +351,7 @@ export const NotificationsSheet = ({ onClose }) => {
         <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
           <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20 }} numberOfLines={3}>
             <Text style={{ fontWeight: '800' }}>{g && !SYSTEM_KINDS.has(n.kind) ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || SYSTEM_KINDS.has(n.kind)) ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
-            {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1).replace('{n}', titleFor(String(n.body || ''), lang)).replace('{title}', titleFor(String(n.body || '').split('|').slice(1).join('|'), lang))}</Text>
+            {' '}<Text style={{ color: C.dim }}>{(n.kind === 'drop_open' ? (lang === 'ar' ? 'فتحت Drop كنت مستنيها: {t}' : 'opened a Drop you were waiting for: {t}') : verbOf(t, n.kind, g && g.actors.length > 1)).replace('{n}', titleFor(String(n.body || ''), lang)).replace('{t}', titleFor(String(n.body || '').split('|').slice(1).join('|'), lang)).replace('{title}', titleFor(String(n.body || '').split('|').slice(1).join('|'), lang))}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
           {(n.kind === 'green_invite' || n.kind === 'creator_plan' || n.kind === 'booking' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision' || n.kind === 'biz_request' || n.kind === 'biz_reply') && n.body ? (

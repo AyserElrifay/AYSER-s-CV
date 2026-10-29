@@ -17,6 +17,8 @@ import { dropClip } from '../lib/mediaFit';
 import { readPlan } from '../lib/feedGate';
 import { jw } from '../constants/joinWords';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { tcw as tbw, lookFor } from '../constants/tableCore';
+import { FlagBadge } from './TableFlag';
 
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
 
@@ -316,6 +318,8 @@ const DropCard = ({ d, lang, onChanged }) => {
   const seats = d.seats || 6;
   const taken = Math.min(seats, d.taken || 0);
   const full = taken >= seats;
+  const queued = d.state === 'queued' && !d.mine;            // one spotlight at a time (RUN_ME.sql drop_states)
+  const hot = !full && !queued && seats > 0 && taken / seats >= 0.8;
   const place = lang === 'ar' && d.neighborhood_ar ? d.neighborhood_ar : d.neighborhood;
   const vibe = lang === 'ar' && d.vibe_ar ? d.vibe_ar : d.vibe;
 
@@ -329,8 +333,8 @@ const DropCard = ({ d, lang, onChanged }) => {
     if (why === 'level') { setNote(mv(lang, 'needLevel', { l: r.need })); setWhy(true); return; }
     if (why === 'verify') { askSafety(); return; }
     if (why === 'plus') { askUpgrade('member'); return; }
-    setNote(why === 'quota' ? mv(lang, 'quotaOut') : why === 'active' ? mv(lang, 'active') : null);
-    if (why === 'full') onChanged();
+    setNote(why === 'quota' ? mv(lang, 'quotaOut') : why === 'active' ? mv(lang, 'active') : why === 'queued' ? tbw(lang, 'queued') : null);
+    if (why === 'full' || why === 'queued') onChanged();
   };
   const wait = async () => {
     tapLight(); setBusy(true);
@@ -340,11 +344,11 @@ const DropCard = ({ d, lang, onChanged }) => {
     if (r && r.reason === 'plus') { askUpgrade('member'); return; }
     onChanged();
   };
-  const giveBack = async () => { tapLight(); setBusy(true); await dropCancel(d.id); setBusy(false); onChanged(); };
+  const giveBack = async () => { tapLight(); setBusy(true); await dropCancel(d.my_offer || d.id); setBusy(false); onChanged(); };
 
   const cat = CATS.includes(d.category) ? d.category : 'tables';
   return (
-    <Card style={{ overflow: 'hidden' }}>
+    <Card style={{ overflow: 'hidden', opacity: queued ? 0.88 : 1 }}>
       <LoopVideo uri={dropClip(d)} />
       {/* the kind, crisp and small, top-left: [ CULTURE ] */}
       <Text style={{ color: C.text, fontSize: 11, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{'[ ' + catWord(lang, cat).toUpperCase() + ' ]'}</Text>
@@ -370,10 +374,37 @@ const DropCard = ({ d, lang, onChanged }) => {
         </View>
       ) : null}
       {cat === 'impact' ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 8, lineHeight: 18 }}>{mv(lang, 'impactNote')}</Text> : null}
-      <Seats taken={taken} seats={seats} />
-      <Text style={[{ color: C.text, fontSize: 13.5, fontWeight: '600', marginTop: 10 }, NUM]}>
-        {mv(lang, 'claimed', { n: taken, m: seats }) + '  —  ' + (full ? mv(lang, 'full') : mv(lang, 'left', { n: seats - taken }))}
-      </Text>
+      {queued ? (
+        /* the next Drop waits its turn: it opens by itself at 80% of the one before */
+        <View testID="drop-queued" style={{ marginTop: 14, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 12, flexDirection: 'row', alignItems: 'flex-start' }}>
+          <Ionicons name="lock-closed" size={15} color={C.text} style={{ marginTop: 1 }} />
+          <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19, flex: 1, marginStart: 8 }}>{tbw(lang, 'queued')}</Text>
+        </View>
+      ) : (
+        <>
+          <Seats taken={taken} seats={seats} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+            <Text style={[{ color: C.text, fontSize: 13.5, fontWeight: '600' }, NUM]}>
+              {(d.table_no > 1 ? tbw(lang, 'tableN', { n: d.table_no }) + '  ·  ' : '') + mv(lang, 'claimed', { n: taken, m: seats }) + '  —  ' + (full ? mv(lang, 'full') : mv(lang, 'left', { n: seats - taken }))}
+            </Text>
+            {/* the last seats, said out loud */}
+            {hot ? (
+              <View testID="drop-hot" style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.text, paddingHorizontal: 10, paddingVertical: 4, marginStart: 8 }}>
+                <Ionicons name="flame" size={12} color={C.bg} />
+                <Text style={{ color: C.bg, fontSize: 11.5, fontWeight: '800', marginStart: 4 }}>{seats - taken === 1 ? tbw(lang, 'lastSeat') : tbw(lang, 'lastSeats', { n: seats - taken })}</Text>
+              </View>
+            ) : null}
+          </View>
+          {d.table_no > 1 && !d.mine ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6 }}>{tbw(lang, 'nowTable', { n: d.table_no })}</Text> : null}
+        </>
+      )}
+      {/* your table's flag: what to look for when you walk in */}
+      {d.mine && cat !== 'roam' ? (
+        <View style={{ marginTop: 12 }}>
+          <FlagBadge cat={cat} no={d.my_table} lang={lang} />
+          <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '600', marginTop: 6 }}>{lookFor(lang, cat, d.my_table)}</Text>
+        </View>
+      ) : null}
       {/* the café: kept until 12 hours before, and only for a confirmed seat */}
       {d.mine && d.venue ? (
         <View style={{ marginTop: 12 }}>
@@ -387,7 +418,7 @@ const DropCard = ({ d, lang, onChanged }) => {
           ) : null}
           <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>{jw(lang, 'arrive')}</Text>
         </View>
-      ) : cat === 'roam' ? null : (
+      ) : cat === 'roam' || queued ? null : (
         <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
           <Ionicons name="lock-closed-outline" size={13} color={C.dim} />
           <Text style={{ color: C.dim, fontSize: 13, marginStart: 6 }}>{mv(lang, 'reveal')}</Text>
@@ -411,6 +442,10 @@ const DropCard = ({ d, lang, onChanged }) => {
         <Btn label={mv(lang, 'unlockApply')} onPress={() => { tapLight(); askUpgrade('member'); }} />
       ) : cat === 'roam' ? (
         <Btn label={mv(lang, 'applySel')} onPress={claim} busy={busy} />
+      ) : queued ? (
+        <>
+          <Btn label={d.waiting ? tbw(lang, 'interested') : tbw(lang, 'interest')} solid={!d.waiting} onPress={wait} busy={busy} />
+        </>
       ) : full ? (
         <Btn label={mv(lang, d.waiting ? 'waiting' : 'wait')} solid={false} onPress={wait} busy={busy} />
       ) : (
@@ -418,7 +453,7 @@ const DropCard = ({ d, lang, onChanged }) => {
       )}
       {note ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 10, lineHeight: 18 }}>{note}</Text> : null}
       {done ? <Confirmed q={done} place={place} at={d.starts_at} lang={lang} onClose={() => setDone(null)} /> : null}
-      {room ? <EventRoom kind="offer" id={d.id} lang={lang} onClose={() => setRoom(false)} /> : null}
+      {room ? <EventRoom kind="offer" id={d.my_offer || d.id} lang={lang} onClose={() => setRoom(false)} /> : null}
     </Card>
   );
 };
@@ -431,7 +466,10 @@ export const DropsSection = ({ max = 3, only = null }) => {
   useEffect(() => { load(); }, []);
   // no Drops this week: nothing on Home, rather than a line saying so
   if (!list || !list.length) return null;
-  const shown = list.filter((d) => cat === 'all' || (d.category || 'tables') === cat).slice(0, max);
+  // the open Drops first (yours, then the spotlight), then the ones waiting their turn
+  const rank = (d) => (d.mine ? 0 : d.state === 'queued' ? 2 : 1);
+  const shown = list.filter((d) => cat === 'all' || (d.category || 'tables') === cat)
+    .sort((a, b) => rank(a) - rank(b) || String(a.starts_at).localeCompare(String(b.starts_at))).slice(0, max);
   if (only && !shown.length) return null;   // one kind asked for, none this week: nothing, never an empty card
   return (
     <View style={{ marginTop: 22 }}>

@@ -20,6 +20,10 @@ import { MatchBadge } from '../ui/MatchBadge';
 import { vibeMatches } from '../services/scale';
 import { myChats, premiumOf } from '../services/midnight';
 import { MidnightTable, mw, Mark } from './MidnightTable';
+import { myTableChats } from '../services/eventRooms';
+import { tcw as tbw, countdown, flagOf, tableNo } from '../constants/tableCore';
+import { lazyOverlay } from '../lib/lazyScreen';
+const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
 
 /* ─── MOMENTS BUDDIES ─────────────────────────────────────────────────
    Earned connection, not a messaging app. Strangers can never write to
@@ -243,6 +247,8 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
   const [prem, setPrem] = useState({});         // who wears the ✦
   const [match, setMatch] = useState({});       // my Vibe Match with each buddy (the server's)       // the privacy switch: may new people write to me
   const [safe, setSafe] = useState(null);
+  const [tables, setTables] = useState([]);     // Table Chats: every table you claimed a seat at, or host
+  const [room, setRoom] = useState(null);
   useSheetBack(open ? () => setOpen(null) : mt ? () => setMt(false) : onClose);
   useEffect(() => {
     myPassport().then((p) => p && p.ok && setDmOn(p.dm_open !== false));
@@ -265,6 +271,7 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
     });
     passport(null).then(setPass);
     mySafety().then((x) => setSafe(x || null));
+    myTableChats().then((x) => setTables(Array.isArray(x) ? x : []));
   };
   useEffect(() => { load(); }, []);
 
@@ -291,6 +298,34 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
                   <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19 }}>{FOUNDING[lang === 'ar' ? 'ar' : 'en'].replace('{n}', String(passLeft))}</Text>
                 </View>
               ) : null}
+
+              {/* Table Chats: you are in from the moment you claim a seat; each opens 4 hours before */}
+              {tables.length ? (
+                <View style={{ marginTop: 18 }}>
+                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.2 }}>{tbw(lang, 'chats').toUpperCase()}</Text>
+                  {tables.map((t) => {
+                    const f = flagOf(t.category);
+                    const title = (lang === 'ar' && t.neighborhood_ar) || t.neighborhood || (lang === 'ar' && t.title_ar) || titleFor(t.title, lang);
+                    return (
+                      <Pressable key={t.id} testID="table-chat-row" onPress={() => { tapLight(); setRoom(t.id); }} accessibilityRole="button" style={{ marginTop: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 12 }}>
+                          <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: f.bg, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={[{ color: f.ink, fontSize: 13, fontWeight: '900' }, NUM]}>{'#' + tableNo(t.table_no)}</Text>
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0, marginHorizontal: 12 }}>
+                            <Text numberOfLines={1} style={{ color: C.text, fontSize: 15, fontWeight: '700' }}>{title}</Text>
+                            <Text numberOfLines={1} style={[{ color: C.dim, fontSize: 12.5, marginTop: 2 }, NUM]}>
+                              {(t.is_host ? tbw(lang, 'host') + '  ·  ' : '') + (t.open ? (t.last && t.last.body ? t.last.body : tbw(lang, 'open')) : tbw(lang, 'opensIn', { t: countdown(lang, t.opens_at) }))}
+                            </Text>
+                          </View>
+                          <Ionicons name={t.open ? 'chatbubbles-outline' : 'lock-closed-outline'} size={18} color={t.open ? C.text : C.faint} />
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+              {room ? <EventRoom kind="offer" id={room} lang={lang} onClose={() => { setRoom(null); load(); }} /> : null}
 
               {/* the Midnight Table: paused for the final MVP (chat is earned at a table or a Circle) — ?midnight brings it back to look at */}
               {MIDNIGHT ? <Pressable onPress={() => { tapLight(); setMt(true); }} accessibilityRole="button" style={{ marginTop: 16 }}>

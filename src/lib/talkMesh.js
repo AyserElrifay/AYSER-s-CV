@@ -18,7 +18,9 @@ import { shouldOffer } from './talkClock';
    released, the channel left. The room screen calls it when the clock
    reaches zero. */
 
-export async function joinMesh({ roomId, topic, me, onPeople, onError }) {
+/* maxBitrate (bits/s) keeps a walkie-talkie usable on weak mobile data;
+   startMuted is push-to-talk: the mic is open only while held */
+export async function joinMesh({ roomId, topic, me, onPeople, onError, maxBitrate, startMuted }) {
   let local;
   try {
     local = await navigator.mediaDevices.getUserMedia({
@@ -47,7 +49,8 @@ export async function joinMesh({ roomId, topic, me, onPeople, onError }) {
 
   const rtc = await getRtcConfig();
   const pcs = new Map();          // peerId → { pc, audio, pending: [] }
-  let muted = false;
+  let muted = !!startMuted;
+  if (muted) local.getAudioTracks().forEach((tr) => { tr.enabled = false; });
   let closed = false;
 
   // a talk room is talk:<id>; an online workshop's room is class:<offer id> (same rules, its own policy)
@@ -74,7 +77,16 @@ export async function joinMesh({ roomId, topic, me, onPeople, onError }) {
     document.body.appendChild(audio);
     const p = { pc, audio, pending: [] };
     pcs.set(peerId, p);
-    local.getTracks().forEach((tr) => pc.addTrack(tr, local));
+    local.getTracks().forEach((tr) => {
+      const sender = pc.addTrack(tr, local);
+      if (maxBitrate && sender && sender.getParameters) {
+        try {
+          const prm = sender.getParameters();
+          prm.encodings = (prm.encodings && prm.encodings.length ? prm.encodings : [{}]).map((e) => ({ ...e, maxBitrate }));
+          sender.setParameters(prm).catch(() => {});
+        } catch (e) { /* not every browser lets a sender be capped: it still works, just heavier */ }
+      }
+    });
     pc.onicecandidate = (e) => { if (e.candidate) signal(peerId, { ice: e.candidate.toJSON ? e.candidate.toJSON() : e.candidate }); };
     pc.ontrack = (e) => { audio.srcObject = e.streams[0]; audio.play().catch(() => {}); listen(peerId, e.streams[0]); };
     pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') drop(peerId); };
