@@ -25164,6 +25164,480 @@ grant execute on function public.profile_highlights(uuid) to authenticated;
 
 notify pgrst, 'reload schema';
 
+-- ════════════════════════════════════════════════════════════════════
+--  ONE SPOTLIGHT AT A TIME · TABLE #2 WHEN IT FILLS · THE CHAT FROM T-4H
+--  THE HOST LINE · THE TABLE FLAGS
+--  (Ayser, October 2026: "pack one venue completely before dispersing")
+--  · Crowd pooling. In each city, Drops queue up in two lanes — Tables &
+--    Culture together, Impact on its own (Roam is by application). Only
+--    the lane's next Drop takes seats; the one after it opens by itself
+--    once the open one is 80% full. Queued Drops take "interested" names
+--    (drop_waitlist) and those people hear the moment it opens.
+--  · Overflow. When every table of a Drop is full, Table #2 is made at the
+--    same place and time (a child offer: parent_id, table_no), up to
+--    max_tables (3). A claim on the Drop always lands on the first table
+--    with a free seat; each table has its own chat and flag.
+--  · The table chat: you are in it the moment you claim (booking_room);
+--    it opens 4 hours before the start (was 2), and so does "I've arrived".
+--  · The host line: from 4 hours before until 2 hours after, the people at
+--    a table can call its host in the app (call_ring allows the pair) and,
+--    if the host gave one, on their phone (host_tel). The host's arrival
+--    note (host_pin) and their exact pin (host_map_url) sit on top.
+--  · The table walkie-talkie: a push-to-talk audio room on the private
+--    channel table:<offer id>, for the people at that table, in the same
+--    window.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.offers add column if not exists parent_id  uuid references public.offers(id) on delete cascade;
+alter table public.offers add column if not exists table_no   int not null default 1;
+alter table public.offers add column if not exists max_tables int not null default 3;
+alter table public.offers add column if not exists host_tel   text;
+alter table public.offers add column if not exists host_map_url text;
+create index if not exists offers_parent on public.offers (parent_id) where parent_id is not null;
+
+-- the lane a Drop queues in
+create or replace function public.drop_lane(cat text)
+returns text language sql immutable as $$
+  select case when cat = 'impact' then 'impact' when cat = 'roam' then null else 'tables' end;
+$$;
+
+-- a Drop and its overflow tables, counted together
+create or replace function public.drop_group(lead uuid)
+returns table (seats int, taken int, tables int, open_table uuid, open_no int, open_seats int, open_taken int)
+language sql stable security definer set search_path = public as $$
+  with t as (
+    select o.id, o.table_no, coalesce(o.seats, 6) as seats, public.offer_seats_taken(o.id) as taken
+      from public.offers o where (o.id = lead or o.parent_id = lead) and o.status = 'live')
+  select (select sum(seats)::int from t), (select sum(least(taken, seats))::int from t), (select count(*)::int from t),
+         f.id, f.table_no, f.seats, f.taken
+    from (select 1) one
+    left join lateral (select * from t where t.taken < t.seats order by t.table_no limit 1) f on true;
+$$;
+revoke all on function public.drop_group(uuid) from public, anon, authenticated;
+
+-- which Drops take seats right now: per city and lane, the first one, and
+-- each next one once the one before it is 80% full
+create or replace function public.drop_states()
+returns table (id uuid, state text, ahead uuid)
+language plpgsql stable security definer set search_path = public as $$
+declare r record; prev_key text := null; prev_open boolean := false; prev_fill numeric := 0; prev_id uuid := null; g record;
+begin
+  for r in
+    select o.id, coalesce(lower(o.city), '') || '|' || public.drop_lane(o.drop_category) as k
+      from public.offers o
+     where o.is_drop and o.parent_id is null and o.status = 'live' and o.starts_at > now()
+       and public.drop_lane(o.drop_category) is not null
+     order by 2, o.starts_at
+  loop
+    select * into g from public.drop_group(r.id);
+    if prev_key is distinct from r.k then
+      id := r.id; state := 'open'; ahead := null; prev_open := true;
+    else
+      id := r.id; ahead := prev_id;
+      state := case when prev_open and prev_fill >= 0.8 then 'open' else 'queued' end;
+      prev_open := state = 'open';
+    end if;
+    prev_key := r.k; prev_id := r.id;
+    prev_fill := case when coalesce(g.seats, 0) > 0 then g.taken::numeric / g.seats else 0 end;
+    return next;
+  end loop;
+end $$;
+revoke all on function public.drop_states() from public, anon, authenticated;
+
+create or replace function public.drop_state(lead uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select coalesce((select s.state from public.drop_states() s where s.id = lead), 'open');
+$$;
+revoke all on function public.drop_state(uuid) from public, anon, authenticated;
+
+-- Table #2 (#3…): the same Drop, place and time, a new table
+create or replace function public.drop_spawn_table(lead uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare o public.offers%rowtype; nid uuid; n int;
+begin
+  select * into o from public.offers where id = lead and parent_id is null for update;
+  if not found then return null; end if;
+  select count(*) into n from public.offers where (id = lead or parent_id = lead) and status = 'live';
+  if n >= greatest(1, o.max_tables) then return null; end if;
+  insert into public.offers (kind, title, title_ar, price, created_by, status, is_drop, pay_modes, neighborhood, neighborhood_ar,
+                             vibe, vibe_ar, city, country, starts_at, ends_at, seats, drop_category, member_price, video_url,
+                             min_level, currency, parent_id, table_no, max_tables, host_tel, host_map_url)
+  select o.kind, o.title, o.title_ar, o.price, o.created_by, 'live', true, o.pay_modes, o.neighborhood, o.neighborhood_ar,
+         o.vibe, o.vibe_ar, o.city, o.country, o.starts_at, o.ends_at, o.seats, o.drop_category, o.member_price, o.video_url,
+         o.min_level, o.currency, o.id, (select coalesce(max(table_no), 1) + 1 from public.offers where id = lead or parent_id = lead),
+         o.max_tables, o.host_tel, o.host_map_url
+  returning id into nid;
+  insert into public.drop_venues (offer_id, name, map_url) select nid, v.name, v.map_url from public.drop_venues v where v.offer_id = lead
+  on conflict (offer_id) do nothing;
+  insert into public.offer_leaders (offer_id, profile_id, name, role, credential, credential_ar, photo, sort, verified)
+  select nid, l.profile_id, l.name, l.role, l.credential, l.credential_ar, l.photo, l.sort, l.verified from public.offer_leaders l where l.offer_id = lead;
+  return nid;
+end $$;
+revoke all on function public.drop_spawn_table(uuid) from public, anon, authenticated;
+
+-- the person a table calls: its checked leader, or whoever made the Drop
+create or replace function public.table_host(p_offer uuid)
+returns uuid language sql stable security definer set search_path = public as $$
+  select coalesce(
+    (select l.profile_id from public.offer_leaders l where l.offer_id = p_offer and l.verified and l.profile_id is not null order by l.sort limit 1),
+    (select created_by from public.offers where id = p_offer));
+$$;
+revoke all on function public.table_host(uuid) from public, anon, authenticated;
+
+create or replace function public.in_arrival_window(o public.offers)
+returns boolean language sql stable as $$
+  select not coalesce(o.online, false) and o.starts_at is not null
+     and now() between o.starts_at - interval '4 hours' and o.starts_at + interval '2 hours';
+$$;
+
+create or replace function public.table_going(p_offer uuid, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (exists (select 1 from public.bookings b where b.offer_id = p_offer and b.user_id = u and b.status in ('reserved','paid','attended'))
+                            or public.table_host(p_offer) = u
+                            or exists (select 1 from public.offer_leaders l where l.offer_id = p_offer and l.profile_id = u and l.verified));
+$$;
+revoke all on function public.table_going(uuid, uuid) from public, anon, authenticated;
+
+-- may a and b ring each other? one is at a table, the other hosts it, and it is arrival time
+create or replace function public.arrival_pair(a uuid, b uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.offers o
+                  where public.in_arrival_window(o)
+                    and ((public.table_host(o.id) = b and exists (select 1 from public.bookings x where x.offer_id = o.id and x.user_id = a and x.status in ('reserved','paid','attended')))
+                      or (public.table_host(o.id) = a and exists (select 1 from public.bookings x where x.offer_id = o.id and x.user_id = b and x.status in ('reserved','paid','attended')))));
+$$;
+revoke all on function public.arrival_pair(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.call_ring(p_to uuid, p_call text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null or p_to is null or p_to = me then return jsonb_build_object('ok', false, 'reason', 'auth'); end if;
+  if p_call is null or p_call !~ '^[A-Za-z0-9_-]{6,80}$' then return jsonb_build_object('ok', false, 'reason', 'call'); end if;
+  if exists (select 1 from public.user_blocks where (blocker_id = me and blocked_id = p_to) or (blocker_id = p_to and blocked_id = me)) then
+    return jsonb_build_object('ok', false, 'reason', 'blocked');
+  end if;
+  if not exists (select 1 from public.dm_participants a join public.dm_participants b on b.thread_id = a.thread_id
+                  where a.user_id = me and b.user_id = p_to)
+     and not public.arrival_pair(me, p_to) then
+    return jsonb_build_object('ok', false, 'reason', 'no_chat');
+  end if;
+  if exists (select 1 from public.notifications where user_id = p_to and actor_id = me and kind = 'call'
+               and post_id is null and created_at > now() - interval '20 seconds') then
+    update public.notifications set body = 'Calling|' || p_call
+     where user_id = p_to and actor_id = me and kind = 'call' and post_id is null;
+    return jsonb_build_object('ok', true);
+  end if;
+  delete from public.notifications where user_id = p_to and actor_id = me and kind = 'call' and post_id is null;
+  insert into public.notifications (user_id, actor_id, kind, body) values (p_to, me, 'call', 'Calling|' || p_call);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.call_ring(uuid, text) from public, anon;
+grant execute on function public.call_ring(uuid, text) to authenticated;
+
+-- "a Drop opened" for the people who said they were interested
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch','trip_invite','level_up','event_update','buddy','buddy_ping','arrived','spark','circle_open','drop_open'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.drop_open_tell()
+returns void language plpgsql security definer set search_path = public as $$
+declare s record; t text;
+begin
+  for s in select * from public.drop_states() where state = 'open' loop
+    select title into t from public.offers where id = s.id;
+    insert into public.notifications (user_id, actor_id, kind, body)
+    select w.user_id, w.user_id, 'drop_open', s.id::text || '|' || left(coalesce(t, ''), 80)
+      from public.drop_waitlist w
+     where w.offer_id = s.id
+       and not exists (select 1 from public.notifications n where n.user_id = w.user_id and n.kind = 'drop_open' and n.body like s.id::text || '|%')
+       and not exists (select 1 from public.bookings b where b.offer_id = s.id and b.user_id = w.user_id and b.status in ('reserved','paid','attended'));
+  end loop;
+end $$;
+revoke all on function public.drop_open_tell() from public, anon, authenticated;
+
+create or replace function public.drops_list()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x->>'starts_at'), '[]'::jsonb) from (
+    select jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'category', o.drop_category,
+      'neighborhood', o.neighborhood, 'neighborhood_ar', o.neighborhood_ar, 'city', o.city,
+      'vibe', o.vibe, 'vibe_ar', o.vibe_ar, 'starts_at', o.starts_at,
+      'price', nullif(o.price, 0), 'currency', coalesce(o.currency, 'EGP'), 'video_url', o.video_url,
+      'min_level', o.min_level,
+      'applied', (select a.status from public.trip_applications a where a.offer_id = o.id and a.user_id = auth.uid() and a.status <> 'withdrawn'),
+      'state', coalesce(st.state, 'open'),
+      -- the table that takes the next seat, and the whole Drop
+      'seats', coalesce(g.open_seats, o.seats, 6), 'taken', coalesce(g.open_taken, o.seats, 6),
+      'table_no', coalesce(g.open_no, 1), 'tables', coalesce(g.tables, 1),
+      'group_seats', g.seats, 'group_taken', g.taken, 'all_full', g.open_table is null,
+      'mine', m.offer_id is not null, 'my_offer', m.offer_id, 'my_table', m.table_no,
+      'waiting', exists (select 1 from public.drop_waitlist w where w.offer_id = o.id and w.user_id = auth.uid()),
+      'reveal_at', o.starts_at - interval '12 hours',
+      'venue', case when now() >= o.starts_at - interval '12 hours' and m.offer_id is not null
+                    then (select jsonb_build_object('name', v.name, 'map_url', v.map_url) from public.drop_venues v where v.offer_id = m.offer_id) end) x
+      from public.offers o
+      left join lateral (select * from public.drop_group(o.id)) g on true
+      left join lateral (select s.state from public.drop_states() s where s.id = o.id) st on true
+      left join lateral (select b.offer_id, t.table_no from public.bookings b join public.offers t on t.id = b.offer_id
+                          where (t.id = o.id or t.parent_id = o.id) and b.user_id = auth.uid() and b.status in ('reserved','paid','attended')
+                          limit 1) m on true
+     where o.is_drop and o.parent_id is null and o.status = 'live' and o.starts_at > now() - interval '3 hours'
+     order by o.starts_at limit 12) s;
+$$;
+revoke execute on function public.drops_list() from public, anon;
+grant execute on function public.drops_list() to authenticated;
+
+create or replace function public.drop_claim(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); lead public.offers%rowtype; o public.offers%rowtype; q jsonb; tries int := 0; impact boolean; prem boolean; lvl int;
+        target uuid; g record;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into lead from public.offers where id = (select coalesce(parent_id, id) from public.offers where id = p_id) and is_drop and status = 'live' for update;
+  if not found or lead.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if exists (select 1 from public.bookings b join public.offers t on t.id = b.offer_id
+              where (t.id = lead.id or t.parent_id = lead.id) and b.user_id = me and b.status in ('reserved','paid','attended')) then
+    return jsonb_build_object('ok', true, 'already', true, 'quota', public.quota_of(me));
+  end if;
+  if not public.is_verified(me) then return jsonb_build_object('ok', false, 'reason', 'verify'); end if;
+  impact := lead.drop_category = 'impact';
+  prem := public.member_tier(me) <> 'FREE';
+  if not impact and not prem then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+
+  -- a trip: members apply, by level, and the team selects
+  if lead.drop_category = 'roam' then
+    lvl := (public.moments_level_of(me)->>'level')::int;
+    if lead.min_level is not null and lvl < lead.min_level then
+      return jsonb_build_object('ok', false, 'reason', 'level', 'need', lead.min_level, 'level', lvl);
+    end if;
+    insert into public.trip_applications (offer_id, user_id, level) values (lead.id, me, lvl)
+    on conflict (offer_id, user_id) do update set status = 'pending', level = excluded.level, at = now(), decided_at = null
+      where public.trip_applications.status in ('withdrawn');
+    return jsonb_build_object('ok', true, 'applied', true);
+  end if;
+
+  -- one spotlight at a time: a queued Drop takes names, not seats
+  if public.drop_state(lead.id) = 'queued' then return jsonb_build_object('ok', false, 'reason', 'queued'); end if;
+
+  -- the first table with a free seat; a new table when every one is full
+  select * into g from public.drop_group(lead.id);
+  target := g.open_table;
+  if target is null then target := public.drop_spawn_table(lead.id); end if;
+  if target is null then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  select * into o from public.offers where id = target for update;
+
+  q := public.quota_of(me);
+  if not impact then
+    if (q->>'drops_used')::int >= (q->>'drops_cap')::int then return jsonb_build_object('ok', false, 'reason', 'quota', 'quota', q); end if;
+    if q->>'active_cap' is not null and (q->>'active')::int >= (q->>'active_cap')::int then return jsonb_build_object('ok', false, 'reason', 'active', 'quota', q); end if;
+  end if;
+  loop
+    begin
+      insert into public.bookings (code, offer_id, user_id, qty, unit_price, plus_applied, total, currency, pay_mode, status, commission_pct, moments_share, partner_share)
+      values (public.booking_code(), o.id, me, 1, 0, prem, 0, coalesce(o.currency, 'EGP'), 'reserve', 'paid', 0, 0, 0);
+      exit;
+    exception when unique_violation then tries := tries + 1; if tries > 5 then raise; end if;
+    end;
+  end loop;
+  delete from public.drop_waitlist where offer_id in (lead.id, o.id) and user_id = me;
+  -- this seat filled the last table: open the next one now, at the same place
+  if (select open_table from public.drop_group(lead.id)) is null then perform public.drop_spawn_table(lead.id); end if;
+  -- and if the Drop just reached 80%, the next queued one opens: tell the people waiting for it
+  perform public.drop_open_tell();
+  return jsonb_build_object('ok', true, 'offer', o.id, 'table_no', o.table_no, 'taken', public.offer_seats_taken(o.id), 'seats', o.seats, 'quota', public.quota_of(me));
+end $$;
+revoke execute on function public.drop_claim(uuid) from public, anon;
+grant execute on function public.drop_claim(uuid) to authenticated;
+
+-- give a seat back, whichever table it is at
+create or replace function public.drop_cancel(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); n int; w uuid; o public.offers%rowtype; lead uuid;
+begin
+  select coalesce(parent_id, id) into lead from public.offers where id = p_id and is_drop;
+  select * into o from public.offers where id = lead;
+  if not found or o.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  update public.bookings set status = 'cancelled', cancelled_at = now()
+   where offer_id in (select id from public.offers where id = lead or parent_id = lead) and user_id = me and status in ('reserved', 'paid');
+  get diagnostics n = row_count;
+  if n = 0 then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select user_id into w from public.drop_waitlist where offer_id = lead order by at limit 1;
+  if w is not null then perform public.notify(w, me, 'drop_open', null, lead::text || '|' || left(o.title, 80)); end if;
+  return jsonb_build_object('ok', true, 'quota', public.quota_of(me));
+end $$;
+revoke execute on function public.drop_cancel(uuid) from public, anon;
+grant execute on function public.drop_cancel(uuid) to authenticated;
+
+-- "interested" on a queued Drop (and the old waitlist on a full one)
+create or replace function public.drop_wait(p_id uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); cat text; lead uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select coalesce(parent_id, id), drop_category into lead, cat from public.offers where id = p_id and is_drop and status = 'live' and starts_at > now();
+  if cat is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if not public.is_verified(me) then return jsonb_build_object('ok', false, 'reason', 'verify'); end if;
+  if coalesce(p_on, true) then insert into public.drop_waitlist (offer_id, user_id) values (lead, me) on conflict do nothing;
+  else delete from public.drop_waitlist where offer_id = lead and user_id = me; end if;
+  return jsonb_build_object('ok', true, 'waiting', coalesce(p_on, true));
+end $$;
+revoke execute on function public.drop_wait(uuid, boolean) from public, anon;
+grant execute on function public.drop_wait(uuid, boolean) to authenticated;
+
+-- the host's line: a phone number for the arrival window, and the exact pin
+create or replace function public.event_host_line(p_id uuid, p_tel text, p_map text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); tel text := nullif(regexp_replace(coalesce(p_tel, ''), '[^0-9+]', '', 'g'), ''); map text := nullif(btrim(coalesce(p_map, '')), '');
+begin
+  if not (public.offer_host(p_id, me) or public.table_host(p_id) = me) then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+  if tel is not null and tel !~ '^\+?[0-9]{7,16}$' then return jsonb_build_object('ok', false, 'reason', 'tel'); end if;
+  if map is not null and map !~* '^https://' then return jsonb_build_object('ok', false, 'reason', 'map'); end if;
+  update public.offers set host_tel = tel, host_map_url = map where id = p_id or parent_id = p_id;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.event_host_line(uuid, text, text) from public, anon;
+grant execute on function public.event_host_line(uuid, text, text) to authenticated;
+
+-- the event page, now with the 4-hour chat, the host line, the walkie-talkie and the flag
+create or replace function public.event_room(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); o public.offers%rowtype; g public.green_gatherings%rowtype;
+        going boolean; paid boolean; host boolean; opens timestamptz; closes timestamptz; sq uuid; hid uuid; arrival boolean;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_kind = 'offer' then
+    select * into o from public.offers where id = p_id;
+    if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+    going := exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = me and b.status in ('reserved','paid','attended'));
+    paid  := exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = me and b.status in ('paid','attended'));
+    hid   := public.table_host(o.id);
+    host  := public.offer_host(o.id, me) or hid = me;
+    if not going and not host then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+    closes := coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour');
+    sq := o.squad_id;
+    if host and not o.online and sq is not null then
+      insert into public.squad_members (squad_id, user_id) values (sq, me) on conflict do nothing;
+    end if;
+    arrival := public.in_arrival_window(o);
+    return jsonb_build_object('ok', true, 'kind', 'offer', 'id', o.id, 'title', o.title, 'title_ar', o.title_ar,
+      'starts_at', o.starts_at, 'closes_at', closes, 'now', now(), 'online', o.online, 'is_host', host,
+      'pin', o.host_pin, 'pin_at', o.host_pin_at,
+      'category', o.drop_category, 'table_no', o.table_no, 'is_drop', o.is_drop,
+      'host', (select jsonb_build_object('id', p.id, 'name', p.name, 'avatar', p.avatar_url) from public.profiles p where p.id = hid),
+      'map', coalesce(o.host_map_url, case when now() >= o.starts_at - interval '12 hours' then (select v.map_url from public.drop_venues v where v.offer_id = o.id) end),
+      'my_tel', case when host then o.host_tel end, 'my_map', case when host then o.host_map_url end,
+      'arrival', jsonb_build_object('opens_at', o.starts_at - interval '4 hours', 'closes_at', o.starts_at + interval '2 hours', 'open', arrival),
+      'host_tel', case when arrival and not host then o.host_tel end,
+      'taken', public.offer_seats_taken(o.id), 'total', o.seats,
+      'chat', case when o.online or sq is null then null else jsonb_build_object('squad_id', sq,
+                'opens_at', o.starts_at - interval '4 hours', 'closes_at', closes,
+                'open', now() between o.starts_at - interval '4 hours' and closes) end,
+      'call', case when not o.online then null else jsonb_build_object(
+                'opens_at', o.starts_at - interval '15 minutes', 'ended', o.room_ended_at is not null,
+                'can_join', (paid or host) and o.room_ended_at is null and now() >= o.starts_at - interval '15 minutes'
+                            and now() < closes + interval '30 minutes') end);
+  elsif p_kind = 'gathering' then
+    select * into g from public.green_gatherings where id = p_id;
+    if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+    going := exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id = me);
+    host  := g.host_id = me;
+    if not going and not host then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+    opens := g.starts_at - interval '4 hours';
+    closes := g.starts_at + make_interval(mins => coalesce(g.minutes, 180));
+    return jsonb_build_object('ok', true, 'kind', 'gathering', 'id', g.id, 'title', g.title,
+      'starts_at', g.starts_at, 'closes_at', closes, 'now', now(), 'online', false, 'is_host', host,
+      'pin', g.host_pin, 'pin_at', g.host_pin_at,
+      'taken', (select count(*) from public.green_joins j where j.gathering_id = g.id), 'total', g.capacity,
+      'chat', case when g.squad_id is null or g.cancelled_at is not null then null else jsonb_build_object('squad_id', g.squad_id,
+                'opens_at', opens, 'closes_at', closes, 'open', now() between opens and closes) end,
+      'call', null);
+  end if;
+  return jsonb_build_object('ok', false, 'reason', 'kind');
+end $$;
+revoke execute on function public.event_room(text, uuid) from public, anon;
+grant execute on function public.event_room(text, uuid) to authenticated;
+
+-- Messages → Table Chats: every table you are at (or host), from the moment you claim
+create or replace function public.my_table_chats()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x->>'starts_at'), '[]'::jsonb) from (
+    select jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'starts_at', o.starts_at,
+      'neighborhood', o.neighborhood, 'neighborhood_ar', o.neighborhood_ar,
+      'category', o.drop_category, 'table_no', o.table_no, 'is_host', public.table_host(o.id) = auth.uid(),
+      'opens_at', o.starts_at - interval '4 hours',
+      'open', now() between o.starts_at - interval '4 hours' and coalesce(o.ends_at, o.starts_at + interval '3 hours'),
+      'last', (select jsonb_build_object('body', left(m.body, 80), 'at', m.created_at) from public.messages m
+                where m.squad_id = o.squad_id order by m.created_at desc limit 1)) as x
+      from public.offers o
+     where not coalesce(o.online, false) and o.starts_at > now() - interval '1 day' and o.status = 'live'
+       and (exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = auth.uid() and b.status in ('reserved','paid','attended'))
+            or (o.is_drop and public.table_host(o.id) = auth.uid()))
+     order by o.starts_at limit 20) t;
+$$;
+revoke execute on function public.my_table_chats() from public, anon;
+grant execute on function public.my_table_chats() to authenticated;
+
+-- only the people at a table may be on its walkie-talkie, and only at arrival time
+do $do$
+begin
+  drop policy if exists "table walkie read" on realtime.messages;
+  create policy "table walkie read" on realtime.messages for select to authenticated
+    using (realtime.topic() like 'table:%' and exists (
+      select 1 from public.offers o where 'table:' || o.id::text = realtime.topic()
+         and public.in_arrival_window(o) and public.table_going(o.id, auth.uid())));
+  drop policy if exists "table walkie write" on realtime.messages;
+  create policy "table walkie write" on realtime.messages for insert to authenticated
+    with check (realtime.topic() like 'table:%' and exists (
+      select 1 from public.offers o where 'table:' || o.id::text = realtime.topic()
+         and public.in_arrival_window(o) and public.table_going(o.id, auth.uid())));
+exception when others then raise notice 'table walkie realtime policies skipped: %', sqlerrm;
+end $do$;
+
+-- the chat and "I've arrived" open 4 hours before (were 2)
+create or replace function public.event_capsule_window(sq uuid)
+returns table (opens timestamptz, ends timestamptz, closes timestamptz)
+language sql stable security definer set search_path = public as $$
+  select * from (
+    select g.starts_at - interval '4 hours', g.starts_at + make_interval(mins => coalesce(g.minutes, 180)),
+           g.starts_at + make_interval(mins => coalesce(g.minutes, 180)) + interval '24 hours'
+      from public.green_gatherings g where g.squad_id = sq and g.cancelled_at is null
+    union all
+    select o.starts_at - interval '4 hours', coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour'),
+           coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour') + interval '24 hours'
+      from public.offers o where o.squad_id = sq and o.starts_at is not null and not o.online
+  ) w limit 1;
+$$;
+revoke all on function public.event_capsule_window(uuid) from public, anon, authenticated;
+
+create or replace function public.event_arrived(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record; n int;
+begin
+  if not public.event_going(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found or m.online then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if now() < m.starts_at - interval '4 hours' or now() > m.ends_at then return jsonb_build_object('ok', false, 'reason', 'not_now'); end if;
+  insert into public.event_arrivals (kind, event_id, user_id) values (p_kind, p_id, me) on conflict do nothing;
+  get diagnostics n = row_count;
+  if n > 0 then
+    insert into public.notifications (user_id, actor_id, kind, body)
+    select x.u, me, 'arrived', p_id::text || '|' || left(m.title, 80)
+      from (select b.user_id u from public.bookings b where p_kind = 'offer' and b.offer_id = p_id and b.status in ('reserved','paid','attended')
+            union select j.user_id from public.green_joins j where p_kind = 'gathering' and j.gathering_id = p_id
+            union select g.host_id from public.green_gatherings g where p_kind = 'gathering' and g.id = p_id) x
+     where x.u is not null and x.u <> me and not public.blocked_between(me, x.u);
+  end if;
+  return jsonb_build_object('ok', true, 'new', n > 0, 'arrived', public.event_arrivals_list(p_kind, p_id));
+end $$;
+revoke execute on function public.event_arrived(text, uuid) from public, anon;
+grant execute on function public.event_arrived(text, uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
