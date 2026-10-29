@@ -87,7 +87,7 @@ const QuotaLine = lazyOverlay(() => import('../components/WeeklyDrops').then((m)
 const GlobalTrack = lazyOverlay(() => import('../components/GlobalTrack').then((m) => ({ default: m.GlobalTrack })));
 const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
-const MemoryBook = lazyOverlay(() => import('../components/MemoryBook').then((m) => ({ default: m.MemoryBook })));
+const MomentsBookCover = lazyOverlay(() => import('../components/MemoryBook').then((m) => ({ default: m.MomentsBookCover })));
 const StampBook = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.StampBook })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
 
@@ -798,8 +798,11 @@ export const ProfileScreen = () => {
         {SUPABASE_READY && user ? <StampBook /> : null}
 
         {/* the Moments Book: one page a day — the photo, the reflection, the tables you checked into */}
-        {SUPABASE_READY && user ? <MemoryBook /> : null}
+        {SUPABASE_READY && user ? <MomentsBookCover /> : null}
 
+        {/* Ayser, October 2026: your moments live in the Moments Book above — the closed
+            book is the one place for them, not a second grid of the same photos */}
+        {SUPABASE_READY && user ? <View style={{ height: 30 }} /> : (<>
         {/* tab strip — only the tabs with something in them. Five icons
             over five empty pages was a new profile's first sight; with
             only moments, there is no strip at all, just the moments. */}
@@ -903,6 +906,7 @@ export const ProfileScreen = () => {
             )}
           </View>
         )}
+        </>)}
       </ScrollView>
 
       <Modal visible={settings} animationType="slide" onRequestClose={() => setSettings(false)}>

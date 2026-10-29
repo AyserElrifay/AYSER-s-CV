@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { View, Text, ScrollView, Pressable, Image, PanResponder, ActivityIndicator, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
-import { jw } from '../constants/joinWords';
+import { jw, seatsLeftOf } from '../constants/joinWords';
 import { lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { whyText } from '../lib/recommend';
 import { HostBadge } from './HostCard';
@@ -92,7 +92,8 @@ export const MapPanel = ({
           ) : null}
         </View>
         {mine ? (
-          <Text style={{ color: C.green, fontSize: 12, fontWeight: '900', marginStart: 8 }}>{t('tg_hosting')}</Text>
+          /* seats left, not "you're hosting" (Ayser, October 2026) */
+          seatsLeftOf(lang, g) ? <Text style={{ color: C.text, fontSize: 12, fontWeight: '800', marginStart: 8 }}>{seatsLeftOf(lang, g)}</Text> : null
         ) : g.im_going ? (
           <Pressable onPress={() => onJoin(g)} disabled={!!joining[g.id]} accessibilityRole="button" style={{ marginStart: 8, paddingVertical: 8 }}>
             <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', opacity: joining[g.id] ? 0.5 : 1 }}>{jw(lang, 'reserved').split(' • ')[0]}</Text>

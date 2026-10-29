@@ -25,7 +25,7 @@ import { sfxNotify } from '../utils/sfx';
 import { Glass } from '../components/Glass';
 import { PostCard } from '../components/PostCard';
 import { PhotoPrompt } from '../components/PhotoPrompt';
-import { todaysPrompt } from '../constants/loopWords';
+import { todaysPrompt, lw } from '../constants/loopWords';
 import { Wordmark } from '../components/Wordmark';
 import { Greeting } from '../components/Greeting';
 import { Modal } from 'react-native';
@@ -644,9 +644,10 @@ export const HomeScreen = () => {
                 the photo above, a heavy switch was the loudest thing on
                 the screen, and it is only a way of choosing what to read */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 22 }} accessibilityRole="tablist">
-              {[['moments', t('hm_moments')], ['reflect', t('hm_reflect')]].map(([k, label]) => (
+              {/* Ayser, October 2026: two clear headers — the day's question, and the last 48 hours */}
+              {[['reflect', lw(lang, 'tab_reflect')], ['moments', lw(lang, 'tab_live')]].map(([k, label]) => (
                 <Pressable key={k} onPress={() => pickTab(k)} accessibilityRole="tab" accessibilityState={{ selected: homeTab === k }} hitSlop={8} style={{ marginEnd: 22 }}>
-                  <Text style={{ color: homeTab === k ? C.text : C.faint, fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{label}</Text>
+                  <Text style={{ color: homeTab === k ? C.text : C.faint, fontSize: 13.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{label}</Text>
                   <View style={{ height: 3, width: 18, borderRadius: 2, marginTop: 5, backgroundColor: homeTab === k ? C.purple : 'transparent' }} />
                 </Pressable>
               ))}

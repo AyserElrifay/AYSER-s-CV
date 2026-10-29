@@ -80,12 +80,12 @@ const Tag = ({ label, bg, ink }) => (
 );
 
 /* ─── ONE PAGE ─────────────────────────────────────────────────────── */
-const PageCard = ({ pg, lang, P, black, member, full, price, tilt, onOpen, onKeep, onHighlight }) => {
+const PageCard = ({ pg, lang, P, black, member, full, price, total, tilt, onOpen, onKeep, onHighlight }) => {
   const d = dayOf(pg.day);
   const ph = (pg.photos || [])[0] || null;
   const now = Date.now();
-  const photoGone = ph && ph.expires_at && new Date(ph.expires_at).getTime() <= now;
-  const locked = !!ph && !pg.keep && photoGone && !member && full;     // past five pages: the photo waits blurred, then goes
+  // past the five open pages (free): kept, never deleted, blurred until Moments+ (RUN_ME.sql memory_book)
+  const locked = pg.open === false;
   const { title } = titleOf(ph);
   const refl = pg.reflection;
   const mom = pg.moment;
@@ -94,8 +94,31 @@ const PageCard = ({ pg, lang, P, black, member, full, price, tilt, onOpen, onKee
   const pill = PILLAR[pk];
   const mood = refl && refl.mood ? mw(lang, 'moods')[Math.max(0, Math.min(4, refl.mood - 1))] : null;
   const tags = tagsOf(ph && ph.caption);
-  const status = !ph || pg.keep || member ? null : photoGone ? mw(lang, 'grace', { t: until(lang, ph.grace_until) || '—' }) : mw(lang, 'live', { t: until(lang, ph.expires_at) || '—' });
-  const lockText = price ? mw(lang, 'lockPrice', { p: price, c: lang === 'ar' ? 'جنيه' : 'EGP' }) : mw(lang, 'lock');
+  const status = null;
+  const lockText = mw(lang, 'unlockAll', { n: total || 0, p: price || 129, c: lang === 'ar' ? 'جنيه' : 'EGP' });
+
+  if (locked) {
+    /* the whole page is there, blurred: the photo, and the words under frosted glass */
+    return (
+      <Pressable testID="mb-locked" onPress={() => { tapLight(); askUpgrade('member'); }} accessibilityRole="button" style={{ marginBottom: 20, transform: [{ rotate: tilt }] }}>
+        <View style={{ borderRadius: 8, backgroundColor: P.page, padding: 12, borderWidth: 1, borderColor: P.line, overflow: 'hidden' }}>
+          <Text style={{ color: P.dim, fontSize: 10.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{stampLine(lang, d, placeOf(pg))}</Text>
+          <View style={[{ marginTop: 10 }, Platform.OS === 'web' ? { filter: 'blur(7px)' } : null]}>
+            {ph && picOf(ph) ? <Image source={{ uri: picOf(ph) }} blurRadius={18} style={{ width: '100%', aspectRatio: 4 / 5, borderRadius: 4, backgroundColor: P.line }} resizeMode="cover" /> : null}
+            <Text numberOfLines={3} style={{ color: P.ink, fontSize: 17, lineHeight: 24, marginTop: 10, fontFamily: SERIF }}>{refl ? '“' + refl.body + '”' : title || ' '}</Text>
+          </View>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: 22, backgroundColor: black ? 'rgba(0,0,0,0.35)' : 'rgba(250,249,246,0.35)' }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="lock-closed" size={17} color="#FFFFFF" />
+            </View>
+            <View style={{ marginTop: 12, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.72)', paddingHorizontal: 14, paddingVertical: 10 }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '700', textAlign: 'center', lineHeight: 20 }}>{'✦ ' + lockText}</Text>
+            </View>
+          </View>
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
     <View style={{ marginBottom: 20, transform: [{ rotate: tilt }] }}>
@@ -328,10 +351,10 @@ async function shareRecap(blob, name) {
 }
 
 /* ─── THE BOOK ─────────────────────────────────────────────────────── */
-export const MemoryBook = () => {
+export const MemoryBook = ({ initial = null, bare = false }) => {
   const { lang } = useLang();
   const { user } = useAuth() || {};
-  const [book, setBook] = useState(null);
+  const [book, setBook] = useState(initial);
   const [note, setNote] = useState(null);
   const [making, setMaking] = useState(null);
   const [open, setOpen] = useState(null);
@@ -413,15 +436,15 @@ export const MemoryBook = () => {
   const ready = today.getDate() <= 7 ? chapters.find((c) => c.key === last.getFullYear() + '-' + last.getMonth()) : null;
 
   return (
-    <View nativeID="moments-book" testID="memory-book" style={{ marginHorizontal: 16, marginTop: 22, borderRadius: 24, backgroundColor: P.bg, borderWidth: 1, borderColor: P.line, padding: 16 }}>
+    <View nativeID="moments-book" testID="memory-book" style={bare ? { padding: 16 } : { marginHorizontal: 16, marginTop: 22, borderRadius: 24, backgroundColor: P.bg, borderWidth: 1, borderColor: P.line, padding: 16 }}>
       <Text style={{ color: P.faint, fontSize: 11, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{mw(lang, 'kicker')}</Text>
       <Text style={{ color: P.ink, fontSize: 26, fontWeight: '600', marginTop: 6, fontFamily: SERIF, fontStyle: lang === 'ar' ? 'normal' : 'italic' }}>{mw(lang, 'title')}</Text>
       <Text style={{ color: P.dim, fontSize: 13.5, lineHeight: 20, marginTop: 4 }}>
-        {member ? mw(lang, 'subMember') : mw(lang, 'subFree', { n: book.pins || 0, max: book.limit || 5 })}
+        {member ? mw(lang, 'subMember') : mw(lang, 'subOpen', { n: Math.min(5, book.total || 0), t: book.total || 0 })}
       </Text>
       {!member ? (
         <Pressable onPress={() => { tapLight(); askUpgrade('member'); }} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
-          <Text style={{ color: P.ink, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' }}>{'✦ ' + (price ? mw(lang, 'lockPrice', { p: price, c: lang === 'ar' ? 'جنيه' : 'EGP' }) : mw(lang, 'lock'))}</Text>
+          <Text style={{ color: P.ink, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' }}>{'✦ ' + mw(lang, 'unlockAll', { n: book.total || 0, p: price || 129, c: lang === 'ar' ? 'جنيه' : 'EGP' })}</Text>
         </Pressable>
       ) : null}
       {note ? <Text style={{ color: P.ink, fontSize: 13, marginTop: 10 }}>{note}</Text> : null}
@@ -445,7 +468,7 @@ export const MemoryBook = () => {
             <Text style={{ color: P.dim, fontSize: 13, marginHorizontal: 8 }}>{'•  ' + subOf(ch)}</Text>
           </View>
           {ch.pages.map((pg, i) => (
-            <PageCard key={pg.day} pg={pg} lang={lang} P={P} black={black} member={member} full={full} price={price}
+            <PageCard key={pg.day} pg={pg} lang={lang} P={P} black={black} member={member} full={full} price={price} total={book.total}
               tilt={i % 2 ? '0.5deg' : '-0.5deg'} onOpen={(x) => { tapLight(); setOpen(x); }} onKeep={keep} onHighlight={highlight} />
           ))}
           {Platform.OS === 'web' ? (
@@ -459,6 +482,64 @@ export const MemoryBook = () => {
       ))}
       {open ? <OpenPage pg={open} lang={lang} P={P} onClose={() => setOpen(null)} /> : null}
     </View>
+  );
+};
+
+/* ─── THE CLOSED BOOK ON SPACE ────────────────────────────────────────
+   Ayser, October 2026: Space shows the book closed — a hardcover with
+   its title in foil — and it opens, full-screen, on a tap. */
+export const MomentsBookCover = () => {
+  const { lang } = useLang();
+  const insets = useSafeAreaInsets();
+  const [book, setBook] = useState(null);
+  const [open, setOpen] = useState(false);
+  const load = () => memoryBook().then((b) => { if (b && b.ok) setBook(b); });
+  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const go = () => setOpen(true);
+    try { window.addEventListener('mm-open-book', go); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-open-book', go); } catch (e) {} };
+  }, []);
+  const black = book && book.tier === 'VIP';
+  const P = black ? OBSIDIAN : PAPER;
+  const n = (book && book.total) || 0;
+  const cover = black ? '#121212' : '#2A1F57';
+  const foil = '#D9C08C';
+  return (
+    <>
+      <Pressable testID="book-cover" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" accessibilityLabel={mw(lang, 'coverTitle')} style={{ marginHorizontal: 16, marginTop: 22 }}>
+        {({ pressed }) => (
+          <View style={{ flexDirection: 'row', borderRadius: 14, overflow: 'hidden', backgroundColor: cover, height: 200, transform: [{ scale: pressed ? 0.985 : 1 }] }}>
+            {/* the spine */}
+            <View style={{ width: 18, backgroundColor: 'rgba(0,0,0,0.35)', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.08)' }} />
+            <View style={{ flex: 1, padding: 20, justifyContent: 'space-between' }}>
+              <View style={{ borderWidth: 1, borderColor: 'rgba(217,192,140,0.45)', borderRadius: 6, padding: 14, flex: 1, justifyContent: 'center' }}>
+                <Text style={{ color: foil, fontSize: 18, textAlign: 'center' }}>✦</Text>
+                <Text style={{ color: foil, fontSize: 22, fontWeight: '600', textAlign: 'center', marginTop: 6, fontFamily: SERIF, fontStyle: lang === 'ar' ? 'normal' : 'italic' }}>{mw(lang, 'coverTitle')}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 13, textAlign: 'center', marginTop: 6 }}>{mw(lang, 'coverSub')}</Text>
+              </View>
+              <Text style={[{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.2, marginTop: 10, textAlign: 'center' }]}>
+                {n === 1 ? mw(lang, 'page1').toUpperCase() : mw(lang, 'pageN', { n }).toUpperCase()}
+              </Text>
+            </View>
+          </View>
+        )}
+      </Pressable>
+      {open ? (
+        <Modal visible animationType="slide" onRequestClose={() => { setOpen(false); load(); }}>
+          <View style={{ flex: 1, backgroundColor: P.bg }}>
+            <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16 }}>
+              <Pressable onPress={() => { tapLight(); setOpen(false); load(); }} hitSlop={12} accessibilityRole="button" accessibilityLabel={mw(lang, 'close')}>
+                <Ionicons name="close" size={26} color={P.ink} />
+              </Pressable>
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 30, alignItems: 'center' }}>
+              <View style={{ width: '100%', maxWidth: 560 }}><MemoryBook initial={book} bare /></View>
+            </ScrollView>
+          </View>
+        </Modal>
+      ) : null}
+    </>
   );
 };
 

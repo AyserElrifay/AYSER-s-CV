@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SUPABASE_READY, storedSessionNow } from '../lib/supabase';
 import { explain } from '../lib/explain';
-import { fetchFeed, fetchReposts } from '../services/posts';
+import { fetchFeed } from '../services/posts';
 import { fetchTagsForPosts } from '../services/tags';
 import { rankFeed } from '../services/algorithm';
 import { actionFeed } from '../lib/actionFeed';
@@ -82,6 +82,7 @@ export const toCard = (row) => ({
   tagged: row.tagged || [],
   // a camera moment's end (RUN_ME.sql posts_lifetime); the card counts down to it
   expiresAt: row.expires_at || null,
+  createdAt: row.created_at || null,
 });
 
 /* ─── THE FEED, WITHOUT THE WAIT ──────────────────────────────────────
@@ -140,21 +141,11 @@ function writeCache(posts) {
 async function fetchFresh() {
   /* no adverts in the feed: an organisation reaches people by hosting
      something on the map, not by buying a card between their friends */
-  const [rows, reposts] = await Promise.all([fetchFeed(), fetchReposts()]);
-  /* A repost brings the moment itself back, credited to whoever
-     passed it on. If the moment is already in the feed we don't
-     show it twice — we just put the credit on the card that's
-     already there. */
+  /* Ayser, October 2026: the feed is live moments only — no reposts
+     carrying old posts back in, nothing older than 48 hours */
+  const rows = await fetchFeed();
   const cards = (rows || []).map(toCard);
-  const byId = new Map(cards.map((c) => [c.id, c]));
   const revived = [];
-  (reposts || []).forEach((r) => {
-    const there = byId.get(r.id);
-    if (there) { if (!there.repostedBy && r.reposted_by) there.repostedBy = { id: r.reposted_by.id, name: r.reposted_by.name, avatar: r.reposted_by.avatar_url || AV_NEUTRAL }; return; }
-    const card = toCard(r);
-    byId.set(card.id, card);
-    revived.push(card);
-  });
   return { all: actionFeed(cards.concat(revived), whoNow()) };
 }
 

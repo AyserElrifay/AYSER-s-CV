@@ -352,9 +352,10 @@ export const StampBook = () => {
       <HostCard onHost={() => { goToTab('TOGETHER'); setTimeout(() => { try { window.dispatchEvent(new CustomEvent('mm-host-table')); } catch (e) {} }, 350); }} />
 
       <Pressable onPress={() => { tapLight(); setScan(true); }} accessibilityRole="button" style={{ marginTop: 22 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 15, backgroundColor: '#FFF' }}>
-          <Ionicons name="qr-code-outline" size={19} color="#17131F" />
-          <Text style={{ color: '#17131F', fontSize: 16, fontWeight: '700', marginStart: 8 }}>{pw(lang, 'scan')}</Text>
+        {/* solid ink on the card, whatever the theme makes of the purple behind it (it washed out in Black) */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 15, backgroundColor: '#17131F', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' }}>
+          <Ionicons name="qr-code-outline" size={19} color="#FFFFFF" />
+          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800', marginStart: 8 }}>{pw(lang, 'scan')}</Text>
         </View>
       </Pressable>
       {scan ? <StampScanner onClose={() => { setScan(false); load(); }} /> : null}

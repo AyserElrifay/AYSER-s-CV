@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { lw } from '../constants/loopWords';
 import { View, Text, Pressable, Image, Animated, Easing, Platform } from 'react-native';
 import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -250,8 +251,8 @@ export const NextUp = ({ user, onOpen, onStart }) => {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
               <Text style={{ flex: 1, color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '800', marginEnd: 10 }} numberOfLines={2}>
                 {seatsLine || (g.im_going
-                  ? (n > 1 ? t('nu_you_and').replace('{n}', String(n - 1)) : t('nu_first_in'))
-                  : n > 0 ? t('gm_join_them').replace('{n}', String(n)) : t('gm_first'))}
+                  ? (n > 1 ? t('nu_you_and').replace('{n}', String(n - 1)) : lw(lang, 'curated'))
+                  : n > 0 ? t('gm_join_them').replace('{n}', String(n)) : lw(lang, 'curated'))}
               </Text>
               {g.im_going ? (
                 <Pressable onPress={bringFriend} accessibilityRole="button" hitSlop={6}>

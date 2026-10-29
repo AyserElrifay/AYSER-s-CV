@@ -25638,6 +25638,92 @@ grant execute on function public.event_arrived(text, uuid) to authenticated;
 
 notify pgrst, 'reload schema';
 
+-- ════════════════════════════════════════════════════════════════════
+--  THE MOMENTS BOOK KEEPS EVERYTHING · FIVE PAGES OPEN, THE REST WAIT
+--  (Ayser, October 2026: "never delete compressed photos")
+--  · No moment is deleted any more when it leaves the feed: its light
+--    (~50 KB WebP) photo stays on its page in its owner's book.
+--  · Free: five pages are open — the ones they kept, then the most
+--    recent — and every other page is there, blurred, until Moments+.
+--    Members: every page open.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+create or replace function public.book_day(me uuid, d date)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'day', d,
+    'keep', public.page_kept(me, d) or public.is_plus(me),
+    'highlight', coalesce((select highlight from public.book_pages where user_id = me and day = d), false),
+    'photos', coalesce((select jsonb_agg(jsonb_build_object(
+        'id', p.id, 'type', p.type, 'media_url', p.media_url, 'thumb_url', p.thumb_url, 'caption', p.caption, 'place', p.place,
+        'created_at', p.created_at, 'expires_at', p.expires_at, 'grace_until', p.expires_at + interval '48 hours', 'keep', p.keep,
+        'notes', (select coalesce(jsonb_agg(c order by c.buddy desc, c.at), '[]'::jsonb) from (
+                    select cm.body, cm.created_at as at, pr.name, public.are_buddies(me, cm.user_id) as buddy
+                      from public.comments cm join public.profiles pr on pr.id = cm.user_id
+                     where cm.post_id = p.id and cm.user_id <> me and not public.blocked_between(me, cm.user_id)
+                     order by public.are_buddies(me, cm.user_id) desc, cm.created_at limit 3) c))
+        order by p.created_at)
+      from public.posts p
+     where p.user_id = me and p.expires_at is not null and p.media_url is not null and p.created_at::date = d
+), '[]'::jsonb),
+    'reflection', (select jsonb_build_object('prompt', r.prompt, 'body', r.body, 'mood', r.mood)
+                     from public.reflections r where r.user_id = me and r.day = d),
+    'moment', (select jsonb_build_object('body', a.body, 'q', q.q, 'q_ar', q.q_ar, 'kind', q.kind,
+                                         'choice', case when q.kind = 'poll' and a.choice is not null then q.opts -> a.choice::int end)
+                 from public.moment_answers a
+                 left join public.moment_pool q on q.n = 1 + ((d - date '2026-01-01') % greatest(1, (select count(*) from public.moment_pool))::int)
+                where a.user_id = me and a.day = d),
+    'stamps', coalesce((select jsonb_agg(jsonb_build_object('title', s.title, 'place', s.place, 'kind', s.kind, 'at', s.at) order by s.at)
+                          from public.passport_stamps s where s.user_id = me and s.at::date = d), '[]'::jsonb));
+$$;
+revoke all on function public.book_day(uuid, date) from public, anon, authenticated;
+
+create or replace function public.memory_book()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); member boolean; pages jsonb; n int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  member := public.is_plus(me);
+  with days as (
+    select day from (
+      select created_at::date as day from public.posts where user_id = me and expires_at is not null and media_url is not null
+      union select day from public.reflections where user_id = me
+      union select day from public.moment_answers where user_id = me and body is not null
+      union select at::date from public.passport_stamps where user_id = me) u
+    order by day desc limit 400),
+  ranked as (
+    -- free: kept pages first, then the most recent, five in all
+    select d.day, row_number() over (order by public.page_kept(me, d.day) desc, d.day desc) as r from days d)
+  select coalesce(jsonb_agg(public.book_day(me, r.day) || jsonb_build_object('open', member or r.r <= 5) order by r.day desc), '[]'::jsonb),
+         count(*)::int
+    into pages, n from ranked r;
+  return jsonb_build_object('ok', true, 'tier', public.member_tier(me), 'member', member,
+    'pins', public.memory_pins(me), 'limit', 5, 'total', n,
+    'price', (select value ->> 'basic' from public.app_settings where key = 'tier_prices'),
+    'currency', coalesce((select value ->> 'currency' from public.app_settings where key = 'tier_prices'), 'EGP'),
+    'pages', pages);
+end $$;
+revoke execute on function public.memory_book() from public, anon;
+grant execute on function public.memory_book() to authenticated;
+
+create or replace function public.tidy_up()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare s int := 0; v int := 0; b int := 0; p int := 0; n int := 0; m int := 0;
+begin
+  -- a moment leaves the feed after 48 hours but is never deleted: it stays, light, in its owner's book
+  delete from public.stories where expires_at < now() - interval '1 day'; get diagnostics s = row_count;
+  delete from public.story_views where viewed_at < now() - interval '7 days'; get diagnostics v = row_count;
+  delete from public.biz_tries where at < now() - interval '2 days'; get diagnostics b = row_count;
+  delete from public.buddy_pings where at < now() - interval '30 days'; get diagnostics p = row_count;
+  delete from public.notifications where created_at < now() - interval '90 days'; get diagnostics n = row_count;
+  update public.plus_members set status = 'expired' where source = 'preview' and status = 'active' and until < now();
+  return jsonb_build_object('moments', m, 'stories', s, 'story_views', v, 'biz_tries', b, 'buddy_pings', p, 'notifications', n,
+                            'trash', (select count(*) from public.storage_trash));
+end $$;
+revoke all on function public.tidy_up() from public, anon, authenticated;
+
+notify pgrst, 'reload schema';
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

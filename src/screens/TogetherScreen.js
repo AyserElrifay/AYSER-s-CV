@@ -44,7 +44,7 @@ import { greenPic } from '../components/green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
 import { JourneyCard, JourneyMap } from '../components/JourneyMap';
-import { jw, mapsLink } from '../constants/joinWords';
+import { jw, mapsLink, seatsLeftOf } from '../constants/joinWords';
 const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
 const EventRoom = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.EventRoom })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
@@ -863,7 +863,7 @@ export const TogetherScreen = () => {
                               </View>
                             </Pressable>
                           ) : mine ? (
-                            <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{jw(lang, 'hosting')}</Text>
+                            <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{seatsLeftOf(lang, g) || jw(lang, 'hosting')}</Text>
                           ) : g.im_going ? (
                             <Pressable onPress={() => { tapLight(); setEventOf(g.id); }} accessibilityRole="button">
                               <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: C.text }}>

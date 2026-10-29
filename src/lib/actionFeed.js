@@ -44,4 +44,14 @@ export function actionOf(c) {
 /* your own moments always stay in your feed — a moment that is not from
    an outing reaches other people through your profile, but it never
    vanishes from under the person who just posted it */
-export const actionFeed = (cards, me) => (cards || []).filter((c) => isActionPost(c) || isLightPost(c) || isVisualPost(c) || (me && c && !c.sponsored && c.userId === me)).slice(0, FEED_MAX);
+/* Ayser, October 2026: LIVE MOMENTS is the last 48 hours of camera
+   moments and nothing else — no old text posts from July, no reposts.
+   A moment counts down to its end (posts.expires_at); one without an
+   end is live for 48 hours from when it was posted. */
+export const LIVE_HOURS = 48;
+export const isLive = (c, now = Date.now()) => {
+  if (!c) return false;
+  if (c.expiresAt) return new Date(c.expiresAt).getTime() > now;
+  return !!c.createdAt && now - new Date(c.createdAt).getTime() < LIVE_HOURS * 3600e3;
+};
+export const actionFeed = (cards, me) => (cards || []).filter((c) => isVisualPost(c) && isLive(c)).slice(0, FEED_MAX);

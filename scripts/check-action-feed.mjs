@@ -5,7 +5,7 @@
        node scripts/check-action-feed.mjs
 */
 import fs from 'node:fs';
-import { isActionPost, actionOf, actionFeed, FEED_MAX, isVisualPost } from '../src/lib/actionFeed.js';
+import { isActionPost, actionOf, actionFeed, FEED_MAX, isVisualPost, isLive } from '../src/lib/actionFeed.js';
 let bad = 0;
 const is = (what, got, want) => {
   const ok = JSON.stringify(got) === JSON.stringify(want);
@@ -20,17 +20,20 @@ is('a post pinned on the map', isActionPost({ coords: { latitude: 1, longitude: 
 is('a plan with a time', isActionPost({ joinable: true }), true);
 is('a travel plan', isActionPost({ plan: { to: 'Tallinn' } }), true);
 is('a photo of nowhere in particular is not an action post', isActionPost({ caption: 'mood', place: '  ' }), false);
-is('but a light moment is in the feed', actionFeed([{ id: 1, userId: 'x', caption: 'I love cheese' }], 'me').length, 1);
-is('your own moment with no place still stays in your feed', actionFeed([{ id: 1, userId: 'me', caption: 'I love cheese' }], 'me').length, 1);
+// Ayser, October 2026: LIVE MOMENTS — camera moments of the last 48 hours, no old text posts
+const now = new Date().toISOString();
+is('a text-only post is not in the feed any more', actionFeed([{ id: 1, userId: 'x', caption: 'I love cheese', createdAt: now }], 'me').length, 0);
+is('a photo from July is not in the feed', actionFeed([{ id: 1, userId: 'x', media: 'https://x/p.jpg', createdAt: '2026-07-14T10:00:00Z' }], 'me').length, 0);
+is('a moment whose 48 hours ran out is not live', isLive({ expiresAt: '2026-01-01T00:00:00Z' }), false);
 is('an advert is not', isActionPost({ sponsored: true, place: 'Mall' }), false);
-is('a photo or a video is in the feed again', actionFeed([{ id: 1, userId: 'x', type: 'reel', media: 'https://x/v.mp4' }, { id: 2, userId: 'x', media: 'https://x/p.jpg' }], 'me').length, 2);
+is('a photo or a video of the last 48 hours is in the feed', actionFeed([{ id: 1, userId: 'x', type: 'reel', media: 'https://x/v.mp4', createdAt: now }, { id: 2, userId: 'x', media: 'https://x/p.jpg', createdAt: now }], 'me').length, 2);
 is('an advert with a photo is still not', isVisualPost({ sponsored: true, media: 'x' }), false);
 // Ayser, October 2026: clips play by themselves, silent — but the data
 // saver and "less motion" still keep them still (videoPolicy decides)
 is('a clip plays by itself only as videoPolicy allows', /const policy = videoPolicy\(mode,/.test(read('src/components/PostCard.js')) && !/autoplay: true/.test(read('src/components/PostCard.js')), true);
 is('something to join says join', actionOf({ joinable: true, place: 'x' }), 'join');
 is('a place says make a plan here', actionOf({ place: 'x' }), 'hangout');
-is('the feed stops at thirty', actionFeed(Array.from({ length: 50 }, (_, i) => ({ id: i, place: 'p' }))).length, FEED_MAX);
+is('the feed stops at thirty', actionFeed(Array.from({ length: 50 }, (_, i) => ({ id: i, place: 'p', media: 'https://x/p.jpg', createdAt: now }))).length, FEED_MAX);
 
 console.log('\nand the app keeps to it');
 const feed = read('src/hooks/useFeed.js');

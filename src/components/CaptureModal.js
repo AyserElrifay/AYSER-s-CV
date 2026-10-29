@@ -1814,12 +1814,13 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
     const alreadyUp = !!shot.remote && !(shot.kind === 'photo' && needsBake);
     if (isWeb && shot.kind === 'photo' && needsBake) {
       const baked = await bakeAll(shot.uri);
-      const s = await smallImage(baked, 1080, 0.8);
+      // ~50 KB of WebP: every moment is kept for good in its owner's Moments Book
+      const s = await smallImage(baked, 960, 0.6);
       workingShot = { ...shot, uri: s.uri, blob: null, ext: s.ext || 'jpg', contentType: s.type || 'image/jpeg' };
     } else if (isWeb && shot.kind === 'photo') {
       // gallery pictures arrive full-resolution — shrink to feed size
       // (invisible on a phone, ~6x fewer bytes stored & downloaded)
-      const s = await smallImage(shot.uri, 1080, 0.8);
+      const s = await smallImage(shot.uri, 960, 0.6);
       workingShot = { ...shot, uri: s.uri, blob: null, ext: s.ext || 'jpg', contentType: s.type || 'image/jpeg' };
     }
     try {

@@ -667,13 +667,6 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             <MaterialCommunityIcons name="script-text-outline" size={20} color={C.dim} />
             <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', marginLeft: 4 }}>{post.comments}</Text>
           </Pressable>
-          {/* Repost — persisted upstream, survives refresh */}
-          <Pressable onPress={() => { tapLight(); onRepost && onRepost(); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
-            <MaterialCommunityIcons name="repeat-variant" size={22} color={reposted ? C.green : C.dim} />
-            <Text style={{ color: reposted ? C.green : C.dim, fontSize: 13, fontWeight: '700', marginLeft: 3 }}>
-              {(post.reposts || 0) + (reposted ? 1 : 0)}
-            </Text>
-          </Pressable>
           {/* Translate — Bardi already speaks every language the app does */}
           {(post.caption || '').trim().length > 3 ? (
             <Pressable onPress={doTranslate} hitSlop={8} style={{ marginRight: 16 }} accessibilityRole="button" accessibilityLabel={t('translate_btn')}>
