@@ -24702,6 +24702,123 @@ grant execute on function public.owner_pay_decide(uuid, boolean) to authenticate
 
 notify pgrst, 'reload schema';
 
+-- ════════════════════════════════════════════════════════════════════
+--  A MOMENT LIVES 48 HOURS · AND A 24-HOUR PASS WHILE A TRANSFER IS CHECKED
+--  (Ayser, October 2026)
+--  · Every moment shot with the camera (type 'reel' — the daily prompt is
+--    the only way in now) is given expires_at = 48 hours from posting
+--    (the launch length; 24 later). The feed stops showing it then, and
+--    tidy_up() deletes it the next night — its file goes to
+--    storage_trash and the daily sweep removes it — unless a Moments+ or
+--    Black member kept it ("Save to my private memories": posts.keep,
+--    which the server only allows for members). A kept moment stays on
+--    its owner's own page, nowhere else.
+--  · pay_submit: the first transfer a member ever sends opens a 24-hour
+--    pass at once (plus_members source 'preview'); approving replaces it
+--    with the paid plan, rejecting ends it.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.posts add column if not exists expires_at timestamptz;
+alter table public.posts add column if not exists keep boolean not null default false;
+create index if not exists posts_expires_at on public.posts (expires_at) where expires_at is not null;
+
+create or replace function public.posts_lifetime()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'INSERT' and new.type = 'reel' and new.expires_at is null then
+    new.expires_at := now() + interval '48 hours';
+  end if;
+  if tg_op = 'UPDATE' then new.expires_at := old.expires_at; end if;   -- nobody stretches it by hand
+  if coalesce(new.keep, false) and not public.is_plus(new.user_id) then new.keep := false; end if;
+  return new;
+end $$;
+drop trigger if exists posts_lifetime on public.posts;
+create trigger posts_lifetime before insert or update on public.posts
+  for each row execute function public.posts_lifetime();
+
+-- keep or let go of one of your own moments (members)
+create or replace function public.post_keep(p_id uuid, p_keep boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if coalesce(p_keep, false) and not public.is_plus(auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  update public.posts set keep = coalesce(p_keep, false) where id = p_id and user_id = auth.uid();
+  return jsonb_build_object('ok', found, 'keep', coalesce(p_keep, false));
+end $$;
+revoke execute on function public.post_keep(uuid, boolean) from public, anon;
+grant execute on function public.post_keep(uuid, boolean) to authenticated;
+
+create or replace function public.tidy_up()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare s int := 0; v int := 0; b int := 0; p int := 0; n int := 0; m int := 0;
+begin
+  delete from public.posts where expires_at < now() - interval '2 hours' and not keep; get diagnostics m = row_count;
+  delete from public.stories where expires_at < now() - interval '1 day'; get diagnostics s = row_count;
+  delete from public.story_views where viewed_at < now() - interval '7 days'; get diagnostics v = row_count;
+  delete from public.biz_tries where at < now() - interval '2 days'; get diagnostics b = row_count;
+  delete from public.buddy_pings where at < now() - interval '30 days'; get diagnostics p = row_count;
+  delete from public.notifications where created_at < now() - interval '90 days'; get diagnostics n = row_count;
+  update public.plus_members set status = 'expired' where source = 'preview' and status = 'active' and until < now();
+  return jsonb_build_object('moments', m, 'stories', s, 'story_views', v, 'biz_tries', b, 'buddy_pings', p, 'notifications', n,
+                            'trash', (select count(*) from public.storage_trash));
+end $$;
+revoke all on function public.tidy_up() from public, anon, authenticated;
+
+alter table public.payment_proofs add column if not exists preview boolean not null default false;
+
+create or replace function public.pay_submit(p_tier text, p_period text, p_path text, p_ref text, p_amount numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); first boolean; pass_until timestamptz;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_tier not in ('basic','vip') or p_period not in ('month','year') then return jsonb_build_object('ok', false, 'reason', 'plan'); end if;
+  if p_path is null or split_part(p_path, '/', 1) <> me::text or p_path !~ '^[0-9a-f-]+/pay-[0-9]+\.(jpg|webp|png)$' then
+    return jsonb_build_object('ok', false, 'reason', 'path');
+  end if;
+  if exists (select 1 from public.payment_proofs where user_id = me and status = 'pending') then
+    return jsonb_build_object('ok', false, 'reason', 'waiting');
+  end if;
+  -- a 24-hour pass, once ever, and only for somebody not already a member
+  first := not exists (select 1 from public.payment_proofs where user_id = me) and public.member_tier(me) = 'FREE';
+  insert into public.payment_proofs (user_id, tier, period, amount, ref, path, preview)
+  values (me, p_tier, p_period, nullif(p_amount, 0), nullif(left(btrim(coalesce(p_ref, '')), 60), ''), p_path, first);
+  if first then
+    pass_until := now() + interval '24 hours';
+    insert into public.plus_members as m (user_id, status, until, source, tier)
+    values (me, 'active', pass_until, 'preview', p_tier)
+    on conflict (user_id) do update set status = 'active', until = pass_until, source = 'preview', tier = p_tier;
+  end if;
+  return jsonb_build_object('ok', true, 'pass_until', pass_until);
+end $$;
+revoke execute on function public.pay_submit(text, text, text, text, numeric) from public, anon;
+grant execute on function public.pay_submit(text, text, text, text, numeric) to authenticated;
+
+create or replace function public.owner_pay_decide(p_id uuid, p_approve boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare x public.payment_proofs%rowtype; cur public.plus_members%rowtype; base timestamptz; u timestamptz;
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select * into x from public.payment_proofs where id = p_id and status = 'pending' for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_pending'); end if;
+  select * into cur from public.plus_members where user_id = x.user_id;
+  if coalesce(p_approve, false) then
+    -- the preview pass does not count: a paid plan starts today
+    base := case when found and cur.status = 'active' and cur.source <> 'preview' and cur.until > now() then cur.until else now() end;
+    u := base + case when x.period = 'year' then interval '365 days' else interval '30 days' end;
+    insert into public.plus_members as m (user_id, status, until, source, tier)
+    values (x.user_id, 'active', u, 'instapay', x.tier)
+    on conflict (user_id) do update set status = 'active', until = u, source = 'instapay', tier = x.tier;
+    update public.payment_proofs set status = 'approved', decided_at = now(), until = u, path = null where id = x.id;
+  else
+    update public.plus_members set status = 'expired', until = now() where user_id = x.user_id and source = 'preview';
+    update public.payment_proofs set status = 'rejected', decided_at = now(), path = null where id = x.id;
+  end if;
+  return jsonb_build_object('ok', true, 'delete_path', x.path, 'until', u);
+end $$;
+revoke execute on function public.owner_pay_decide(uuid, boolean) from public, anon;
+grant execute on function public.owner_pay_decide(uuid, boolean) to authenticated;
+
+notify pgrst, 'reload schema';
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
