@@ -26915,6 +26915,100 @@ revoke execute on function public.my_buddies() from public, anon;
 grant execute on function public.my_buddies() to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  THE BOOK TAKES YOUR OWN PHOTOS AND DRAWINGS · LOCKED PAGES STAY SHUT
+--  Ayser, November 2026: "خليني أقدر أحط صور كمان … أرسم الإحساس بتاعي
+--  … اللي مش مشترك يبان له أول خمسة بس". On any open page you can add up
+--  to six of your own photos or drawings (stored through our R2 adapter,
+--  checked to be yours). Free readers have five open pages; the server
+--  now sends a locked page as its date and one photo to blur, nothing
+--  else — its words, drawings and notes are not sent until Moments+.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.book_extras (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  day        date not null,
+  kind       text not null check (kind in ('photo', 'drawing')),
+  url        text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists book_extras_user_day on public.book_extras (user_id, day);
+alter table public.book_extras enable row level security;
+drop policy if exists "my book extras" on public.book_extras;
+create policy "my book extras" on public.book_extras for select using (user_id = auth.uid());
+
+-- the days that are pages, and which of them are open (members: all; free: kept first, then newest, five)
+create or replace function public.book_days(me uuid)
+returns table (day date, open boolean) language sql stable security definer set search_path = public as $$
+  with days as (
+    select u.day from (
+      select created_at::date as day from public.posts where user_id = me and expires_at is not null and media_url is not null
+      union select r.day from public.reflections r where r.user_id = me
+      union select a.day from public.moment_answers a where a.user_id = me and a.body is not null
+      union select s.at::date from public.passport_stamps s where s.user_id = me
+      union select e.day from public.book_extras e where e.user_id = me) u
+    order by u.day desc limit 400),
+  ranked as (select d.day, row_number() over (order by public.page_kept(me, d.day) desc, d.day desc) as r from days d)
+  select r.day, public.is_plus(me) or r.r <= 5 from ranked r;
+$$;
+revoke all on function public.book_days(uuid) from public, anon, authenticated;
+
+create or replace function public.memory_book()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); member boolean; pages jsonb; n int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  member := public.is_plus(me);
+  select coalesce(jsonb_agg(
+           case when b.open then public.book_day(me, b.day) || jsonb_build_object('open', true,
+                  'extras', (select coalesce(jsonb_agg(jsonb_build_object('id', e.id, 'kind', e.kind, 'url', e.url) order by e.created_at), '[]'::jsonb)
+                               from public.book_extras e where e.user_id = me and e.day = b.day))
+                else jsonb_build_object('day', b.day, 'open', false, 'keep', false,
+                  -- one photo, for the blur — nothing you could read
+                  'photos', coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'media_url', p.media_url, 'thumb_url', p.thumb_url, 'created_at', p.created_at))
+                                        from (select * from public.posts p where p.user_id = me and p.expires_at is not null and p.media_url is not null
+                                                 and p.created_at::date = b.day order by p.created_at limit 1) p), '[]'::jsonb))
+           end order by b.day desc), '[]'::jsonb), count(*)::int
+    into pages, n from public.book_days(me) b;
+  return jsonb_build_object('ok', true, 'tier', public.member_tier(me), 'member', member,
+    'pins', public.memory_pins(me), 'limit', 5, 'total', n,
+    'price', (select value ->> 'basic' from public.app_settings where key = 'tier_prices'),
+    'currency', coalesce((select value ->> 'currency' from public.app_settings where key = 'tier_prices'), 'EGP'),
+    'pages', pages);
+end $$;
+revoke execute on function public.memory_book() from public, anon;
+grant execute on function public.memory_book() to authenticated;
+
+create or replace function public.page_add(p_day date, p_kind text, p_url text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); id uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_kind not in ('photo', 'drawing') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  if not public.own_upload(me, p_url) then return jsonb_build_object('ok', false, 'reason', 'file'); end if;
+  if p_day is null or p_day > (now() at time zone 'Africa/Cairo')::date or p_day < current_date - 400 then return jsonb_build_object('ok', false, 'reason', 'day'); end if;
+  -- today is always yours to add to; an older page only while it is open
+  if p_day <> (now() at time zone 'Africa/Cairo')::date and p_day <> current_date
+     and not exists (select 1 from public.book_days(me) b where b.day = p_day and b.open) then
+    return jsonb_build_object('ok', false, 'reason', 'locked');
+  end if;
+  if (select count(*) from public.book_extras e where e.user_id = me and e.day = p_day) >= 6 then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  insert into public.book_extras (user_id, day, kind, url) values (me, p_day, p_kind, p_url) returning book_extras.id into id;
+  return jsonb_build_object('ok', true, 'id', id);
+end $$;
+revoke execute on function public.page_add(date, text, text) from public, anon;
+grant execute on function public.page_add(date, text, text) to authenticated;
+
+create or replace function public.page_remove(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.book_extras where id = p_id and user_id = auth.uid();
+  return jsonb_build_object('ok', found);
+end $$;
+revoke execute on function public.page_remove(uuid) from public, anon;
+grant execute on function public.page_remove(uuid) to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

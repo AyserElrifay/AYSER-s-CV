@@ -7,7 +7,9 @@ import { useAuth } from '../context/AuthContext';
 import { mw, until } from '../constants/memoryWords';
 import { mv } from '../constants/mvpWords';
 import { splitPrompt } from '../constants/loopWords';
-import { memoryBook, keepPage, highlightPage, makeLight, isVideoUrl } from '../services/memory';
+import { memoryBook, keepPage, highlightPage, makeLight, isVideoUrl, addToPage, removeFromPage } from '../services/memory';
+import { uploadMediaSmart, smallImage } from '../lib/storage';
+import { lazyOverlay } from '../lib/lazyScreen';
 import { askUpgrade } from '../services/membership';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -25,6 +27,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
      file; the words stay — they are yours (RUN_ME.sql, "THE MOMENTS BOOK").
    Tap a page to open it whole, with the notes your Table Buddies left. */
 
+const DrawSheet = lazyOverlay(() => import('./DrawSheet').then((m) => ({ default: m.DrawSheet })));
 const WORDMARK = require('../assets/brand/wordmark.png');
 const WORDMARK_WHITE = require('../assets/brand/wordmark-white.png');
 
@@ -55,6 +58,7 @@ const MONTHS = {
 };
 const AR = (x) => String(x).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]);
 const dayOf = (s) => { const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
+const cairoDay = () => { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' }); } catch (e) { return new Date().toISOString().slice(0, 10); } };
 const monthName = (lang, d) => (lang === 'ar' ? MONTHS.ar : MONTHS.en)[d.getMonth()];
 /* "29 OCT • ZAMALEK" */
 const stampLine = (lang, d, place) => {
@@ -231,11 +235,15 @@ const Landscape = ({ mood }) => {
   );
 };
 const isToday = (day) => { const d = dayOf(day), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate(); };
-const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHighlight }) => {
+const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHighlight, onAddPhoto, onDraw, onRemoveExtra, adding }) => {
   const V = black ? VINTAGE_NIGHT : VINTAGE;
   const d = dayOf(pg.day);
   const ph = (pg.photos || [])[0] || null;
-  const pic = picOf(ph);
+  const extras = Array.isArray(pg.extras) ? pg.extras : [];
+  // your own photo fills the frame when the day has no moment photo
+  const ownPic = !picOf(ph) ? (extras.find((x) => x.kind === 'photo') || extras[0] || null) : null;
+  const pic = picOf(ph) || (ownPic && ownPic.url);
+  const rest = extras.filter((x) => x !== ownPic);
   const refl = pg.reflection;
   const mom = pg.moment;
   const stamps = pg.stamps || [];
@@ -280,7 +288,7 @@ const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHi
             {refl && refl.prompt ? <Text style={{ color: V.dim, fontSize: 13, lineHeight: 18 }}>{refl.prompt}</Text> : null}
             {refl ? <Text style={[{ color: V.ink, fontSize: 19, lineHeight: 27, marginTop: 4 }, serif]}>{'“' + refl.body + '”'}</Text>
               : ph && titleOf(ph).title ? <Text style={[{ color: V.ink, fontSize: 18, lineHeight: 26 }, serif]}>{titleOf(ph).title}</Text>
-              : <Text style={[{ color: V.faint, fontSize: 16, lineHeight: 23 }, serif]}>{mw(lang, 'quietDay')}</Text>}
+              : <Text style={[{ color: V.faint, fontSize: 16, lineHeight: 23 }, serif]}>{pg.blank ? mw(lang, 'drawTitle') : mw(lang, 'quietDay')}</Text>}
             {mom && (mom.body || mom.choice) ? (
               <Text style={{ color: V.dim, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>
                 <Text style={{ color: V.faint, fontWeight: '800', fontSize: 10, letterSpacing: lang === 'ar' ? 0 : 1.2 }}>{mw(lang, 'moment') + '  '}</Text>
@@ -297,9 +305,41 @@ const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHi
             {notes.slice(0, 2).map((x, i) => (
               <Text key={i} style={[{ color: V.ink, fontSize: 13.5, lineHeight: 19, marginTop: 8 }, serif]}>{'“' + x.body + '” '}<Text style={{ color: V.dim, fontStyle: 'normal', fontSize: 11.5 }}>{'— ' + (x.buddy ? mw(lang, 'secretFriend') : (x.name || ''))}</Text></Text>
             ))}
+            {/* your own photos and drawings, pinned to the page like prints */}
+            {rest.length || ownPic ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+                {(ownPic ? [ownPic] : []).concat(rest).map((x, i) => (
+                  <View key={x.id} testID="mb-extra" style={{ width: 58, height: 58, marginEnd: 8, marginBottom: 8, backgroundColor: V.frame, padding: 3, borderWidth: 1, borderColor: V.edge, transform: [{ rotate: i % 2 ? '2deg' : '-2deg' }] }}>
+                    <Image source={{ uri: x.url }} style={{ flex: 1 }} resizeMode="cover" />
+                    {!locked ? (
+                      <Pressable onPress={() => onRemoveExtra(pg, x)} hitSlop={8} accessibilityRole="button" accessibilityLabel={mw(lang, 'remove')}
+                        style={{ position: 'absolute', top: -7, right: -7, width: 18, height: 18, borderRadius: 9, backgroundColor: V.ink, alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="close" size={11} color={V.paper} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </ScrollView>
-          <View style={{ flexDirection: 'row', marginTop: 8 }}>
-            {!member ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+            {!locked && Platform.OS === 'web' ? (
+              <>
+                <Pressable testID="mb-add-own" onPress={() => onAddPhoto(pg)} disabled={!!adding} accessibilityRole="button" accessibilityLabel={mw(lang, 'photo')} hitSlop={6} style={{ marginEnd: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: V.edge, paddingHorizontal: 10, paddingVertical: 6 }}>
+                    {adding === pg.day + 'photo' ? <ActivityIndicator size="small" color={V.ink} /> : <Ionicons name="image-outline" size={13} color={V.ink} />}
+                    <Text style={{ color: V.ink, fontSize: 12, fontWeight: '700', marginStart: 5 }}>{mw(lang, 'photo')}</Text>
+                  </View>
+                </Pressable>
+                <Pressable testID="mb-draw" onPress={() => onDraw(pg)} disabled={!!adding} accessibilityRole="button" accessibilityLabel={mw(lang, 'draw')} hitSlop={6} style={{ marginEnd: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: V.edge, paddingHorizontal: 10, paddingVertical: 6 }}>
+                    {adding === pg.day + 'drawing' ? <ActivityIndicator size="small" color={V.ink} /> : <Ionicons name="brush-outline" size={13} color={V.ink} />}
+                    <Text style={{ color: V.ink, fontSize: 12, fontWeight: '700', marginStart: 5 }}>{mw(lang, 'draw')}</Text>
+                  </View>
+                </Pressable>
+              </>
+            ) : null}
+            {pg.blank ? null : !member ? (
               <Pressable testID="mb-keep" onPress={() => onKeep(pg)} accessibilityRole="button" hitSlop={6}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: pg.keep ? V.ink : V.edge, backgroundColor: pg.keep ? V.ink : 'transparent', paddingHorizontal: 11, paddingVertical: 6 }}>
                   <Ionicons name={pg.keep ? 'bookmark' : 'bookmark-outline'} size={12} color={pg.keep ? V.paper : V.ink} />
@@ -468,6 +508,102 @@ export async function makeRecap({ lang, black, label, sub, photos, quote, checks
   x.fillText('moments', 540, 1870);
   return new Promise((r) => { try { c.toBlob(r, 'image/jpeg', 0.9); } catch (e) { r(null); } });
 }
+/* ─── THE BOOK'S PAGES, ON PAPER (for the PDF) ─────────────────────── */
+const PW = 1240, PH = 1754;   // A4 at 150 dpi
+/* a picture another site will not let us read would spoil the whole file,
+   so each one is tried on a scrap of canvas first */
+const readable = (img) => { try { const c = document.createElement('canvas'); c.width = c.height = 1; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 1, 1); x.getImageData(0, 0, 1, 1); return true; } catch (e) { return false; } };
+const safeImg = async (src) => { const im = await loadImg(src); return im && readable(im) ? im : null; };
+const sheet = () => {
+  const c = document.createElement('canvas'); c.width = PW; c.height = PH;
+  const x = c.getContext('2d');
+  x.fillStyle = VINTAGE.paper; x.fillRect(0, 0, PW, PH);
+  x.strokeStyle = VINTAGE.edge; x.lineWidth = 3; x.strokeRect(40, 40, PW - 80, PH - 80);
+  return [c, x];
+};
+async function pdfCover({ lang, name, first, last, n }) {
+  const [c, x] = sheet();
+  x.fillStyle = '#2A1F57'; x.fillRect(40, 40, PW - 80, PH - 80);
+  x.strokeStyle = 'rgba(217,192,140,0.6)'; x.lineWidth = 3; x.strokeRect(90, 90, PW - 180, PH - 180);
+  x.textAlign = 'center'; x.direction = lang === 'ar' ? 'rtl' : 'ltr';
+  x.fillStyle = '#D9C08C'; x.font = 'italic 600 96px Georgia, "Times New Roman", serif';
+  x.fillText(mw(lang, 'coverTitle'), PW / 2, 700);
+  x.font = '700 34px ' + SANS; x.fillStyle = 'rgba(255,255,255,0.75)';
+  if (name) x.fillText(name, PW / 2, 790);
+  const span = first && last ? stampLine(lang, dayOf(first.day)) + '  —  ' + stampLine(lang, dayOf(last.day)) : '';
+  if (span) x.fillText(span, PW / 2, 850);
+  x.fillText(n === 1 ? mw(lang, 'page1') : mw(lang, 'pageN', { n }), PW / 2, 910);
+  x.fillStyle = '#D9C08C'; x.font = '60px ' + SANS; x.fillText('✦', PW / 2, 1100);
+  x.font = '700 30px ' + SANS; x.fillText('moments', PW / 2, PH - 140);
+  return c;
+}
+async function pdfPage(pg, n, lang) {
+  const [c, x] = sheet();
+  const V = VINTAGE;
+  x.direction = lang === 'ar' ? 'rtl' : 'ltr';
+  const ar = lang === 'ar';
+  const L = ar ? PW - 110 : 110;
+  x.textAlign = ar ? 'right' : 'left';
+  x.fillStyle = V.dim; x.font = '700 26px ' + SANS;
+  x.fillText(stampLine(lang, dayOf(pg.day), placeOf(pg)), L, 120);
+  const extras = Array.isArray(pg.extras) ? pg.extras : [];
+  const ph = (pg.photos || [])[0];
+  const mainSrc = picOf(ph) || (extras[0] && extras[0].url) || null;
+  const rest = picOf(ph) ? extras : extras.slice(1);
+  let y = 160;
+  const main = mainSrc ? await safeImg(mainSrc) : null;
+  if (main) {
+    x.fillStyle = V.frame; x.fillRect(100, y, PW - 200, 820);
+    x.strokeStyle = V.edge; x.lineWidth = 2; x.strokeRect(100, y, PW - 200, 820);
+    cover(x, main, 120, y + 20, PW - 240, 780);
+    y += 860;
+  } else y += 20;
+  const refl = pg.reflection;
+  if (refl && refl.prompt) { x.fillStyle = V.dim; x.font = '30px ' + SANS; wrap(x, refl.prompt, PW - 220).slice(0, 2).forEach((l) => { y += 40; x.fillText(l, L, y); }); }
+  const words = refl ? '“' + refl.body + '”' : ph && titleOf(ph).title ? titleOf(ph).title : null;
+  if (words) {
+    x.fillStyle = V.ink; x.font = (ar ? '' : 'italic ') + '44px Georgia, "Times New Roman", serif';
+    wrap(x, words, PW - 220).slice(0, main ? 4 : 12).forEach((l) => { y += 58; x.fillText(l, L, y); });
+  }
+  const mom = pg.moment;
+  if (mom && (mom.body || mom.choice)) {
+    x.fillStyle = V.dim; x.font = '28px ' + SANS;
+    const line = (ar && mom.q_ar ? mom.q_ar : mom.q || '') + ' — ' + (mom.body || (Array.isArray(mom.choice) ? mom.choice[ar ? 1 : 0] : ''));
+    y += 20; wrap(x, line, PW - 220).slice(0, 3).forEach((l) => { y += 38; x.fillText(l, L, y); });
+  }
+  (pg.stamps || []).slice(0, 3).forEach((st) => {
+    y += 56; x.fillStyle = V.gold; x.font = '800 28px ' + SANS; x.fillText('✦ ' + (st.title || st.place || ''), L, y);
+  });
+  const notes = [].concat(...(pg.photos || []).map((p) => (Array.isArray(p.notes) ? p.notes : []))).slice(0, 2);
+  notes.forEach((nt) => {
+    x.fillStyle = V.ink; x.font = (ar ? '' : 'italic ') + '30px Georgia, "Times New Roman", serif';
+    y += 20; wrap(x, '“' + nt.body + '” — ' + (nt.buddy ? mw(lang, 'secretFriend') : (nt.name || '')), PW - 220).slice(0, 2).forEach((l) => { y += 40; x.fillText(l, L, y); });
+  });
+  // your own photos and drawings, as small prints along the bottom
+  const thumbs = (await Promise.all(rest.slice(0, 4).map((e) => safeImg(e.url)))).filter(Boolean);
+  if (thumbs.length) {
+    const s = 230, gap = 30, top = Math.max(y + 40, PH - 140 - s);
+    if (top + s < PH - 100) thumbs.forEach((im, i) => {
+      const left = 110 + i * (s + gap);
+      x.save(); x.translate(left + s / 2, top + s / 2); x.rotate(i % 2 ? 0.03 : -0.03);
+      x.fillStyle = V.frame; x.fillRect(-s / 2, -s / 2, s, s); x.strokeStyle = V.edge; x.lineWidth = 2; x.strokeRect(-s / 2, -s / 2, s, s);
+      cover(x, im, -s / 2 + 10, -s / 2 + 10, s - 20, s - 20); x.restore();
+    });
+  }
+  x.textAlign = 'center'; x.fillStyle = V.faint; x.font = '28px Georgia, "Times New Roman", serif';
+  x.fillText('— ' + (ar ? AR(n) : n) + ' —', PW / 2, PH - 70);
+  return c;
+}
+async function pdfEnd(lang, n) {
+  const [c, x] = sheet();
+  x.textAlign = 'center'; x.direction = lang === 'ar' ? 'rtl' : 'ltr';
+  x.fillStyle = VINTAGE.gold; x.font = '60px ' + SANS; x.fillText('✦', PW / 2, 760);
+  x.fillStyle = VINTAGE.ink; x.font = (lang === 'ar' ? '' : 'italic ') + '50px Georgia, "Times New Roman", serif';
+  wrap(x, mw(lang, 'pdfMore', { n }), PW - 300).forEach((l, i) => x.fillText(l, PW / 2, 860 + i * 66));
+  x.fillStyle = VINTAGE.faint; x.font = '700 30px ' + SANS; x.fillText('moments', PW / 2, PH - 140);
+  return c;
+}
+
 async function shareRecap(blob, name) {
   if (!blob) return false;
   const file = new File([blob], name, { type: 'image/jpeg' });
@@ -490,7 +626,41 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
   const pager = useRef(null);
   const load = () => memoryBook().then((b) => { if (b && b.ok) setBook(b); });
   useEffect(() => { load(); }, []);
-  const pages = (book && Array.isArray(book.pages)) ? book.pages : [];
+  const todayKey = cairoDay();
+  const got = (book && Array.isArray(book.pages)) ? book.pages : [];
+  // today is always a page you can draw or put a photo on, even before anything happened
+  const pages = book && !got.some((pg) => pg.day === todayKey) ? [{ day: todayKey, open: true, photos: [], extras: [], stamps: [], blank: true }].concat(got) : got;
+  const [adding, setAdding] = useState(null);     // day+kind being added
+  const [drawFor, setDrawFor] = useState(null);   // the page you are drawing on
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const pin = async (pg, kind, blob, ext, type) => {
+    if (!user) return;
+    setAdding(pg.day + kind); setNote(null);
+    try {
+      const url = await uploadMediaSmart(user.id, blob, ext, type);
+      const r = await addToPage(pg.day, kind, url);
+      if (r && r.ok) { tapSuccess(); await load(); }
+      else setNote(r && r.reason === 'full' ? mw(lang, 'extrasFull') : r && r.reason === 'locked' ? mw(lang, 'lockedAdd') : mw(lang, 'err'));
+    } catch (e) { setNote(mw(lang, 'err')); }
+    setAdding(null);
+  };
+  const addPhoto = (pg) => {
+    if (Platform.OS !== 'web' || adding) return;
+    tapLight();
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      const local = URL.createObjectURL(f);
+      try { const sm = await smallImage(local, 1080, 0.72); await pin(pg, 'photo', sm.uri, sm.ext || 'jpg', sm.type || 'image/jpeg'); }
+      finally { URL.revokeObjectURL(local); }
+    };
+    inp.click();
+  };
+  const removeExtra = async (pg, x) => {
+    tapLight();
+    const r = await removeFromPage(x.id);
+    if (r && r.ok) load(); else setNote(mw(lang, 'err'));
+  };
   // kept photos are made light, a few at a time, once each
   useEffect(() => {
     if (!book || !user) return;
@@ -554,6 +724,25 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
     setMaking(null);
     if (r === 'saved') setNote(mw(lang, 'recapSaved')); else if (!r) setNote(mw(lang, 'err'));
   };
+  /* the whole book as a PDF — Ayser: "PDF كامل … كأنه بوك". Members get every
+     page; everybody else the five open ones, and a last page saying how many wait */
+  const makePdf = async () => {
+    if (Platform.OS !== 'web' || pdfBusy) return;
+    tapLight(); setPdfBusy(true); setNote(null);
+    try {
+      const { buildPdf, canvasJpeg, savePdf } = await import('../lib/bookPdf');
+      const open = got.filter((pg) => pg.open !== false).slice().reverse();     // oldest first, like a book
+      const shut = got.length - open.length;
+      const out = [];
+      out.push(await canvasJpeg(await pdfCover({ lang, name: (user && user.user_metadata && user.user_metadata.name) || '', first: open[0], last: open[open.length - 1], n: open.length })));
+      for (let i = 0; i < open.length; i++) out.push(await canvasJpeg(await pdfPage(open[i], i + 1, lang)));
+      if (!member && shut > 0) out.push(await canvasJpeg(await pdfEnd(lang, shut)));
+      const blob = buildPdf(out.filter(Boolean), { title: 'The Moments Book' });
+      const r = await savePdf(blob, 'moments-book.pdf');
+      if (r === 'saved') setNote(mw(lang, 'pdfSaved'));
+    } catch (e) { setNote(mw(lang, 'err')); }
+    setPdfBusy(false);
+  };
   // in the first week of a month, last month's chapter waits at the top, ready to share
   const today = new Date();
   const last = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -605,7 +794,8 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
               {pages.map((pg, i) => (
                 <View key={pg.day} style={{ width: size.w, height: size.h, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 10, alignItems: 'center' }}>
                   <Spread pg={pg} n={i + 1} lang={lang} black={black} member={member} price={price} total={book.total}
-                    onOpen={(x) => { tapLight(); setOpen(x); }} onKeep={keep} onHighlight={highlight} />
+                    onOpen={(x) => { tapLight(); setOpen(x); }} onKeep={keep} onHighlight={highlight}
+                    onAddPhoto={addPhoto} onDraw={(x) => { tapLight(); setDrawFor(x); }} onRemoveExtra={removeExtra} adding={adding} />
                 </View>
               ))}
             </ScrollView>
@@ -625,6 +815,14 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
               <Ionicons name="chevron-down" size={20} color={P.ink} />
             </Pressable>
           </View>
+          {Platform.OS === 'web' ? (
+            <Pressable testID="mb-pdf" onPress={makePdf} disabled={pdfBusy} accessibilityRole="button" style={{ marginTop: 8 }}>
+              <View style={{ borderRadius: 999, paddingVertical: 11, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: P.btn }}>
+                {pdfBusy ? <ActivityIndicator color={P.ink} /> : <Ionicons name="book-outline" size={16} color={P.ink} />}
+                <Text style={{ color: P.ink, fontSize: 14, fontWeight: '700', marginStart: 8 }}>{pdfBusy ? mw(lang, 'pdfMaking') : member ? mw(lang, 'pdf') : mw(lang, 'pdfFree')}</Text>
+              </View>
+            </Pressable>
+          ) : null}
           {Platform.OS === 'web' && curCh ? (
             <Pressable testID="mb-recap" onPress={() => recap(curCh)} accessibilityRole="button" style={{ marginTop: 8 }}>
               <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', backgroundColor: P.btn }}>
@@ -635,6 +833,7 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
         </View>
       ) : null}
       {open ? <OpenPage pg={open} lang={lang} P={P} onClose={() => setOpen(null)} /> : null}
+      {drawFor ? <DrawSheet lang={lang} onClose={() => setDrawFor(null)} onDone={async ({ blob, ext, type }) => { const pg = drawFor; setDrawFor(null); await pin(pg, 'drawing', blob, ext, type); }} /> : null}
     </View>
   );
 };

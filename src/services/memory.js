@@ -54,3 +54,7 @@ export async function makeLight(item, userId) {
     return url;
   } catch (e) { return null; }
 }
+
+/* your own photos and drawings on a page (RUN_ME.sql page_add / page_remove) */
+export const addToPage = (day, kind, url) => rpc('page_add', { p_day: day, p_kind: kind, p_url: url });
+export const removeFromPage = (id) => rpc('page_remove', { p_id: id });
