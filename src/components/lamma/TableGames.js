@@ -8,6 +8,8 @@ import { useLang } from '../../context/LanguageContext';
 import { getProfile } from '../../services/profiles';
 import { tapLight, tapMedium, tapSuccess } from '../../utils/feedback';
 import { sfxPop } from '../../utils/sfx';
+import { YtKaraoke, ytId } from './YtKaraoke';
+import { appSettings } from '../../services/offers';
 import { useSheetBack } from '../../hooks/useSheetBack';
 import { SPY_PACKS, TABOO, BOMB, WHO, HOT, SONGS, parseCustom, pick } from './tableContent';
 
@@ -48,6 +50,7 @@ const W = {
     forbidden: 'Forbidden', describer: '{n} is describing',
     bombGo: 'Light the fuse', boom: 'BOOM — pass the phone!', again: 'Again',
     whoTitle: 'Who at this table', hotTitle: 'Hot take', agree: 'Agree', disagree: 'Disagree', votes: '{n} votes',
+    ytTitle: 'Karaoke from YouTube', ytPh: 'Paste a YouTube karaoke link', ytPlay: 'Play for the room', ytBad: 'That is not a YouTube link.', ourSongs: 'Our songs (lyrics on every phone)',
     karaokeLyrics: 'Pick a song', chords: 'Guitarist Chords', own: 'Paste your own song', ownPh: '[Am]First line\n[G]Second line…', play: 'Play', stop: 'Stop',
     ownNote: 'Only songs you have the right to sing.',
     offline: 'Table games need the internet.',
@@ -79,6 +82,7 @@ const W = {
     forbidden: 'ممنوع', describer: '{n} بيوصف',
     bombGo: 'ولّع الفتيل', boom: 'بووم — عدّي الموبايل!', again: 'تاني',
     whoTitle: 'مين فينا', hotTitle: 'رأي', agree: 'مع', disagree: 'ضد', votes: '{n} أصوات',
+    ytTitle: 'كاريوكي من يوتيوب', ytPh: 'حط لينك كاريوكي من يوتيوب', ytPlay: 'شغّلها للأوضة', ytBad: 'ده مش لينك يوتيوب.', ourSongs: 'أغانينا (الكلام على كل موبايل)',
     karaokeLyrics: 'اختار أغنية', chords: 'كوردات الجيتار', own: 'حط أغنيتك', ownPh: '[Am]أول سطر\n[G]تاني سطر…', play: 'شغّل', stop: 'وقّف',
     ownNote: 'بس الأغاني اللي من حقكم تغنوها.',
     offline: 'ألعاب الترابيزة محتاجة نت.',
@@ -157,6 +161,10 @@ const Lyrics = ({ song, elapsed, chords }) => {
 };
 
 export const TableGames = ({ onClose, initialCode = '' }) => {
+  const [ytList, setYtList] = useState([]);       // the Studio's karaoke list (app setting karaoke_songs)
+  const [ytLink, setYtLink] = useState('');
+  const [ytErr, setYtErr] = useState(null);
+  useEffect(() => { appSettings().then((x) => setYtList(Array.isArray(x && x.karaoke_songs) ? x.karaoke_songs.filter((k) => ytId(k.url)) : [])).catch(() => {}); }, []);
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { lang } = useLang();
@@ -559,6 +567,29 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
                 {host ? (
                   <>
                     <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '800', marginTop: 10 }}>{w(lang, 'karaokeLyrics')}</Text>
+                    {/* Ayser, November 2026: karaoke videos from YouTube, played inside Moments, in sync on every phone */}
+                    <Text style={{ color: '#D9C08C', fontSize: 12.5, fontWeight: '800', marginTop: 16 }}>{w(lang, 'ytTitle')}</Text>
+                    {ytList.map((k, i) => (
+                      <Pressable key={'yt' + i} testID={'tg-yt-' + i} onPress={() => { tapMedium(); broadcast({ ...st, phase: 'play', song: { id: 'yt', yt: ytId(k.url), title: [k.title, k.title] }, yt: { playing: false, pos: 0, at: Date.now() }, startedAt: Date.now(), elapsedAt: 0 }); }} style={{ marginTop: 10 }}>
+                        <View style={{ borderRadius: 14, padding: 14, backgroundColor: 'rgba(255,255,255,0.08)', flexDirection: 'row', alignItems: 'center' }}>
+                          <Ionicons name="logo-youtube" size={18} color="#D9C08C" />
+                          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', marginHorizontal: 10, flex: 1 }} numberOfLines={1}>{k.title}</Text>
+                          <Ionicons name="play" size={16} color="#FFFFFF" />
+                        </View>
+                      </Pressable>
+                    ))}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                      <TextInput testID="tg-yt-link" value={ytLink} onChangeText={(v) => { setYtLink(v); setYtErr(null); }} placeholder={w(lang, 'ytPh')} placeholderTextColor="rgba(255,255,255,0.35)" autoCapitalize="none"
+                        style={{ flex: 1, color: '#FFFFFF', fontSize: 14.5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 }} />
+                      <Btn testID="tg-yt-play" label={w(lang, 'ytPlay')} disabled={!ytLink.trim()} onPress={() => {
+                        const id = ytId(ytLink);
+                        if (!id) { setYtErr(w(lang, 'ytBad')); return; }
+                        tapMedium(); setYtLink('');
+                        broadcast({ ...st, phase: 'play', song: { id: 'yt', yt: id, title: ['YouTube', 'YouTube'] }, yt: { playing: false, pos: 0, at: Date.now() }, startedAt: Date.now(), elapsedAt: 0 });
+                      }} style={{ marginStart: 8 }} />
+                    </View>
+                    {ytErr ? <Text style={{ color: '#FF6B6B', fontSize: 12.5, marginTop: 6 }}>{ytErr}</Text> : null}
+                    <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5, fontWeight: '800', marginTop: 18 }}>{w(lang, 'ourSongs')}</Text>
                     {SONGS.map((sg) => (
                       <Pressable key={sg.id} onPress={() => { tapMedium(); broadcast({ ...st, phase: 'play', song: sg, startedAt: Date.now(), elapsedAt: 0 }); }} style={{ marginTop: 10 }}>
                         <View style={{ borderRadius: 14, padding: 14, backgroundColor: 'rgba(255,255,255,0.08)', flexDirection: 'row', alignItems: 'center' }}>
@@ -580,7 +611,7 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
               <>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18 }}>
                   <Text style={{ color: '#D9C08C', fontSize: 13, fontWeight: '900', letterSpacing: 1.4, flex: 1 }}>{('🎤 ' + pick(lang, st.song.title)).toUpperCase()}</Text>
-                  {host ? (
+                  {host && !st.song.yt ? (
                     <Pressable testID="tg-chords" onPress={() => { tapLight(); broadcast({ ...st, chords: !st.chords }); }} accessibilityRole="switch" accessibilityState={{ checked: !!st.chords }}>
                       <View style={{ borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#D9C08C', backgroundColor: st.chords ? '#D9C08C' : 'transparent' }}>
                         <Text style={{ color: st.chords ? INK : '#D9C08C', fontSize: 12, fontWeight: '800' }}>{'🎸 ' + w(lang, 'chords')}</Text>
@@ -588,7 +619,10 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
                     </Pressable>
                   ) : null}
                 </View>
-                <Lyrics song={st.song} elapsed={elapsed} chords={!!st.chords} />
+                {st.song.yt ? (
+                  <YtKaraoke videoId={st.song.yt} host={host} sync={st.yt} lang={lang}
+                    onHostTick={(x) => { const cur = stRef.current; if (cur && cur.song && cur.song.yt) broadcast({ ...cur, yt: { ...x, at: Date.now() } }); }} />
+                ) : <Lyrics song={st.song} elapsed={elapsed} chords={!!st.chords} />}
                 {host ? <Btn label={w(lang, 'stop')} solid={false} onPress={() => broadcast({ ...st, phase: 'pick' })} style={{ marginTop: 12 }} /> : null}
               </>
             )

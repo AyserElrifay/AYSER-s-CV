@@ -26798,6 +26798,60 @@ create policy "a table chat needs the card" on public.messages as restrictive fo
     or exists (select 1 from public.offers o where o.squad_id = messages.squad_id and public.table_host(o.id) = auth.uid())
   );
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  KARAOKE FROM YOUTUBE
+--  Ayser, November 2026: the Studio keeps a list of karaoke videos (a title
+--  and a YouTube link each); Lamma's Campfire & Karaoke plays them inside
+--  Moments, in sync on every phone in the room. The lyrics are the ones in
+--  the karaoke video; Moments stores none.
+-- ═══════════════════════════════════════════════════════════════════════
+create or replace function public.owner_set_setting(p_key text, p_value jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_key not in ('plus_free_until', 'payments_online', 'plus_price', 'plus_prices', 'bookings_sheet_hook', 'local_pay', 'whatsapp_booking', 'roam_open', 'karaoke_songs') then return jsonb_build_object('ok', false, 'reason', 'key'); end if;
+  if p_key = 'plus_price' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value -> 'month') = 'number' and (p_value ->> 'month')::numeric > 0
+   and jsonb_typeof(p_value -> 'year') = 'number' and (p_value ->> 'year')::numeric > 0
+   and coalesce(p_value ->> 'currency', '') ~ '^[A-Z]{3}$') then
+    return jsonb_build_object('ok', false, 'reason', 'price');
+  end if;
+  if p_key = 'bookings_sheet_hook' and p_value is not null and p_value <> 'null'::jsonb and (p_value #>> '{}') !~ '^https://script\.google\.com/' then
+    return jsonb_build_object('ok', false, 'reason', 'url');
+  end if;
+  if p_key = 'local_pay' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value) = 'object'
+   and length(coalesce(p_value ->> 'instapay', '')) <= 60 and length(coalesce(p_value ->> 'vodafone', '')) <= 20
+   and coalesce(p_value ->> 'vodafone', '') ~ '^[0-9 +]*$'
+   and (coalesce(p_value ->> 'instapay', '') <> '' or coalesce(p_value ->> 'vodafone', '') <> '')) then
+    return jsonb_build_object('ok', false, 'reason', 'pay');
+  end if;
+  -- the team's WhatsApp for bookings: digits only, with the country code (2010…)
+  -- the team's WhatsApp for bookings: who answers, and a backup — digits with the country code (2010…)
+  if p_key = 'whatsapp_booking' and p_value is not null and p_value <> 'null'::jsonb and not (
+       (jsonb_typeof(p_value) = 'string' and (p_value #>> '{}') ~ '^[0-9]{8,15}$')
+    or (jsonb_typeof(p_value) = 'object'
+        and coalesce(p_value ->> 'number', '') ~ '^[0-9]{8,15}$'
+        and coalesce(p_value ->> 'backup_number', '') ~ '^([0-9]{8,15})?$'
+        and length(coalesce(p_value ->> 'name', '')) <= 40 and length(coalesce(p_value ->> 'backup_name', '')) <= 40)) then
+    return jsonb_build_object('ok', false, 'reason', 'phone');
+  end if;
+  -- the karaoke list: up to 60 YouTube videos, each a title and a link
+  if p_key = 'karaoke_songs' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value) = 'array' and jsonb_array_length(p_value) <= 60
+   and not exists (select 1 from jsonb_array_elements(p_value) e
+                    where jsonb_typeof(e) <> 'object' or length(coalesce(e->>'title', '')) not between 1 and 80
+                       or coalesce(e->>'url', '') !~ '^https://(www\.|m\.)?(youtube\.com|youtu\.be)/')) then
+    return jsonb_build_object('ok', false, 'reason', 'songs');
+  end if;
+  insert into public.app_settings (key, value, updated_at) values (p_key, p_value, now())
+  on conflict (key) do update set value = excluded.value, updated_at = now();
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.owner_set_setting(text, jsonb) from public, anon;
+grant execute on function public.owner_set_setting(text, jsonb) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

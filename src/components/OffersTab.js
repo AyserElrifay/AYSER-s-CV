@@ -372,12 +372,13 @@ export const OffersTab = ({ userId, owner = true }) => {
   const [hook, setHook] = useState('');
   const [instapay, setInstapay] = useState(''); const [vodafone, setVodafone] = useState('');
   const [wa, setWa] = useState({ name: '', number: '', backup_name: '', backup_number: '' });
+  const [songs, setSongs] = useState('');   // the karaoke list, one per line: Title | YouTube link
   const [pollQ, setPollQ] = useState(''); const [pollQa, setPollQa] = useState(''); const [pollO, setPollO] = useState('');
 
   const load = () => {
     ownerOffers().then((r) => setList(r == null ? false : r));
     appSettings().then((s) => {
-      setSettings(s); { const v = s.whatsapp_booking; setWa(v && typeof v === 'object' ? { name: v.name || '', number: v.number || '', backup_name: v.backup_name || '', backup_number: v.backup_number || '' } : { name: '', number: typeof v === 'string' ? v : '', backup_name: '', backup_number: '' }); } setHook(s.bookings_sheet_hook && s.bookings_sheet_hook !== 'null' ? String(s.bookings_sheet_hook).replace(/^"|"$/g, '') : ''); const lp = s.local_pay && typeof s.local_pay === 'object' ? s.local_pay : null; setInstapay((lp && lp.instapay) || ''); setVodafone((lp && lp.vodafone) || ''); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
+      setSettings(s); setSongs(Array.isArray(s.karaoke_songs) ? s.karaoke_songs.map((k) => k.title + ' | ' + k.url).join('\n') : ''); { const v = s.whatsapp_booking; setWa(v && typeof v === 'object' ? { name: v.name || '', number: v.number || '', backup_name: v.backup_name || '', backup_number: v.backup_number || '' } : { name: '', number: typeof v === 'string' ? v : '', backup_name: '', backup_number: '' }); } setHook(s.bookings_sheet_hook && s.bookings_sheet_hook !== 'null' ? String(s.bookings_sheet_hook).replace(/^"|"$/g, '') : ''); const lp = s.local_pay && typeof s.local_pay === 'object' ? s.local_pay : null; setInstapay((lp && lp.instapay) || ''); setVodafone((lp && lp.vodafone) || ''); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
       const pr = s.plus_price && typeof s.plus_price === 'object' ? s.plus_price : null;
       setPriceM(pr ? String(pr.month) : ''); setPriceY(pr ? String(pr.year) : ''); setPriceC(pr ? pr.currency : 'EGP');
     });
@@ -568,6 +569,14 @@ export const OffersTab = ({ userId, owner = true }) => {
         <Field label="InstaPay address" value={instapay} onChange={setInstapay} ph="name@instapay" />
         <Field label="Vodafone Cash number" value={vodafone} onChange={setVodafone} ph="010…" />
         <Btn label="Save payment details" onPress={async () => { const v = instapay.trim() || vodafone.trim() ? { instapay: instapay.trim(), vodafone: vodafone.trim() } : null; const r = await ownerSetSetting('local_pay', v); setMsg(r && r.ok ? 'Payment details saved.' : 'Could not save — check the number.'); load(); }} />
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Karaoke songs (YouTube)</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Lamma's Campfire & Karaoke plays these inside Moments, in sync on every phone in the room. One per line: Title | YouTube link. Pick karaoke or lyric videos whose owner allows embedding.</Text>
+        <Field label="Songs" value={songs} onChange={setSongs} ph={'Ya Habibi (karaoke) | https://www.youtube.com/watch?v=…'} multi />
+        <Btn label="Save karaoke list" onPress={async () => {
+          const list = songs.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const i = l.lastIndexOf('|'); return i < 0 ? { title: '', url: l } : { title: l.slice(0, i).trim(), url: l.slice(i + 1).trim() }; });
+          if (list.some((k) => !k.title || !/^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//.test(k.url))) { setMsg('Each line: a title, then | and a https://youtube.com or https://youtu.be link.'); return; }
+          const r = await ownerSetSetting('karaoke_songs', list.length ? list.slice(0, 60) : null); setMsg(r && r.ok ? 'Karaoke list saved.' : 'Could not save.'); load();
+        }} />
         <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Cairo Weekend Lounge poll</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Pinned at the top of everybody’s Messages. A new question closes the last one. Options: one per line, English|Arabic (2 to 4).</Text>
         <Field label="Question (English)" value={pollQ} onChange={setPollQ} ph="Who’s joining Friday 7:30 AM Run?" />
