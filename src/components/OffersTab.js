@@ -358,7 +358,7 @@ const GiftBox = () => {
   );
 };
 
-export const OffersTab = ({ userId }) => {
+export const OffersTab = ({ userId, owner = true }) => {
   const [list, setList] = useState(null);
   const [settings, setSettings] = useState({});
   const [form, setForm] = useState(null);
@@ -557,7 +557,8 @@ export const OffersTab = ({ userId }) => {
       <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 4 }}>Trips, deals and stays people book through Moments. Drafts are only seen here; nothing goes live without a real photo and a price.</Text>
       <Btn label="＋ New offer" solid onPress={() => { tapLight(); setMsg(null); setForm(toForm({})); }} />
 
-      <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
+      {/* the money settings are the owner's; a Trips & bookings team member sees trips, bookings and Drops */}
+      {owner ? <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
         <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Moments+</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Free for everyone until the date below (empty = open-ended). Nobody is charged automatically when it ends.</Text>
         <Field label="Free until (YYYY-MM-DD)" value={freeUntil} onChange={setFreeUntil} ph="empty = no end date yet" />
@@ -620,9 +621,9 @@ export const OffersTab = ({ userId }) => {
         <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>{'Online payments: ' + (online ? 'ON' : 'OFF')}</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>This is also the membership gate: on, everybody without Moments+ or Moments Black meets the plans. Turn on only once a test payment came back as a membership.</Text>
         <Btn label={online ? 'Turn off' : 'Turn on'} danger={online} onPress={async () => { const r = await ownerSetSetting('payments_online', !online); setMsg(r && r.ok ? 'Saved.' : 'Could not save.'); load(); }} />
-      </View>
+      </View> : null}
       <DropsBox />
-      <GiftBox />
+      {owner ? <GiftBox /> : null}
       {msg ? <Text style={{ color: C.green, fontSize: 13.5, marginTop: 10 }}>{msg}</Text> : null}
       {party ? <Party offer={party} onClose={() => setParty(null)} /> : null}
 

@@ -11,7 +11,8 @@ export { TEAM_DOMAIN, signInAddress } from '../lib/teamAddress';
 export const TEAM_ROLES = [
   { k: 'safety', label: 'Safety', sub: 'Reported chats, strikes, coach sessions, content reports' },
   { k: 'verify', label: 'Verify', sub: 'Tour guides and hosts, their documents' },
-  { k: 'all', label: 'All', sub: 'Both of the above' },
+  { k: 'trips', label: 'Trips & bookings', sub: 'Trips, bookings, Drops and the lounge poll' },
+  { k: 'all', label: 'All', sub: 'All of the above' },
 ];
 
 /* what this person may open: { owner, role, username } — or null */

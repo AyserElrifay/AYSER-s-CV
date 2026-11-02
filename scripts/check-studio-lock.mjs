@@ -24,8 +24,10 @@ const team = read('supabase/functions/team-admin/index.ts');
 const lastDef = (name) => sql.slice(sql.lastIndexOf('create or replace function public.' + name + '('));
 is('a second step in the last 30 minutes, read from the server-signed token', /coalesce\(c ->> 'aal', ''\) <> 'aal2' then return false/.test(lastDef('studio_fresh')) && /interval '30 minutes'/.test(lastDef('studio_fresh')), true);
 is('…asked only of an account that set one up (Ayser: no code app)', /if not public\.studio_enrolled\(\) then return true; end if;/.test(lastDef('studio_fresh')) && /status = ''verified''/.test(optional), true);
-is('the owner check needs it', /return public\.studio_identity\(\) = 'owner' and public\.studio_fresh\(\);/.test(lastDef('is_app_owner')), true);
-is('the team check needs it', /if not public\.studio_fresh\(\) then return false; end if;/.test(lastDef('studio_can')), true);
+// November 2026: the gates coalesce to false — a null answer let `if not owner_ok()` through
+is('the owner check needs it, and says false, never null', /return coalesce\(public\.studio_identity\(\) = 'owner', false\) and coalesce\(public\.studio_fresh\(\), false\);/.test(lastDef('is_app_owner')), true);
+is('the team check needs it', /if not coalesce\(public\.studio_fresh\(\), false\) then return false; end if;/.test(lastDef('studio_can')), true);
+is('owner_ok never answers null', /select coalesce\(public\.is_app_owner\(\), false\)/.test(lastDef('owner_ok')), true);
 is('the last is_app_owner in the file is the locked one', sql.lastIndexOf('create or replace function public.is_app_owner()') > sql.indexOf('STUDIO · LOCKED BEHIND A SECOND STEP'), true);
 is('no Studio table is still opened by the bare email', !/using \(\s*\(auth\.jwt\(\) ->> 'email'\) = 'ayseryourlifecoach@gmail\.com'/.test(part) &&
   ['owner reads all reports', 'owner reads feedback', 'help_owner_write', 'bardi_config_owner', 'bardi_knowledge_owner', 'vr update owner'].every((n) => part.includes('"' + n + '"')), true);

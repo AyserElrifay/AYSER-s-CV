@@ -55,7 +55,7 @@ const TABS = [
   { k: 'team', label: 'Team', icon: 'people-outline' },
   { k: 'activity', label: 'Activity', icon: 'pulse-outline' },
   { k: 'highlights', label: 'Highlights', icon: 'film-outline' },
-  { k: 'offers', label: 'Trips & deals', icon: 'airplane-outline' },
+  { k: 'offers', label: 'Trips & deals', icon: 'airplane-outline', area: 'trips' },
   { k: 'partners', label: 'Partners', icon: 'storefront-outline' },
   { k: 'prompts', label: 'Reflection', icon: 'chatbox-ellipses-outline' },
   { k: 'rewards', label: 'Rewards', icon: 'gift-outline' },
@@ -970,7 +970,7 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
 
           {tab === 'team' && owner ? <TeamTab /> : null}
           {tab === 'highlights' && owner ? <HighlightsTab userId={user && user.id} /> : null}
-          {tab === 'offers' && owner ? <OffersTab userId={user && user.id} /> : null}
+          {tab === 'offers' && canOpen(access, TABS.find((x) => x.k === 'offers')) ? <OffersTab userId={user && user.id} owner={owner} /> : null}
           {tab === 'partners' && owner ? <PartnersTab /> : null}
           {tab === 'traction' && owner ? <TractionTab /> : null}
           {tab === 'prompts' && owner ? <PromptsTab /> : null}

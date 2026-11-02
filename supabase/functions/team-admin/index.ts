@@ -38,7 +38,7 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 export const TEAM_DOMAIN = 'team.moments.invalid';
-const ROLES = ['safety', 'verify', 'all'];
+const ROLES = ['safety', 'verify', 'trips', 'all'];
 const USERNAME = /^[a-z0-9_.]{3,20}$/;
 const goodPassword = (p: unknown) => typeof p === 'string' && p.length >= 10 && p.length <= 72;
 const UUID = /^[0-9a-f-]{36}$/i;
