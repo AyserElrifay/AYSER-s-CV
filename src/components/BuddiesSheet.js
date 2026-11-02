@@ -21,6 +21,7 @@ import { vibeMatches } from '../services/scale';
 import { myChats, premiumOf } from '../services/midnight';
 import { MidnightTable, mw, Mark } from './MidnightTable';
 import { myTableChats } from '../services/eventRooms';
+import { WeekendLounge } from './WeekendLounge';
 import { tcw as tbw, countdown, flagOf, tableNo } from '../constants/tableCore';
 import { lazyOverlay } from '../lib/lazyScreen';
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -299,6 +300,8 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
                 </View>
               ) : null}
 
+              {/* pinned for everybody, first: the Cairo Weekend Lounge (src/components/WeekendLounge.js) */}
+              <WeekendLounge lang={lang} />
               {/* Table Chats: you are in from the moment you claim a seat; each opens 4 hours before */}
               {tables.length ? (
                 <View style={{ marginTop: 18 }}>

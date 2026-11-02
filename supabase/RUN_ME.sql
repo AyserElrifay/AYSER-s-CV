@@ -26181,6 +26181,117 @@ revoke execute on function public.owner_set_setting(text, jsonb) from public, an
 grant execute on function public.owner_set_setting(text, jsonb) to authenticated;
 
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  THE CAIRO WEEKEND LOUNGE
+--  Ayser, November 2026: the first thing in Messages, for everybody, from
+--  the first second — one live weekend poll the team asks from the Studio
+--  ("Where should Thursday's Table Drop be?"), how many people are in on
+--  it, and three quick reactions. No chat with strangers: a vote and a
+--  reaction each, and the count is the real one.
+-- ═══════════════════════════════════════════════════════════════════════
+create table if not exists public.lounge_polls (
+  id          uuid primary key default gen_random_uuid(),
+  city        text not null default 'Cairo',
+  question    text not null check (length(question) between 3 and 140),
+  question_ar text check (question_ar is null or length(question_ar) <= 140),
+  options     jsonb not null,              -- [{ "en": "Zamalek", "ar": "الزمالك" }, …] 2 to 4
+  active      boolean not null default true,
+  created_at  timestamptz not null default now()
+);
+create table if not exists public.lounge_votes (
+  poll_id uuid not null references public.lounge_polls(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  choice  int  not null check (choice between 0 and 3),
+  at      timestamptz not null default now(),
+  primary key (poll_id, user_id)
+);
+create table if not exists public.lounge_reacts (
+  poll_id uuid not null references public.lounge_polls(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  kind    text not null check (kind in ('in','fire','heart')),
+  at      timestamptz not null default now(),
+  primary key (poll_id, user_id, kind)
+);
+alter table public.lounge_polls enable row level security;
+alter table public.lounge_votes enable row level security;
+alter table public.lounge_reacts enable row level security;
+revoke all on public.lounge_polls, public.lounge_votes, public.lounge_reacts from anon, authenticated;
+
+-- the first question, so the lounge is never empty; a real poll, with no votes until people vote
+insert into public.lounge_polls (question, question_ar, options)
+select 'Where should this Thursday''s Table Drop be?', 'ترابيزة الخميس الجاي تبقى فين؟',
+       '[{"en":"Zamalek","ar":"الزمالك"},{"en":"Maadi","ar":"المعادي"}]'::jsonb
+where not exists (select 1 from public.lounge_polls);
+
+create or replace function public.lounge_now()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce((select jsonb_build_object('ok', true, 'id', p.id, 'city', p.city, 'question', p.question, 'question_ar', p.question_ar,
+      'options', p.options,
+      'counts', (select coalesce(jsonb_agg(coalesce((select count(*) from public.lounge_votes v where v.poll_id = p.id and v.choice = i), 0) order by i), '[]'::jsonb)
+                   from generate_series(0, jsonb_array_length(p.options) - 1) i),
+      'my_vote', (select v.choice from public.lounge_votes v where v.poll_id = p.id and v.user_id = auth.uid()),
+      'people', (select count(distinct u) from (select user_id u from public.lounge_votes where poll_id = p.id
+                                               union select user_id from public.lounge_reacts where poll_id = p.id) x),
+      'reacts', jsonb_build_object(
+          'in', (select count(*) from public.lounge_reacts r where r.poll_id = p.id and r.kind = 'in'),
+          'fire', (select count(*) from public.lounge_reacts r where r.poll_id = p.id and r.kind = 'fire'),
+          'heart', (select count(*) from public.lounge_reacts r where r.poll_id = p.id and r.kind = 'heart')),
+      'mine', (select coalesce(jsonb_agg(r.kind), '[]'::jsonb) from public.lounge_reacts r where r.poll_id = p.id and r.user_id = auth.uid()))
+    from public.lounge_polls p where p.active order by p.created_at desc limit 1), jsonb_build_object('ok', false));
+$$;
+revoke execute on function public.lounge_now() from public, anon;
+grant execute on function public.lounge_now() to authenticated;
+
+create or replace function public.lounge_vote(p_poll uuid, p_choice int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); p public.lounge_polls%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into p from public.lounge_polls where id = p_poll and active;
+  if not found or p_choice < 0 or p_choice >= jsonb_array_length(p.options) then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  insert into public.lounge_votes (poll_id, user_id, choice) values (p_poll, me, p_choice)
+  on conflict (poll_id, user_id) do update set choice = excluded.choice, at = now();
+  return public.lounge_now();
+end $$;
+revoke execute on function public.lounge_vote(uuid, int) from public, anon;
+grant execute on function public.lounge_vote(uuid, int) to authenticated;
+
+create or replace function public.lounge_react(p_poll uuid, p_kind text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_kind not in ('in','fire','heart') or not exists (select 1 from public.lounge_polls where id = p_poll and active) then
+    return jsonb_build_object('ok', false, 'reason', 'gone');
+  end if;
+  if exists (select 1 from public.lounge_reacts where poll_id = p_poll and user_id = me and kind = p_kind) then
+    delete from public.lounge_reacts where poll_id = p_poll and user_id = me and kind = p_kind;
+  else
+    insert into public.lounge_reacts (poll_id, user_id, kind) values (p_poll, me, p_kind);
+  end if;
+  return public.lounge_now();
+end $$;
+revoke execute on function public.lounge_react(uuid, text) from public, anon;
+grant execute on function public.lounge_react(uuid, text) to authenticated;
+
+-- the Studio asks the next question (the last one closes)
+create or replace function public.owner_lounge_poll(p_question text, p_question_ar text, p_options jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if length(coalesce(btrim(p_question), '')) < 3 or jsonb_typeof(p_options) <> 'array' then return jsonb_build_object('ok', false, 'reason', 'invalid'); end if;
+  n := jsonb_array_length(p_options);
+  if n < 2 or n > 4 then return jsonb_build_object('ok', false, 'reason', 'options'); end if;
+  update public.lounge_polls set active = false where active;
+  insert into public.lounge_polls (question, question_ar, options)
+  values (btrim(p_question), nullif(btrim(coalesce(p_question_ar, '')), ''),
+          (select jsonb_agg(jsonb_build_object('en', left(btrim(coalesce(o->>'en', '')), 40), 'ar', left(btrim(coalesce(o->>'ar', o->>'en', '')), 40))) from jsonb_array_elements(p_options) o));
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.owner_lounge_poll(text, text, jsonb) from public, anon;
+grant execute on function public.owner_lounge_poll(text, text, jsonb) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

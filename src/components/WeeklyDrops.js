@@ -483,14 +483,58 @@ const DropCard = ({ d, lang, onChanged }) => {
   );
 };
 
+
+/* ─── THE WEEKEND DROP CYCLE ──────────────────────────────────────────
+   Ayser, November 2026: tables happen Thursday to Saturday. From Sunday
+   to Wednesday the top of Together counts down to Thursday night and
+   points the evenings at the online English Circle. Cairo time. */
+const cairoParts = (now = new Date()) => {
+  try {
+    const f = new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Cairo', weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: false });
+    const o = {}; f.formatToParts(now).forEach((x) => { o[x.type] = x.value; });
+    return { dow: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(o.weekday), y: +o.year, m: +o.month, d: +o.day, h: +o.hour % 24, min: +o.minute };
+  } catch (e) { return null; }
+};
+export const nextThursdayAt7 = (now = new Date()) => {
+  const p = cairoParts(now);
+  if (!p) return null;
+  const offH = Math.round((Date.UTC(p.y, p.m - 1, p.d, p.h, p.min) - now.getTime()) / 3600e3);   // Cairo's offset today (+2 or +3)
+  const days = (4 - p.dow + 7) % 7;
+  return new Date(Date.UTC(p.y, p.m - 1, p.d + days, 19 - offH, 0));
+};
+const WeekendBanner = ({ lang }) => {
+  const [, tick] = useState(0);
+  useEffect(() => { const h = setInterval(() => tick((x) => x + 1), 60000); return () => clearInterval(h); }, []);
+  const p = cairoParts();
+  if (!p || p.dow < 0 || p.dow > 3) return null;          // Sunday–Wednesday only
+  const at = nextThursdayAt7();
+  const ms = at ? at.getTime() - Date.now() : 0;
+  if (!(ms > 0)) return null;
+  const d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5), m = Math.floor((ms % 36e5) / 6e4);
+  const AR = (x) => (lang === 'ar' ? String(x).replace(/\d/g, (c) => '٠١٢٣٤٥٦٧٨٩'[c]) : String(x));
+  const left = lang === 'ar' ? AR(d) + 'ي ' + AR(h) + 'س ' + AR(m) + 'د' : d + 'd ' + h + 'h ' + m + 'm';
+  return (
+    <View testID="weekend-banner" style={{ borderRadius: 18, backgroundColor: '#17131F', padding: 14, marginBottom: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Ionicons name="hourglass-outline" size={16} color="#D9C08C" />
+        <Text style={{ color: '#D9C08C', fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.3, marginStart: 6 }}>{lang === 'ar' ? 'عدّاد ويك إند الدروب' : 'WEEKEND DROP COUNTDOWN'}</Text>
+      </View>
+      <Text style={[{ color: '#FFFFFF', fontSize: 26, fontWeight: '900', marginTop: 6 }, NUM]}>{left}</Text>
+      <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, lineHeight: 18, marginTop: 4 }}>
+        {lang === 'ar' ? 'الترابيزات من الخميس بالليل للسبت. احجز كرسيك بدري — ولحد ساعتها، دايرة الإنجليزي أونلاين كل ليلة.' : 'Tables run Thursday night to Saturday. Claim your seat early — and until then, the Online English Circle every evening.'}
+      </Text>
+    </View>
+  );
+};
+
 export const DropsSection = ({ max = 3, only = null }) => {
   const { lang } = useLang();
   const [list, setList] = useState(null);
   const [cat, setCat] = useState(only || 'all');
   const load = () => dropsList().then((x) => setList(Array.isArray(x) ? x : []));
   useEffect(() => { load(); }, []);
-  // no Drops this week: nothing on Home, rather than a line saying so
-  if (!list || !list.length) return null;
+  // no Drops this week: only the weekend countdown (Sunday–Wednesday), never a line saying "nothing"
+  if (!list || !list.length) return only ? null : <View style={{ marginTop: 22 }}><WeekendBanner lang={lang} /></View>;
   // the open Drops first (yours, then the spotlight), then the ones waiting their turn
   const rank = (d) => (d.mine ? 0 : d.state === 'queued' ? 2 : 1);
   const shown = list.filter((d) => cat === 'all' || (d.category || 'tables') === cat)
@@ -498,6 +542,7 @@ export const DropsSection = ({ max = 3, only = null }) => {
   if (only && !shown.length) return null;   // one kind asked for, none this week: nothing, never an empty card
   return (
     <View style={{ marginTop: 22 }}>
+      {only ? null : <WeekendBanner lang={lang} />}
       <Small>{only ? catWord(lang, only).toUpperCase() : mv(lang, 'drops').toUpperCase()}</Small>
       {/* the four pillars: All · Tables · Culture · Impact · Roam */}
       {only ? null : <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 10 }}>

@@ -3,7 +3,7 @@ import { isAdventure } from '../lib/mediaFit';
 import { View, Text, Pressable, TextInput, Image, ActivityIndicator, Animated, Easing } from 'react-native';
 import { C } from '../constants/theme';
 import {
-  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetRepeat, offerSetLevel, offerSetOnline, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
+  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetRepeat, offerSetLevel, offerSetOnline, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, ownerLoungePoll, appSettings, photoUrl, money, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
 import { uploadPlanPhoto } from '../lib/storage';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { appLink, shareLink } from '../utils/share';
@@ -372,6 +372,7 @@ export const OffersTab = ({ userId }) => {
   const [hook, setHook] = useState('');
   const [instapay, setInstapay] = useState(''); const [vodafone, setVodafone] = useState('');
   const [wa, setWa] = useState('');
+  const [pollQ, setPollQ] = useState(''); const [pollQa, setPollQa] = useState(''); const [pollO, setPollO] = useState('');
 
   const load = () => {
     ownerOffers().then((r) => setList(r == null ? false : r));
@@ -566,6 +567,17 @@ export const OffersTab = ({ userId }) => {
         <Field label="InstaPay address" value={instapay} onChange={setInstapay} ph="name@instapay" />
         <Field label="Vodafone Cash number" value={vodafone} onChange={setVodafone} ph="010…" />
         <Btn label="Save payment details" onPress={async () => { const v = instapay.trim() || vodafone.trim() ? { instapay: instapay.trim(), vodafone: vodafone.trim() } : null; const r = await ownerSetSetting('local_pay', v); setMsg(r && r.ok ? 'Payment details saved.' : 'Could not save — check the number.'); load(); }} />
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Cairo Weekend Lounge poll</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Pinned at the top of everybody’s Messages. A new question closes the last one. Options: one per line, English|Arabic (2 to 4).</Text>
+        <Field label="Question (English)" value={pollQ} onChange={setPollQ} ph="Who’s joining Friday 7:30 AM Run?" />
+        <Field label="Question (Arabic)" value={pollQa} onChange={setPollQa} ph="مين جاي جري الجمعة ٧:٣٠ الصبح؟" />
+        <Field label="Options" value={pollO} onChange={setPollO} ph={'I’m in|أنا جاي\nNext week|الأسبوع الجاي'} multi />
+        <Btn label="Ask the lounge" onPress={async () => {
+          const opts = pollO.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const [en, ar] = l.split('|'); return { en: (en || '').trim(), ar: (ar || en || '').trim() }; });
+          if (pollQ.trim().length < 3 || opts.length < 2 || opts.length > 4) { setMsg('A question and 2 to 4 options, please.'); return; }
+          const r = await ownerLoungePoll(pollQ.trim(), pollQa.trim(), opts); setMsg(r && r.ok ? 'The lounge has a new question.' : 'Could not save.');
+          if (r && r.ok) { setPollQ(''); setPollQa(''); setPollO(''); }
+        }} />
         <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Book via WhatsApp</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>The team’s WhatsApp number. With one, every open trip and Drop shows “Book via WhatsApp”, which opens a chat with the person’s name, the trip and the date already written. Empty = the button is hidden.</Text>
         <Field label="WhatsApp number (digits, with country code)" value={wa} onChange={(v) => setWa(v.replace(/[^0-9]/g, '').slice(0, 15))} ph="2010…" />

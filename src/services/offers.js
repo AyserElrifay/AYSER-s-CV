@@ -44,6 +44,7 @@ export const offerSetStatus = (id, status) => act('offer_set_status', { p_id: id
 export const ownerBookings = async (offerId) => { const r = await call('owner_bookings', { p_offer: offerId }); return Array.isArray(r) ? r : []; };
 export const ownerMarkBooking = (id, status) => act('owner_mark_booking', { p_id: id, p_status: status });
 export const ownerSetSetting = (key, value) => act('owner_set_setting', { p_key: key, p_value: value });
+export const ownerLoungePoll = (q, qAr, options) => act('owner_lounge_poll', { p_question: q, p_question_ar: qAr || null, p_options: options });
 export async function appSettings() {
   if (!SUPABASE_READY) return {};
   try {
