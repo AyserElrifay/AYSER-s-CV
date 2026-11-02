@@ -98,6 +98,15 @@ const W = {
 const wl = (lang, k) => (W[lang === 'ar' ? 'ar' : 'en'][k]) || W.en[k];
 const w = (lang, k, v) => { let s = (W[lang === 'ar' ? 'ar' : 'en'][k]) || W.en[k]; Object.keys(v || {}).forEach((x) => { s = s.replace('{' + x + '}', String(v[x])); }); return s; };
 const INK = '#17131F';
+const BG = '#1E0F45';          // Moments violet, deep — the room
+const SUN = '#FFC233';         // the star in the logo
+/* one colour per game, like a box on the shelf (Ayser, November 2026) */
+const GAME = {
+  spy: { bg: '#FF5A6E', icon: 'eye-off', name: 'spy', rules: 'rSpy', n: 4 },
+  taboo: { bg: '#FFC233', ink: '#2A1660', icon: 'timer', name: 'tabooBomb', rules: 'rTaboo', n: 4 },
+  sparks: { bg: '#22C7A9', icon: 'flame', name: 'sparks', rules: 'rSparks', n: 3 },
+  karaoke: { bg: '#4D7CFE', icon: 'musical-notes', name: 'karaokeC', rules: 'rKaraoke', n: 2 },
+};
 const shuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 const newCode = () => String(Math.floor(100000 + Math.random() * 900000));
 
@@ -173,6 +182,7 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
   const [name, setName] = useState('');
   const [code, setCode] = useState(initialCode);
   const codeRef = useRef(null);
+  const [rules, setRules] = useState(null);   // the game whose rules are open
   const [room, setRoom] = useState(null);           // { code, host }
   const [players, setPlayers] = useState([]);       // [{ id, name }]
   const [st, setSt] = useState(null);               // the shared state, from the host
@@ -319,7 +329,8 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: flash ? '#B3261E' : INK }}>
+      <View style={{ flex: 1, backgroundColor: flash ? '#B3261E' : BG }}>
+        {!flash && Platform.OS === 'web' ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'radial-gradient(120% 60% at 50% 0%, #7C3AED 0%, rgba(124,58,237,0) 70%)' }} /> : null}
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 40 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={12} accessibilityRole="button" accessibilityLabel={w(lang, 'leave')}>
@@ -331,56 +342,81 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
           {flash ? <Text style={{ color: '#FFFFFF', fontSize: 42, fontWeight: '900', textAlign: 'center', marginTop: 30 }}>{'🚨 ' + w(lang, 'buzzed')}</Text> : null}
 
           {lobby ? (
-            /* Ayser, November 2026: playable in ten seconds — how to play, the code, and the four games with their rules */
+            /* Ayser, November 2026 — "مش شكل ألعاب ولا شيك": the look of a game. Moments violet,
+               one big yellow button, a colour per game, and the rules only when you tap a game. */
             <>
-              <Text style={{ color: '#FFFFFF', fontSize: 30, fontWeight: '800', marginTop: 14 }}>{w(lang, 'title')}</Text>
-              <View testID="tg-howto" style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 10, borderRadius: 999, backgroundColor: 'rgba(217,192,140,0.14)', borderWidth: 1, borderColor: 'rgba(217,192,140,0.5)', paddingHorizontal: 12, paddingVertical: 7 }}>
-                <Ionicons name="bulb-outline" size={15} color="#D9C08C" />
-                <Text style={{ color: '#F3E7CF', fontSize: 12.5, fontWeight: '700', marginStart: 6, flexShrink: 1, lineHeight: 17 }}>{w(lang, 'howTo')}</Text>
-              </View>
-              {/* the code, in six big boxes */}
-              <Pressable onPress={() => { try { codeRef.current && codeRef.current.focus(); } catch (e) {} }} accessibilityRole="button" accessibilityLabel={w(lang, 'codePh')} style={{ marginTop: 18 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', direction: 'ltr' }}>
-                  {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <View key={i} style={{ width: '15%', aspectRatio: 0.82, borderRadius: 14, borderWidth: 2, borderColor: code.length === i ? '#D9C08C' : 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ color: '#FFFFFF', fontSize: 28, fontWeight: '900' }}>{code[i] || ''}</Text>
-                    </View>
-                  ))}
-                </View>
-                <TextInput ref={codeRef} testID="tg-code" value={code} onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} autoComplete="one-time-code"
-                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.01, color: 'transparent' }} />
-              </Pressable>
-              <Pressable testID="tg-join" disabled={code.length !== 6} onPress={() => { tapMedium(); setErr(null); open(code, false); }} accessibilityRole="button" style={{ marginTop: 12, opacity: code.length === 6 ? 1 : 0.5 }}>
-                <View style={{ borderRadius: 18, paddingVertical: 17, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', backgroundColor: '#D9C08C' }}>
-                  <Ionicons name="enter-outline" size={20} color={INK} />
-                  <Text style={{ color: INK, fontSize: 18, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.2, marginStart: 8 }}>{w(lang, 'joinTable')}</Text>
-                </View>
-              </Pressable>
-              <Btn testID="tg-host" label={w(lang, 'start')} solid={false} onPress={() => { tapMedium(); setErr(null); open(newCode(), true); }} style={{ marginTop: 10 }} />
-              {err ? <Text style={{ color: '#FF6B6B', fontSize: 13.5, marginTop: 10 }}>{err}</Text> : null}
-              {/* the four games, two by two */}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 20 }}>
-                {[['spy', 'eye-off-outline', 'spy', 'rSpy', 4], ['taboo', 'timer-outline', 'tabooBomb', 'rTaboo', 4], ['sparks', 'flame-outline', 'sparks', 'rSparks', 3], ['karaoke', 'musical-notes-outline', 'karaokeC', 'rKaraoke', 2]].map(([k, icon, name, rules, n]) => (
-                  <View key={k} testID={'tg-card-' + k} style={{ width: '48.5%', marginBottom: 10, borderRadius: 18, padding: 12, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: 'rgba(217,192,140,0.16)', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name={icon} size={18} color="#D9C08C" />
-                      </View>
-                      <View style={{ borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 7, paddingVertical: 2 }}>
-                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10.5, fontWeight: '800' }}>{w(lang, 'best', { n: lang === 'ar' ? '٠١٢٣٤٥٦٧٨٩'[n] : n })}</Text>
-                      </View>
-                    </View>
-                    <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800', marginTop: 8 }}>{w(lang, name)}</Text>
-                    <Text style={{ color: '#D9C08C', fontSize: 10.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.1, marginTop: 6 }}>{w(lang, 'rules').toUpperCase()}</Text>
-                    {(wl(lang, rules) || []).map((r, i) => (
-                      <View key={i} style={{ flexDirection: 'row', marginTop: 4 }}>
-                        <Text style={{ color: '#D9C08C', fontSize: 12, fontWeight: '900', width: 14 }}>{lang === 'ar' ? '٠١٢٣'[i + 1] : i + 1}</Text>
-                        <Text style={{ flex: 1, color: 'rgba(255,255,255,0.78)', fontSize: 12, lineHeight: 16 }}>{r}</Text>
-                      </View>
-                    ))}
+              <Text style={{ color: SUN, fontSize: 13, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 2, marginTop: 10 }}>{lang === 'ar' ? 'لمّة' : 'LAMMA'}</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 34, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : -1, marginTop: 2 }}>{w(lang, 'title')}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 15, marginTop: 4 }}>{w(lang, 'sub')}</Text>
+
+              <Pressable testID="tg-host" onPress={() => { tapMedium(); setErr(null); open(newCode(), true); }} accessibilityRole="button" style={{ marginTop: 22 }}>
+                {({ pressed }) => (
+                  <View style={{ borderRadius: 22, paddingVertical: 19, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', backgroundColor: SUN, transform: [{ scale: pressed ? 0.98 : 1 }] }}>
+                    <Ionicons name="play" size={20} color="#2A1660" />
+                    <Text style={{ color: '#2A1660', fontSize: 19, fontWeight: '900', marginStart: 8 }}>{w(lang, 'start')}</Text>
                   </View>
-                ))}
+                )}
+              </Pressable>
+
+              {/* joining: one pill — the code, and an arrow when it is complete */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.12)', paddingStart: 18, paddingEnd: 6, height: 58 }}>
+                <TextInput ref={codeRef} testID="tg-code" value={code} onChangeText={(v) => { setCode(v.replace(/\D/g, '').slice(0, 6)); setErr(null); }} keyboardType="number-pad" maxLength={6}
+                  placeholder={w(lang, 'codePh')} placeholderTextColor="rgba(255,255,255,0.5)"
+                  style={{ flex: 1, minWidth: 0, width: 10, outlineStyle: 'none', color: '#FFFFFF', fontSize: code ? 22 : 16, fontWeight: code ? '900' : '600', letterSpacing: code ? 6 : 0, textAlign: 'left' }} />
+                <Pressable testID="tg-join" disabled={code.length !== 6} onPress={() => { tapMedium(); setErr(null); open(code, false); }} accessibilityRole="button" accessibilityLabel={w(lang, 'joinTable')}>
+                  <View style={{ height: 46, paddingHorizontal: 16, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', backgroundColor: code.length === 6 ? '#FFFFFF' : 'rgba(255,255,255,0.15)' }}>
+                    <Text style={{ color: code.length === 6 ? '#2A1660' : 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '900' }}>{w(lang, 'join')}</Text>
+                    <Ionicons name={lang === 'ar' ? 'arrow-back' : 'arrow-forward'} size={16} color={code.length === 6 ? '#2A1660' : 'rgba(255,255,255,0.6)'} style={{ marginStart: 6 }} />
+                  </View>
+                </Pressable>
               </View>
+              {err ? <Text style={{ color: '#FFB3BD', fontSize: 13.5, marginTop: 10 }}>{err}</Text> : null}
+
+              {/* the four games: a colour each, big and simple — tap for how to play */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 24 }}>
+                {['spy', 'taboo', 'sparks', 'karaoke'].map((k) => {
+                  const g = GAME[k]; const ink = g.ink || '#FFFFFF';
+                  return (
+                    <Pressable key={k} testID={'tg-card-' + k} onPress={() => { tapLight(); setRules(k); }} accessibilityRole="button" accessibilityLabel={w(lang, g.name)} style={{ width: '48%', marginBottom: 14 }}>
+                      {({ pressed }) => (
+                        <View style={{ aspectRatio: 1, borderRadius: 28, padding: 16, backgroundColor: g.bg, justifyContent: 'space-between', transform: [{ scale: pressed ? 0.97 : 1 }, { rotate: k === 'spy' || k === 'karaoke' ? '-1.5deg' : '1.5deg' }] }}>
+                          <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name={g.icon} size={28} color={ink} />
+                          </View>
+                          <View>
+                            <Text style={{ color: ink, fontSize: 19, fontWeight: '900', lineHeight: 23 }} numberOfLines={2}>{w(lang, g.name)}</Text>
+                            <Text style={{ color: ink, opacity: 0.85, fontSize: 12.5, fontWeight: '800', marginTop: 4 }}>{w(lang, 'best', { n: lang === 'ar' ? '٠١٢٣٤٥٦٧٨٩'[g.n] : g.n })}</Text>
+                          </View>
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* how to play one game: three lines, and the yellow button */}
+              {rules ? (
+                <Modal visible transparent animationType="slide" onRequestClose={() => setRules(null)}>
+                  <Pressable onPress={() => setRules(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+                    <Pressable onPress={() => {}} testID="tg-rules" style={{ backgroundColor: GAME[rules].bg, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: insets.bottom + 24 }}>
+                      <Text style={{ color: GAME[rules].ink || '#FFFFFF', fontSize: 26, fontWeight: '900' }}>{w(lang, GAME[rules].name)}</Text>
+                      {(wl(lang, GAME[rules].rules) || []).map((r, i) => (
+                        <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 14 }}>
+                          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ color: GAME[rules].ink || '#FFFFFF', fontSize: 14, fontWeight: '900' }}>{lang === 'ar' ? '٠١٢٣'[i + 1] : i + 1}</Text>
+                          </View>
+                          <Text style={{ flex: 1, color: GAME[rules].ink || '#FFFFFF', fontSize: 16.5, fontWeight: '600', lineHeight: 23, marginStart: 12 }}>{r}</Text>
+                        </View>
+                      ))}
+                      <Pressable onPress={() => { tapMedium(); setRules(null); setErr(null); open(newCode(), true); }} accessibilityRole="button" style={{ marginTop: 22 }}>
+                        <View style={{ borderRadius: 20, paddingVertical: 17, alignItems: 'center', backgroundColor: '#FFFFFF' }}>
+                          <Text style={{ color: '#2A1660', fontSize: 17, fontWeight: '900' }}>{w(lang, 'start')}</Text>
+                        </View>
+                      </Pressable>
+                    </Pressable>
+                  </Pressable>
+                </Modal>
+              ) : null}
             </>
           ) : !st ? (
             /* the room, before a game */
