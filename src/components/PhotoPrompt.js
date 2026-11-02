@@ -15,19 +15,17 @@ import { tapLight } from '../utils/feedback';
 export const PhotoPrompt = ({ onShare }) => {
   const { lang } = useLang();
   const prompt = todaysPrompt(lang);
+  /* Ayser, November 2026 ("خد رأي ستيف جوبز"): one line, one button */
   return (
-    <View style={{ marginTop: 18, borderRadius: 22, padding: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-      <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1 }}>
-        {lang === 'ar' ? lw(lang, 'pp_label') : lw(lang, 'pp_label').toUpperCase()}
-      </Text>
-      <Text style={{ color: C.text, fontSize: 18, fontWeight: '700', lineHeight: 25, marginTop: 6 }}>{prompt}</Text>
-      <Pressable testID="btn-prompt-camera" onPress={() => { tapLight(); onShare && onShare(prompt); }} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 14 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }}>
-          <Ionicons name="camera-outline" size={17} color="#FFFFFF" />
-          {/* the gap on both sides, so it holds in Arabic too */}
-          <Text style={{ color: '#FFFFFF', fontSize: 14.5, fontWeight: '700', marginHorizontal: 8 }}>{lw(lang, 'pp_share')}</Text>
-        </View>
-      </Pressable>
-    </View>
+    <Pressable testID="btn-prompt-camera" onPress={() => { tapLight(); onShare && onShare(prompt); }} accessibilityRole="button" accessibilityLabel={lw(lang, 'pp_share')}
+      style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingVertical: 12, paddingStart: 16, paddingEnd: 12, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1 }}>{lang === 'ar' ? lw(lang, 'pp_label') : lw(lang, 'pp_label').toUpperCase()}</Text>
+        <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '600', lineHeight: 21, marginTop: 3 }}>{prompt}</Text>
+      </View>
+      <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', marginStart: 12 }}>
+        <Ionicons name="camera" size={21} color="#FFFFFF" />
+      </View>
+    </Pressable>
   );
 };

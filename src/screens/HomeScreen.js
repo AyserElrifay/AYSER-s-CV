@@ -32,7 +32,7 @@ import { Greeting } from '../components/Greeting';
 import { Modal } from 'react-native';
 import { goToTab, showOnMap } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
-import { GoOutRail } from '../components/GoOutRail';
+
 import { NextUp } from '../components/NextUp';
 import { setVideoQueue } from '../lib/videoQueue';
 import { lazyOverlay } from '../lib/lazyScreen';
@@ -43,7 +43,7 @@ const DailyMoment = lazyOverlay(() => import('../components/DailyMoment').then((
 import { readGate, addSeconds, markSeenAll, budgetSeconds, onGate, readPlan, writePlan } from '../lib/feedGate';
 import { myMembership } from '../services/membership';
 import { myMomentsLevel, chatUnread, markChatsSeen } from '../services/loop';
-import { FeedClock, FeedReopen, FeedBar } from '../components/FeedClock';
+import { FeedClock, FeedReopen } from '../components/FeedClock';
 import { myVolunteering, myUnrated } from '../services/green';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
@@ -132,6 +132,7 @@ export const HomeScreen = () => {
      question a day (ReflectionPane). The Moments feed is open for a
      few minutes a day and closes once you reach its end — see
      src/lib/feedGate.js. Volunteers get a little more time. */
+  const [hasStep, setHasStep] = useState(false);   // the seat you booked or your level is the first thing
   const [homeTab, setHomeTab] = useState(() => { try { return localStorage.getItem('mm.homeTab') === 'reflect' ? 'reflect' : 'moments'; } catch (e) { return 'moments'; } });
   const pickTab = (k) => { tapLight(); setHomeTab(k); try { localStorage.setItem('mm.homeTab', k); } catch (e) {} };
   const focused = useIsFocused();
@@ -620,9 +621,7 @@ export const HomeScreen = () => {
                     </View>
                   ) : null}
                 </Pressable>
-                <Pressable testID="btn-search" accessibilityRole="button" accessibilityLabel={t('search')} onPress={() => setSearching(true)} style={[headerBtn(), { marginRight: 10 }]}>
-                  <Ionicons name="search" size={17} color={C.text} />
-                </Pressable>
+{/* search lives on Map (Ayser, November 2026: fewer buttons on Home) */}
                 {/* Chats where the + was: posting starts from today's prompt in the feed */}
                 <Pressable testID="btn-chats" accessibilityRole="button" accessibilityLabel={t('chats_title')} onPress={() => { tapLight(); setChatsOpen(true); markChatsSeen(); setChatNew(0); }} style={[headerBtn(), { marginRight: 10 }]}>
                   <Ionicons name={chatNew ? 'chatbubble' : 'chatbubble-outline'} size={17} color={chatNew ? C.purple : C.text} />
@@ -638,21 +637,21 @@ export const HomeScreen = () => {
               </View>
             </View>
 
-            {/* yours first: the seat you booked or the level you are on, then the Daily Moment */}
-            {user ? <NextStep /> : null}
-            {/* the Daily Moment; Drops and the English Circle live in Together now — one place each */}
-            {user ? <DailyMoment /> : null}
-
-            {/* the first thing: the next real plan near you, and one button */}
-            <NextUp user={user} onStart={() => goToTab('TOGETHER')}
-              onOpen={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }} />
+            {/* Ayser, November 2026 — "خد رأي ستيف جوبز": one thing first. Yours (the seat
+                you booked or your level) if there is one, otherwise the next plan near you.
+                The Daily Moment moved into Reflection, the plans rail into Together. */}
+            {user ? <NextStep onHas={setHasStep} /> : null}
+            {!hasStep ? (
+              <NextUp user={user} onStart={() => goToTab('TOGETHER')}
+                onOpen={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }} />
+            ) : null}
 
             {/* Moments · Reflection — two words, not a black bar: after
                 the photo above, a heavy switch was the loudest thing on
                 the screen, and it is only a way of choosing what to read */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 22 }} accessibilityRole="tablist">
               {/* Ayser, November 2026: the day's question, and the Moments feed — permanent; the 48 hours are the LIVE MOMENTS strip's alone */}
-              {[['reflect', lw(lang, 'tab_reflect')], ['moments', lw(lang, 'tab_moments')]].map(([k, label]) => (
+              {[['moments', lw(lang, 'tab_moments')], ['reflect', lw(lang, 'tab_reflect')]].map(([k, label]) => (
                 <Pressable key={k} onPress={() => pickTab(k)} accessibilityRole="tab" accessibilityState={{ selected: homeTab === k }} hitSlop={8} style={{ marginEnd: 22 }}>
                   <Text style={{ color: homeTab === k ? C.text : C.faint, fontSize: 13.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{label}</Text>
                   <View style={{ height: 3, width: 18, borderRadius: 2, marginTop: 5, backgroundColor: homeTab === k ? C.purple : 'transparent' }} />
@@ -663,9 +662,9 @@ export const HomeScreen = () => {
               {user && homeTab === 'moments' && !feedClosed ? <View style={{ paddingBottom: 8 }}><FeedClock budget={budget} running={focused} /></View> : null}
             </View>
 
-            {user && homeTab === 'moments' && !feedClosed ? <FeedBar budget={budget} running={focused} /> : null}
+            
 
-            {homeTab === 'reflect' ? <View style={{ marginTop: 18 }}><ReflectionPane user={user} /></View> : null}
+            {homeTab === 'reflect' ? <View style={{ marginTop: 18 }}>{user ? <DailyMoment /> : null}<ReflectionPane user={user} /></View> : null}
 
             {homeTab === 'moments' && widgets.length ? <HomeWidgets ids={widgets} /> : null}
 
@@ -675,13 +674,7 @@ export const HomeScreen = () => {
             {/* the day's prompt answers, 48 hours each — the only thing on Home that runs out */}
             {homeTab === 'moments' && !feedClosed ? <LiveStrip items={live} lang={lang} /> : null}
 
-            {/* real evenings and real plans with real photos — the reason to go (src/components/GoOutRail.js) */}
-            {user && homeTab === 'moments' ? (
-              <GoOutRail
-                onFind={() => goToTab('TOGETHER')}
-                onOpenPlan={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }}
-              />
-            ) : null}
+
 
 
             {/* the day's window is over: a kind line, and the way out */}

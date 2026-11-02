@@ -47,7 +47,7 @@ const when = (iso, lang) => {
   try { return new Date(iso).toLocaleString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; }
 };
 
-export const NextStep = () => {
+export const NextStep = ({ onHas }) => {
   const { lang } = useLang();
   const { user } = useAuth();
   const [step, setStep] = useState(null);
@@ -63,10 +63,11 @@ export const NextStep = () => {
         .filter((b) => (b.status === 'reserved' || b.status === 'paid') && b.offer && b.offer.kind !== 'gift'
           && b.offer.starts_at && new Date(b.offer.starts_at).getTime() > now - 3 * 3600000)
         .sort((a, b) => new Date(a.offer.starts_at) - new Date(b.offer.starts_at))[0];
-      if (next) { if (alive) setStep({ kind: 'booking', b: next }); return; }
+      if (next) { if (alive) { setStep({ kind: 'booking', b: next }); onHas && onHas(true); } return; }
       const j = await myJourney().catch(() => null);
       const here = j && j.levels ? (j.levels[String(j.level)] || []).find((x) => x.status === 'live' && !x.mine) : null;
-      if (alive) setStep(j && j.levels && Object.keys(j.levels).length ? { kind: 'level', j, w: here } : null);
+      const st = j && j.levels && Object.keys(j.levels).length ? { kind: 'level', j, w: here } : null;
+      if (alive) { setStep(st); onHas && onHas(!!st); }
     })();
     return () => { alive = false; };
   }, [user]);
