@@ -27009,6 +27009,53 @@ revoke execute on function public.page_remove(uuid) from public, anon;
 grant execute on function public.page_remove(uuid) to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  A PHONE NUMBER AT SIGN-UP, FOR THE TEAM ONLY
+--  Ayser, November 2026: "نبدأ في الـ registration … إضافة رقم التليفون
+--  ده نكلّم الناس". Asked once when an account is made. It is never on a
+--  profile, never shown to other members: the person reads their own,
+--  and the team reads the list in the Studio (owner, and the Trips &
+--  bookings role, who call people about their seats). Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.private_contacts (
+  user_id    uuid primary key references public.profiles(id) on delete cascade,
+  phone      text not null check (phone ~ '^\+[0-9]{8,15}$'),
+  updated_at timestamptz not null default now()
+);
+alter table public.private_contacts enable row level security;
+drop policy if exists "my own number" on public.private_contacts;
+create policy "my own number" on public.private_contacts for select using (user_id = auth.uid());
+
+create or replace function public.set_my_phone(p_phone text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); d text := regexp_replace(coalesce(p_phone, ''), '[^0-9+]', '', 'g');
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  -- an Egyptian mobile written the local way: 01x xxxx xxxx → +201x…
+  if d ~ '^01[0-9]{9}$' then d := '+2' || d; end if;
+  if d ~ '^00[0-9]{8,15}$' then d := '+' || substr(d, 3); end if;
+  if d !~ '^\+[0-9]{8,15}$' then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
+  insert into public.private_contacts (user_id, phone) values (me, d)
+    on conflict (user_id) do update set phone = excluded.phone, updated_at = now();
+  return jsonb_build_object('ok', true, 'phone', d);
+end $$;
+revoke execute on function public.set_my_phone(text) from public, anon;
+grant execute on function public.set_my_phone(text) to authenticated;
+
+create or replace function public.owner_contacts(p_q text default null)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not coalesce(public.trips_ok(), false) then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  return jsonb_build_object('ok', true, 'people', coalesce((
+    select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'handle', p.handle, 'phone', c.phone, 'at', c.updated_at) order by c.updated_at desc)
+      from (select * from public.private_contacts c join public.profiles p0 on p0.id = c.user_id
+             where p_q is null or btrim(p_q) = '' or p0.name ilike '%' || btrim(p_q) || '%' or c.phone like '%' || regexp_replace(p_q, '[^0-9]', '', 'g') || '%'
+             order by c.updated_at desc limit 300) c
+      join public.profiles p on p.id = c.user_id), '[]'::jsonb));
+end $$;
+revoke execute on function public.owner_contacts(text) from public, anon;
+grant execute on function public.owner_contacts(text) to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

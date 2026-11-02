@@ -23,6 +23,7 @@ import { kindredNumber } from '../lib/kindred';
 import { listGatherings, joinGathering, setJoinedAs } from '../services/green';
 import { lookOf, titleFor } from '../lib/activityPins';
 import { flagToIso } from '../lib/together';
+import { phoneOk, savePhone, keepPhoneForLater, savePendingPhone } from '../services/contact';
 
 /* ─────────────── PASSWORDLESS-STYLE ONBOARDING · AUTH GATE ───────────
    Step 0 — sign in / create account (email+password via Supabase).
@@ -79,6 +80,7 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
   /* the first time only: the full-screen intro, then the choice */
   const [intro, setIntro] = useState(() => !recovery && !introSeen());
   const [name, setName] = useState('');
+  const [mobile, setMobile] = useState('');   // the team calls about your seats (RUN_ME.sql set_my_phone)
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -193,17 +195,20 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
     setError(null); setNotice(null);
     if (isDemo) { setStep(1); return; }
     if (!email.trim() || !password) { setError(t('auth_err_need_both')); return; }
+    if (mode === 'signup' && !phoneOk(mobile)) { setError(lang === 'ar' ? 'اكتب رقم موبايلك صح (زي 01012345678).' : 'Add your mobile number (like 01012345678).'); return; }
     setBusy(true);
     try {
       if (mode === 'signup') {
         beginOnboarding(); // hold this screen mounted even once the session goes live
         const { user: newUser, session } = await signUp(email.trim(), password, name.trim() || 'Explorer');
+        if (session) savePhone(mobile.trim()); else keepPhoneForLater(mobile.trim());
         if (!session) {
           // Email confirmation is ON server-side — try signing straight
           // in anyway (covers "user exists but retried signup"), else
           // explain the confirmation email clearly.
           try {
             await signIn(email.trim(), password);
+            savePhone(mobile.trim());
             setPendingUserId(newUser ? newUser.id : null);
             setStep(1);
             return;
@@ -219,6 +224,7 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
       } else {
         await signIn(email.trim(), password); // session change unmounts this screen
         clearMustSetPassword();
+        savePendingPhone();
       }
     } catch (e) {
       finishOnboarding();
@@ -444,6 +450,18 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
                   placeholder={t('your_name')} placeholderTextColor={C.faint} value={name} onChangeText={setName}
                   autoCapitalize="words" style={inputStyle()}
                 />
+              ) : null}
+              {mode === 'signup' ? (
+                <>
+                  <TextInput
+                    testID="signup-phone"
+                    placeholder={lang === 'ar' ? 'رقم موبايلك' : 'Your mobile number'} placeholderTextColor={C.faint} value={mobile} onChangeText={setMobile}
+                    keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" style={inputStyle()}
+                  />
+                  <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 16, marginTop: -6, marginBottom: 10, textAlign: lang === 'ar' ? 'right' : 'left' }}>
+                    {lang === 'ar' ? 'للفريق بس، عشان نكلّمك عن حجزك. محدّش تاني يشوفه.' : 'For the team only, to reach you about your bookings. Nobody else sees it.'}
+                  </Text>
+                </>
               ) : null}
               <TextInput
                 placeholder={t('email_label')} placeholderTextColor={C.faint} value={email} onChangeText={setEmail}

@@ -11,6 +11,7 @@ import { lazyOverlay } from '../lib/lazyScreen';
 import { searchProfiles } from '../services/social';
 import { giftMembership, endGift, giftList } from '../services/gifts';
 import { ownerDrops, ownerDropSave, ownerDropLevel } from '../services/mvp';
+import { ownerContacts } from '../services/contact';
 
 // the event page, as its host sees it: write the pin, open or end the workshop room
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -358,6 +359,37 @@ const GiftBox = () => {
   );
 };
 
+/* ─── PEOPLE'S NUMBERS ── the numbers given at sign-up (RUN_ME.sql
+   owner_contacts): the owner and the Trips & bookings team only, to call
+   people about their seats. Read here; never shown anywhere else. */
+const ContactsBox = () => {
+  const [q, setQ] = useState('');
+  const [list, setList] = useState(null);
+  const [open, setOpen] = useState(false);
+  const find = async () => { const r = await ownerContacts(q.trim()); setList(r && r.ok ? r.people || [] : []); };
+  return (
+    <View style={{ marginTop: 14, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 12 }}>
+      <Pressable onPress={() => { tapLight(); setOpen((v) => !v); if (!list) find(); }} accessibilityRole="button">
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{"People's numbers" + (list ? '  ·  ' + list.length : '')}</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Given at sign-up, for the team only — to call people about their bookings. Do not share them.</Text>
+      </Pressable>
+      {open ? (
+        <>
+          <Field label="Search a name or number" value={q} onChange={setQ} ph="Mariam / 0101…" />
+          <Btn label="Search" onPress={find} />
+          {(list || []).map((x) => (
+            <View key={x.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.line }}>
+              <Text style={{ flex: 1, color: C.text, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{x.name || x.handle || '—'}</Text>
+              <Text selectable style={{ color: C.text, fontSize: 14, fontVariant: ['tabular-nums'] }}>{x.phone}</Text>
+            </View>
+          ))}
+          {list && !list.length ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 8 }}>No numbers yet.</Text> : null}
+        </>
+      ) : null}
+    </View>
+  );
+};
+
 export const OffersTab = ({ userId, owner = true }) => {
   const [list, setList] = useState(null);
   const [settings, setSettings] = useState({});
@@ -557,6 +589,7 @@ export const OffersTab = ({ userId, owner = true }) => {
     <View>
       <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 4 }}>Trips, deals and stays people book through Moments. Drafts are only seen here; nothing goes live without a real photo and a price.</Text>
       <Btn label="＋ New offer" solid onPress={() => { tapLight(); setMsg(null); setForm(toForm({})); }} />
+      <ContactsBox />
 
       {/* the money settings are the owner's; a Trips & bookings team member sees trips, bookings and Drops */}
       {owner ? <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
