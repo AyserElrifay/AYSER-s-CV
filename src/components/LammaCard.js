@@ -6,11 +6,12 @@ import { useLang } from '../context/LanguageContext';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { tapLight } from '../utils/feedback';
 
-const GameHub = lazyOverlay(() => import('./lamma/GameHub').then((m) => ({ default: m.GameHub })));
+/* straight into the table games lobby: the code, and the four games (Ayser, November 2026) */
+const TableGames = lazyOverlay(() => import('./lamma/TableGames').then((m) => ({ default: m.TableGames })));
 
 const W = {
-  en: { t: 'Lamma — Table Icebreakers', s: 'One room code for the whole table: Spy at the Table, Table Bomb, Table Sparks, Campfire Karaoke and the trivia packs.' },
-  ar: { t: 'لمّة — ألعاب الترابيزة', s: 'كود أوضة واحد للترابيزة كلها: المندَسّ، قنبلة الترابيزة، مين فينا، غنّوا سوا، وأسئلة المعلومات.' },
+  en: { t: 'Lamma — Table Icebreakers', s: 'One room code for the whole table: The Spy, Arousty & 5s Bomb, Table Sparks and Campfire Karaoke.' },
+  ar: { t: 'لمّة — ألعاب الترابيزة', s: 'كود أوضة واحد للترابيزة كلها: المندَسّ، عروستي وقنبلة الـ٥ ثواني، مين فينا، وغنّوا سوا.' },
 };
 
 /* ─── THE DOOR TO LAMMA ── on Together and on Space (Ayser, October 2026) */
@@ -34,7 +35,7 @@ export const LammaCard = ({ style }) => {
           </View>
         )}
       </Pressable>
-      {open ? <GameHub onClose={() => setOpen(false)} /> : null}
+      {open ? <TableGames onClose={() => setOpen(false)} /> : null}
     </>
   );
 };

@@ -51,6 +51,13 @@ const W = {
     karaokeLyrics: 'Pick a song', chords: 'Guitarist Chords', own: 'Paste your own song', ownPh: '[Am]First line\n[G]Second line…', play: 'Play', stop: 'Stop',
     ownNote: 'Only songs you have the right to sing.',
     offline: 'Table games need the internet.',
+    howTo: 'How to play: one player starts on one phone, everyone else joins with the 6-digit code.',
+    joinTable: 'JOIN TABLE', rules: 'Mini rules', best: 'Best with {n}+',
+    tabooBomb: 'Arousty & 5s Bomb', karaokeC: 'Campfire Karaoke',
+    rSpy: ['Everyone sees the word — except the spy.', 'Take turns: one word each about it.', 'Vote. Catch the spy, or the spy guesses the word.'],
+    rTaboo: ['Describe the word without the 4 forbidden ones.', 'Slip, and the table buzzes “Caught You!”.', 'Bomb: name three in 5 seconds, then pass the phone.'],
+    rSparks: ['A “who at this table…” question appears.', 'Everyone votes on their own phone.', 'Reveal, laugh, next card.'],
+    rKaraoke: ['The host picks a song.', 'The lyrics move on every phone together.', 'The guitarist switches on the chords.'],
   },
   ar: {
     title: 'ألعاب الترابيزة', sub: 'موبايل واحد يبدأ، والباقي يدخلوا بالكود.',
@@ -75,8 +82,16 @@ const W = {
     karaokeLyrics: 'اختار أغنية', chords: 'كوردات الجيتار', own: 'حط أغنيتك', ownPh: '[Am]أول سطر\n[G]تاني سطر…', play: 'شغّل', stop: 'وقّف',
     ownNote: 'بس الأغاني اللي من حقكم تغنوها.',
     offline: 'ألعاب الترابيزة محتاجة نت.',
+    howTo: 'إزاي تلعبوا: واحد يبدأ على موبايل، والباقي يدخلوا بالكود اللي من ٦ أرقام.',
+    joinTable: 'ادخل الترابيزة', rules: 'كيف تلعب', best: 'أحلى مع {n}+',
+    tabooBomb: 'عروستي وقنبلة الـ٥ ثواني', karaokeC: 'غنّوا سوا',
+    rSpy: ['الكل بيشوف الكلمة — إلا المندس.', 'بالدور: كل واحد يقول كلمة عنها.', 'صوّتوا. امسكوا المندس، أو هو يخمّن الكلمة.'],
+    rTaboo: ['اوصف الكلمة من غير الـ٤ الممنوعين.', 'لو غلطت، الترابيزة تقول «مسكتك!».', 'القنبلة: قول تلاتة في ٥ ثواني وعدّي الموبايل.'],
+    rSparks: ['يطلع سؤال «مين فينا…».', 'كل واحد يصوّت من موبايله.', 'اكشفوا، اضحكوا، واللي بعده.'],
+    rKaraoke: ['المنظّم يختار أغنية.', 'الكلام بيتحرك على كل الموبايلات مع بعض.', 'اللي بيعزف يشغّل الكوردات.'],
   },
 };
+const wl = (lang, k) => (W[lang === 'ar' ? 'ar' : 'en'][k]) || W.en[k];
 const w = (lang, k, v) => { let s = (W[lang === 'ar' ? 'ar' : 'en'][k]) || W.en[k]; Object.keys(v || {}).forEach((x) => { s = s.replace('{' + x + '}', String(v[x])); }); return s; };
 const INK = '#17131F';
 const shuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
@@ -149,6 +164,7 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
   const me = user ? user.id : 'me';
   const [name, setName] = useState('');
   const [code, setCode] = useState(initialCode);
+  const codeRef = useRef(null);
   const [room, setRoom] = useState(null);           // { code, host }
   const [players, setPlayers] = useState([]);       // [{ id, name }]
   const [st, setSt] = useState(null);               // the shared state, from the host
@@ -307,24 +323,53 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
           {flash ? <Text style={{ color: '#FFFFFF', fontSize: 42, fontWeight: '900', textAlign: 'center', marginTop: 30 }}>{'🚨 ' + w(lang, 'buzzed')}</Text> : null}
 
           {lobby ? (
+            /* Ayser, November 2026: playable in ten seconds — how to play, the code, and the four games with their rules */
             <>
-              <Text style={{ color: '#FFFFFF', fontSize: 30, fontWeight: '800', marginTop: 18 }}>{w(lang, 'title')}</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14.5, marginTop: 6 }}>{w(lang, 'sub')}</Text>
-              <Btn testID="tg-host" label={w(lang, 'start')} onPress={() => { tapMedium(); setErr(null); open(newCode(), true); }} style={{ marginTop: 22 }} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
-                <TextInput value={code} onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))} placeholder={w(lang, 'codePh')} placeholderTextColor="rgba(255,255,255,0.4)" keyboardType="number-pad"
-                  style={{ flex: 1, color: '#FFFFFF', fontSize: 20, fontWeight: '800', letterSpacing: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, textAlign: 'center' }} />
-                <Btn label={w(lang, 'join')} disabled={code.length !== 6} solid={false} onPress={() => { tapMedium(); setErr(null); open(code, false); }} style={{ marginStart: 10 }} />
+              <Text style={{ color: '#FFFFFF', fontSize: 30, fontWeight: '800', marginTop: 14 }}>{w(lang, 'title')}</Text>
+              <View testID="tg-howto" style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 10, borderRadius: 999, backgroundColor: 'rgba(217,192,140,0.14)', borderWidth: 1, borderColor: 'rgba(217,192,140,0.5)', paddingHorizontal: 12, paddingVertical: 7 }}>
+                <Ionicons name="bulb-outline" size={15} color="#D9C08C" />
+                <Text style={{ color: '#F3E7CF', fontSize: 12.5, fontWeight: '700', marginStart: 6, flexShrink: 1, lineHeight: 17 }}>{w(lang, 'howTo')}</Text>
               </View>
-              {err ? <Text style={{ color: '#FF6B6B', fontSize: 13.5, marginTop: 10 }}>{err}</Text> : null}
-              <View style={{ marginTop: 22 }}>
-                {MODES.map(([k, icon]) => (
-                  <View key={k} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}>
-                    <Ionicons name={icon} size={20} color="#D9C08C" />
-                    <View style={{ flex: 1, marginHorizontal: 12 }}>
-                      <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800' }}>{w(lang, k)}</Text>
-                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5, marginTop: 2 }}>{w(lang, k + 'S')}</Text>
+              {/* the code, in six big boxes */}
+              <Pressable onPress={() => { try { codeRef.current && codeRef.current.focus(); } catch (e) {} }} accessibilityRole="button" accessibilityLabel={w(lang, 'codePh')} style={{ marginTop: 18 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', direction: 'ltr' }}>
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <View key={i} style={{ width: '15%', aspectRatio: 0.82, borderRadius: 14, borderWidth: 2, borderColor: code.length === i ? '#D9C08C' : 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 28, fontWeight: '900' }}>{code[i] || ''}</Text>
                     </View>
+                  ))}
+                </View>
+                <TextInput ref={codeRef} testID="tg-code" value={code} onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} autoComplete="one-time-code"
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.01, color: 'transparent' }} />
+              </Pressable>
+              <Pressable testID="tg-join" disabled={code.length !== 6} onPress={() => { tapMedium(); setErr(null); open(code, false); }} accessibilityRole="button" style={{ marginTop: 12, opacity: code.length === 6 ? 1 : 0.5 }}>
+                <View style={{ borderRadius: 18, paddingVertical: 17, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', backgroundColor: '#D9C08C' }}>
+                  <Ionicons name="enter-outline" size={20} color={INK} />
+                  <Text style={{ color: INK, fontSize: 18, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.2, marginStart: 8 }}>{w(lang, 'joinTable')}</Text>
+                </View>
+              </Pressable>
+              <Btn testID="tg-host" label={w(lang, 'start')} solid={false} onPress={() => { tapMedium(); setErr(null); open(newCode(), true); }} style={{ marginTop: 10 }} />
+              {err ? <Text style={{ color: '#FF6B6B', fontSize: 13.5, marginTop: 10 }}>{err}</Text> : null}
+              {/* the four games, two by two */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 20 }}>
+                {[['spy', 'eye-off-outline', 'spy', 'rSpy', 4], ['taboo', 'timer-outline', 'tabooBomb', 'rTaboo', 4], ['sparks', 'flame-outline', 'sparks', 'rSparks', 3], ['karaoke', 'musical-notes-outline', 'karaokeC', 'rKaraoke', 2]].map(([k, icon, name, rules, n]) => (
+                  <View key={k} testID={'tg-card-' + k} style={{ width: '48.5%', marginBottom: 10, borderRadius: 18, padding: 12, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: 'rgba(217,192,140,0.16)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name={icon} size={18} color="#D9C08C" />
+                      </View>
+                      <View style={{ borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 7, paddingVertical: 2 }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10.5, fontWeight: '800' }}>{w(lang, 'best', { n: lang === 'ar' ? '٠١٢٣٤٥٦٧٨٩'[n] : n })}</Text>
+                      </View>
+                    </View>
+                    <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800', marginTop: 8 }}>{w(lang, name)}</Text>
+                    <Text style={{ color: '#D9C08C', fontSize: 10.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.1, marginTop: 6 }}>{w(lang, 'rules').toUpperCase()}</Text>
+                    {(wl(lang, rules) || []).map((r, i) => (
+                      <View key={i} style={{ flexDirection: 'row', marginTop: 4 }}>
+                        <Text style={{ color: '#D9C08C', fontSize: 12, fontWeight: '900', width: 14 }}>{lang === 'ar' ? '٠١٢٣'[i + 1] : i + 1}</Text>
+                        <Text style={{ flex: 1, color: 'rgba(255,255,255,0.78)', fontSize: 12, lineHeight: 16 }}>{r}</Text>
+                      </View>
+                    ))}
                   </View>
                 ))}
               </View>
