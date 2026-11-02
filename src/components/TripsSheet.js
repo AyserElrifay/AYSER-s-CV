@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { listOffers, bookOffer, bookingPhotoOk, cancelBooking, restoreBooking, hideBooking, myBookings, myPlus, offerWant, photoUrl, money } from '../services/offers';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { payBooking } from '../services/payments';
+import { WhatsAppBook } from './WhatsAppBook';
 import { openInvite } from '../lib/tripLink';
 import { remember, recall } from '../lib/offline';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
@@ -80,9 +81,12 @@ const Cover = ({ kind, h, flag }) => { const c = COVER[kind] || COVER.trip; retu
     <Text style={{ fontSize: h * 0.9, position: 'absolute', right: -h * 0.12, bottom: -h * 0.25, opacity: 0.2 }}>{c[2]}</Text>
     <Text style={{ fontSize: h * 0.32 }}>{flag || c[2]}</Text>
   </LinearGradient>); };
+/* Ayser, November 2026: one weekend trip open (Dahab × Saint Catherine);
+   everything else is locked as Coming Soon, so people see what is next */
 const Soon = ({ t }) => (
-  <View style={{ alignSelf: 'flex-start', borderRadius: 999, backgroundColor: C.goldSoft, paddingHorizontal: 10, paddingVertical: 4 }}>
-    <Text style={{ color: '#8A6400', fontSize: 12.5, fontWeight: '900' }}>{t('bk_soon')}</Text>
+  <View testID="trip-soon" style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: '#1A1A1A', paddingHorizontal: 10, paddingVertical: 4 }}>
+    <Ionicons name="lock-closed" size={11} color="#FFFFFF" />
+    <Text style={{ color: '#FFFFFF', fontSize: 12.5, fontWeight: '800', marginStart: 5 }}>{t('bk_soon')}</Text>
   </View>);
 
 /* ─── TRIPS & DEALS ────────────────────────────────────────────────────
@@ -429,6 +433,8 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
             {busy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{full ? t('bk_full') : t('bk_book')}</Text>}
           </View>
         </Pressable>
+        {/* while the gateway waits: book by writing to the team (src/components/WhatsAppBook.js) */}
+        {!full ? <WhatsAppBook lang={lang} userId={user && user.id} title={lang === 'ar' && o.title_ar ? o.title_ar : o.title} at={o.starts_at} style={{ marginTop: 8 }} /> : null}
       </View>}
     </View>
   );

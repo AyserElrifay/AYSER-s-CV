@@ -20,6 +20,15 @@ import { jw } from '../constants/joinWords';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { tcw as tbw, lookFor } from '../constants/tableCore';
 import { FlagBadge } from './TableFlag';
+import { supabase, SUPABASE_READY } from '../lib/supabase';
+const WhatsAppBook = lazyOverlay(() => import('./WhatsAppBook').then((m) => ({ default: m.WhatsAppBook })));
+
+/* Ayser, November 2026: Roam waits as Coming Soon until the Studio opens it
+   (app setting roam_open; drop_claim answers 'soon' meanwhile) */
+let roamOpen = null;
+const readRoamOpen = () => (!SUPABASE_READY ? Promise.resolve(false) : roamOpen != null ? Promise.resolve(roamOpen)
+  : supabase.from('app_settings').select('value').eq('key', 'roam_open').maybeSingle()
+    .then(({ data }) => { roamOpen = !!(data && data.value === true); return roamOpen; }, () => false));
 
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
 
@@ -311,6 +320,9 @@ const LoopVideo = ({ uri }) => {
 };
 
 const DropCard = ({ d, lang, onChanged }) => {
+  const { user } = useAuth() || {};
+  const [roamOk, setRoamOk] = useState(roamOpen);
+  useEffect(() => { if (d.category === 'roam' && roamOk == null) readRoamOpen().then(setRoamOk); }, [d.category]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
   const [done, setDone] = useState(null);       // the confirmation, with what is left this month
@@ -334,6 +346,7 @@ const DropCard = ({ d, lang, onChanged }) => {
     if (why === 'level') { setNote(mv(lang, 'needLevel', { l: r.need })); setWhy(true); return; }
     if (why === 'verify') { askSafety(); return; }
     if (why === 'card') { askCard(); return; }
+    if (why === 'soon') { roamOpen = false; setRoamOk(false); return; }
     if (why === 'plus') { askUpgrade('member'); return; }
     setNote(why === 'quota' ? mv(lang, 'quotaOut') : why === 'active' ? mv(lang, 'active') : why === 'queued' ? tbw(lang, 'queued') : null);
     if (why === 'full' || why === 'queued') onChanged();
@@ -433,6 +446,12 @@ const DropCard = ({ d, lang, onChanged }) => {
             <Text style={{ color: C.dim, fontSize: 12.5 }}>{mv(lang, 'give')}</Text>
           </Pressable>
         </>
+      ) : cat === 'roam' && !roamOk ? (
+        /* Coming Soon: in the pipeline, not bookable yet */
+        <View testID="drop-soon" style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 13, backgroundColor: C.line }}>
+          <Ionicons name="lock-closed" size={14} color={C.dim} />
+          <Text style={{ color: C.dim, fontSize: 14.5, fontWeight: '700', marginStart: 6 }}>{lang === 'ar' ? 'قريبًا' : 'Coming Soon'}</Text>
+        </View>
       ) : cat === 'roam' && d.applied === 'pending' ? (
         <>
           <Text style={{ color: C.text, fontSize: 14, marginTop: 14, lineHeight: 20 }}>{mv(lang, 'applied')}</Text>
@@ -451,7 +470,11 @@ const DropCard = ({ d, lang, onChanged }) => {
       ) : full ? (
         <Btn label={mv(lang, d.waiting ? 'waiting' : 'wait')} solid={false} onPress={wait} busy={busy} />
       ) : (
-        <Btn label={cat === 'impact' ? jw(lang, 'impact') : mv(lang, 'claim')} onPress={claim} busy={busy} />
+        <>
+          <Btn label={cat === 'impact' ? jw(lang, 'impact') : mv(lang, 'claim')} onPress={claim} busy={busy} />
+          {/* while the gateway waits: book by writing to the team */}
+          <WhatsAppBook lang={lang} userId={user && user.id} title={(lang === 'ar' && d.title_ar) || d.title || place || ''} at={d.starts_at} style={{ marginTop: 8 }} />
+        </>
       )}
       {note ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 10, lineHeight: 18 }}>{note}</Text> : null}
       {done ? <Confirmed q={done} place={place} at={d.starts_at} lang={lang} onClose={() => setDone(null)} /> : null}

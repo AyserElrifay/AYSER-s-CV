@@ -371,11 +371,12 @@ export const OffersTab = ({ userId }) => {
   const [party, setParty] = useState(null);             // the offer just published
   const [hook, setHook] = useState('');
   const [instapay, setInstapay] = useState(''); const [vodafone, setVodafone] = useState('');
+  const [wa, setWa] = useState('');
 
   const load = () => {
     ownerOffers().then((r) => setList(r == null ? false : r));
     appSettings().then((s) => {
-      setSettings(s); setHook(s.bookings_sheet_hook && s.bookings_sheet_hook !== 'null' ? String(s.bookings_sheet_hook).replace(/^"|"$/g, '') : ''); const lp = s.local_pay && typeof s.local_pay === 'object' ? s.local_pay : null; setInstapay((lp && lp.instapay) || ''); setVodafone((lp && lp.vodafone) || ''); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
+      setSettings(s); setWa(typeof s.whatsapp_booking === 'string' ? s.whatsapp_booking : ''); setHook(s.bookings_sheet_hook && s.bookings_sheet_hook !== 'null' ? String(s.bookings_sheet_hook).replace(/^"|"$/g, '') : ''); const lp = s.local_pay && typeof s.local_pay === 'object' ? s.local_pay : null; setInstapay((lp && lp.instapay) || ''); setVodafone((lp && lp.vodafone) || ''); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
       const pr = s.plus_price && typeof s.plus_price === 'object' ? s.plus_price : null;
       setPriceM(pr ? String(pr.month) : ''); setPriceY(pr ? String(pr.year) : ''); setPriceC(pr ? pr.currency : 'EGP');
     });
@@ -565,6 +566,17 @@ export const OffersTab = ({ userId }) => {
         <Field label="InstaPay address" value={instapay} onChange={setInstapay} ph="name@instapay" />
         <Field label="Vodafone Cash number" value={vodafone} onChange={setVodafone} ph="010…" />
         <Btn label="Save payment details" onPress={async () => { const v = instapay.trim() || vodafone.trim() ? { instapay: instapay.trim(), vodafone: vodafone.trim() } : null; const r = await ownerSetSetting('local_pay', v); setMsg(r && r.ok ? 'Payment details saved.' : 'Could not save — check the number.'); load(); }} />
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Book via WhatsApp</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>The team’s WhatsApp number. With one, every open trip and Drop shows “Book via WhatsApp”, which opens a chat with the person’s name, the trip and the date already written. Empty = the button is hidden.</Text>
+        <Field label="WhatsApp number (digits, with country code)" value={wa} onChange={(v) => setWa(v.replace(/[^0-9]/g, '').slice(0, 15))} ph="2010…" />
+        <Btn label="Save WhatsApp number" onPress={async () => {
+          const v = wa.trim() ? wa.trim() : null;
+          if (v && !/^[0-9]{8,15}$/.test(v)) { setMsg('Digits only, 8 to 15, starting with the country code (20 for Egypt).'); return; }
+          const r = await ownerSetSetting('whatsapp_booking', v); setMsg(r && r.ok ? 'WhatsApp number saved.' : 'Could not save — check the number.'); load();
+        }} />
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>{'Roam Drops: ' + (settings && settings.roam_open === true ? 'OPEN' : 'COMING SOON')}</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>While it says Coming Soon, Roam Drops show a lock and nobody can apply. Trips are opened and locked one by one with their own status above.</Text>
+        <Btn label={settings && settings.roam_open === true ? 'Lock Roam (Coming Soon)' : 'Open Roam'} onPress={async () => { const r = await ownerSetSetting('roam_open', !(settings && settings.roam_open === true)); setMsg(r && r.ok ? 'Saved.' : 'Could not save.'); load(); }} />
         <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Plus price</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Saving a price ends the free period for everyone: from then on Plus is what people buy (invite and reward days are kept). Clear both to make it free again.</Text>
         <Field label="Per month" value={priceM} onChange={setPriceM} ph="e.g. the monthly price" />

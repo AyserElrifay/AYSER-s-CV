@@ -26050,6 +26050,137 @@ end $$;
 revoke execute on function public.drop_claim(uuid) from public, anon;
 grant execute on function public.drop_claim(uuid) to authenticated;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  ONE WEEKEND TRIP OPEN · THE REST COMING SOON · BOOK ON WHATSAPP
+--  Ayser, November 2026: Dahab × Saint Catherine is the one weekend trip
+--  you can book now; every other trip shows "Coming Soon" and cannot be
+--  booked, so people see what is coming. Roam Drops are applications for
+--  the same kind of trip: they wait too. Booking can go through the team's
+--  WhatsApp (whatsapp_booking, set in the Studio) while the gateway waits.
+--  The switch below runs once; after it, the Studio decides every status.
+-- ═══════════════════════════════════════════════════════════════════════
+do $do$
+declare d public.offers%rowtype; nxt timestamptz;
+begin
+  if exists (select 1 from public.app_settings where key = 'trips_weekend_v1') then return; end if;
+  select * into d from public.offers where kind = 'trip' and title = 'Dahab × Saint Catherine' order by created_at limit 1;
+  if found then
+    nxt := d.starts_at;
+    if nxt is not null and d.repeat is not null then
+      while nxt <= now() loop nxt := public.offer_next_start(nxt, d.repeat); end loop;
+    end if;
+    update public.offers set status = 'live',
+           ends_at = case when ends_at is not null and starts_at is not null and nxt is not null then nxt + (ends_at - starts_at) else ends_at end,
+           starts_at = coalesce(nxt, starts_at), updated_at = now()
+     where id = d.id and status in ('draft','soon','live');
+  end if;
+  update public.offers set status = 'soon', updated_at = now()
+   where kind = 'trip' and status = 'live' and (d.id is null or id <> d.id);
+  insert into public.app_settings (key, value, updated_at) values ('trips_weekend_v1', 'true'::jsonb, now());
+end $do$;
+
+-- a Roam Drop waits until the Studio opens Roam again (app setting roam_open)
+create or replace function public.drop_claim(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); lead public.offers%rowtype; o public.offers%rowtype; q jsonb; tries int := 0; impact boolean; prem boolean; lvl int;
+        target uuid; g record;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into lead from public.offers where id = (select coalesce(parent_id, id) from public.offers where id = p_id) and is_drop and status = 'live' for update;
+  if not found or lead.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if exists (select 1 from public.bookings b join public.offers t on t.id = b.offer_id
+              where (t.id = lead.id or t.parent_id = lead.id) and b.user_id = me and b.status in ('reserved','paid','attended')) then
+    return jsonb_build_object('ok', true, 'already', true, 'quota', public.quota_of(me));
+  end if;
+  if not public.is_verified(me) then return jsonb_build_object('ok', false, 'reason', 'verify'); end if;
+  -- the 3-photo card comes before an offline seat (THE 3-PHOTO CARD, below)
+  if not public.card_ready(me) then return jsonb_build_object('ok', false, 'reason', 'card'); end if;
+  impact := lead.drop_category = 'impact';
+  prem := public.member_tier(me) <> 'FREE';
+  if not impact and not prem then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+
+  -- a trip: members apply, by level, and the team selects
+  if lead.drop_category = 'roam' and not exists (select 1 from public.app_settings where key = 'roam_open' and value = 'true'::jsonb) then
+    return jsonb_build_object('ok', false, 'reason', 'soon');
+  end if;
+  if lead.drop_category = 'roam' then
+    lvl := (public.moments_level_of(me)->>'level')::int;
+    if lead.min_level is not null and lvl < lead.min_level then
+      return jsonb_build_object('ok', false, 'reason', 'level', 'need', lead.min_level, 'level', lvl);
+    end if;
+    insert into public.trip_applications (offer_id, user_id, level) values (lead.id, me, lvl)
+    on conflict (offer_id, user_id) do update set status = 'pending', level = excluded.level, at = now(), decided_at = null
+      where public.trip_applications.status in ('withdrawn');
+    return jsonb_build_object('ok', true, 'applied', true);
+  end if;
+
+  -- one spotlight at a time: a queued Drop takes names, not seats
+  if public.drop_state(lead.id) = 'queued' then return jsonb_build_object('ok', false, 'reason', 'queued'); end if;
+
+  -- the first table with a free seat; a new table when every one is full
+  select * into g from public.drop_group(lead.id);
+  target := g.open_table;
+  if target is null then target := public.drop_spawn_table(lead.id); end if;
+  if target is null then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  select * into o from public.offers where id = target for update;
+
+  q := public.quota_of(me);
+  if not impact then
+    if (q->>'drops_used')::int >= (q->>'drops_cap')::int then return jsonb_build_object('ok', false, 'reason', 'quota', 'quota', q); end if;
+    if q->>'active_cap' is not null and (q->>'active')::int >= (q->>'active_cap')::int then return jsonb_build_object('ok', false, 'reason', 'active', 'quota', q); end if;
+  end if;
+  loop
+    begin
+      insert into public.bookings (code, offer_id, user_id, qty, unit_price, plus_applied, total, currency, pay_mode, status, commission_pct, moments_share, partner_share)
+      values (public.booking_code(), o.id, me, 1, 0, prem, 0, coalesce(o.currency, 'EGP'), 'reserve', 'paid', 0, 0, 0);
+      exit;
+    exception when unique_violation then tries := tries + 1; if tries > 5 then raise; end if;
+    end;
+  end loop;
+  delete from public.drop_waitlist where offer_id in (lead.id, o.id) and user_id = me;
+  -- this seat filled the last table: open the next one now, at the same place
+  if (select open_table from public.drop_group(lead.id)) is null then perform public.drop_spawn_table(lead.id); end if;
+  -- and if the Drop just reached 80%, the next queued one opens: tell the people waiting for it
+  perform public.drop_open_tell();
+  return jsonb_build_object('ok', true, 'offer', o.id, 'table_no', o.table_no, 'taken', public.offer_seats_taken(o.id), 'seats', o.seats, 'quota', public.quota_of(me));
+end $$;
+revoke execute on function public.drop_claim(uuid) from public, anon;
+grant execute on function public.drop_claim(uuid) to authenticated;
+
+create or replace function public.owner_set_setting(p_key text, p_value jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_key not in ('plus_free_until', 'payments_online', 'plus_price', 'plus_prices', 'bookings_sheet_hook', 'local_pay', 'whatsapp_booking', 'roam_open') then return jsonb_build_object('ok', false, 'reason', 'key'); end if;
+  if p_key = 'plus_price' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value -> 'month') = 'number' and (p_value ->> 'month')::numeric > 0
+   and jsonb_typeof(p_value -> 'year') = 'number' and (p_value ->> 'year')::numeric > 0
+   and coalesce(p_value ->> 'currency', '') ~ '^[A-Z]{3}$') then
+    return jsonb_build_object('ok', false, 'reason', 'price');
+  end if;
+  if p_key = 'bookings_sheet_hook' and p_value is not null and p_value <> 'null'::jsonb and (p_value #>> '{}') !~ '^https://script\.google\.com/' then
+    return jsonb_build_object('ok', false, 'reason', 'url');
+  end if;
+  if p_key = 'local_pay' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value) = 'object'
+   and length(coalesce(p_value ->> 'instapay', '')) <= 60 and length(coalesce(p_value ->> 'vodafone', '')) <= 20
+   and coalesce(p_value ->> 'vodafone', '') ~ '^[0-9 +]*$'
+   and (coalesce(p_value ->> 'instapay', '') <> '' or coalesce(p_value ->> 'vodafone', '') <> '')) then
+    return jsonb_build_object('ok', false, 'reason', 'pay');
+  end if;
+  -- the team's WhatsApp for bookings: digits only, with the country code (2010…)
+  if p_key = 'whatsapp_booking' and p_value is not null and p_value <> 'null'::jsonb and (p_value #>> '{}') !~ '^[0-9]{8,15}$' then
+    return jsonb_build_object('ok', false, 'reason', 'phone');
+  end if;
+  insert into public.app_settings (key, value, updated_at) values (p_key, p_value, now())
+  on conflict (key) do update set value = excluded.value, updated_at = now();
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.owner_set_setting(text, jsonb) from public, anon;
+grant execute on function public.owner_set_setting(text, jsonb) to authenticated;
+
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
