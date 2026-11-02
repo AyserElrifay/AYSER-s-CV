@@ -22,6 +22,8 @@ import { myChats, premiumOf } from '../services/midnight';
 import { MidnightTable, mw, Mark } from './MidnightTable';
 import { myTableChats } from '../services/eventRooms';
 import { WeekendLounge } from './WeekendLounge';
+import { VoiceButton, VoicePlayer, voiceSeconds } from './VoiceNote';
+import { MomentBond } from './MomentBond';
 import { tcw as tbw, countdown, flagOf, tableNo } from '../constants/tableCore';
 import { lazyOverlay } from '../lib/lazyScreen';
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -67,6 +69,10 @@ const FOUNDING = {
   en: 'Founding access: open chat with Daily Moment people is unlocked for {n} more days. Meet at a table or upgrade to Moments+ to keep your connections permanently.',
   ar: 'وصول المؤسسين: الشات مع ناس اللحظة اليومية مفتوح لمدة {n} يوم كمان. اتقابلوا على ترابيزة أو اشترك في مومنتس+ عشان تفضلوا على تواصل على طول.',
 };
+const SEC = {
+  en: ['Table Chats', 'Connections', 'Your table chats open 4 hours before each Drop.', 'Explore Drops'],
+  ar: ['شات الترابيزات', 'المتوصّلين', 'شات ترابيزتك بيتفتح قبل كل دروب بـ٤ ساعات.', 'شوف الدروبس'],
+};
 const MIDNIGHT = (() => { try { return /[?&]midnight\b/.test(window.location.search); } catch (e) { return false; } })();
 const askPlus = () => needPlus({ ok: false, reason: 'plus' }, 'chat');
 
@@ -81,6 +87,7 @@ const Chat = ({ other, threadId, lang, onBack }) => {
   const [pinged, setPinged] = useState({});
   const [err, setErr] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const [playing, setPlaying] = useState(null);   // the voice note playing now; the next one follows
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(t); }, []);
   const scroll = useRef(null);
 
@@ -146,6 +153,9 @@ const Chat = ({ other, threadId, lang, onBack }) => {
         ) : null}
       </View>
 
+      {/* the Moment Bond: how long you two have been connected, and how far apart (MomentBond.js) */}
+      {st && (st.buddy || st.spark) ? <MomentBond other={person} meName={user && user.user_metadata && user.user_metadata.name} lang={lang} /> : null}
+
       {/* a Moments+ member inside a pass they earned at the tables: how long it has left */}
       {st && st.plus && !st.vip && st.pass_until && Date.parse(st.pass_until) > now ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 9, backgroundColor: C.sun }}>
@@ -173,11 +183,14 @@ const Chat = ({ other, threadId, lang, onBack }) => {
 
       <ScrollView ref={scroll} onContentSizeChange={() => scroll.current && scroll.current.scrollToEnd({ animated: false })} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16 }}>
         {opLine ? <Text style={{ color: C.dim, fontSize: 12.5, textAlign: 'center', marginBottom: 10 }}>{opLine}</Text> : null}
-        {msgs.map((m) => {
+        {msgs.map((m, i) => {
           const mine = m.user_id === (user && user.id);
+          const nextVoice = () => { const n = msgs.slice(i + 1).find((x) => x.kind === 'voice'); setPlaying(n ? n.id : null); };
           return (
             <View key={m.id} style={{ marginTop: 6, alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '82%', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 9, backgroundColor: mine ? C.purple : C.glass, borderWidth: mine ? 0 : 1, borderColor: C.line }}>
-              <Text style={{ color: mine ? '#FFF' : C.text, fontSize: 15, lineHeight: 20 }}>{m.body}</Text>
+              {m.kind === 'voice' && m.media_url
+                ? <VoicePlayer url={m.media_url} seconds={voiceSeconds(m)} mine={mine} autoPlay={playing === m.id} onEnded={nextVoice} />
+                : <Text style={{ color: mine ? '#FFF' : C.text, fontSize: 15, lineHeight: 20 }}>{m.body}</Text>}
             </View>
           );
         })}
@@ -206,11 +219,17 @@ const Chat = ({ other, threadId, lang, onBack }) => {
         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderTopWidth: 1, borderColor: C.line }}>
           <TextInput value={draft} onChangeText={setDraft} placeholder={w(lang, 'say')} placeholderTextColor={C.faint} maxLength={500} onSubmitEditing={send}
             style={{ flex: 1, color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.line, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: C.glass, textAlign: lang === 'ar' ? 'right' : 'left' }} />
-          <Pressable onPress={send} accessibilityRole="button" accessibilityLabel="send" style={{ marginStart: 8 }}>
-            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="arrow-up" size={20} color="#FFF" />
-            </View>
-          </Pressable>
+          {draft.trim() ? (
+            <Pressable onPress={send} accessibilityRole="button" accessibilityLabel="send" style={{ marginStart: 8 }}>
+              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="arrow-up" size={20} color="#FFF" />
+              </View>
+            </Pressable>
+          ) : (
+            /* nothing typed: hold the mic for a 15-second voice note */
+            <VoiceButton lang={lang} userId={user && user.id} dmThreadId={tid} disabled={!tid}
+              onSent={(row) => setMsgs((m) => (m.some((x) => x.id === row.id) ? m : m.concat(row)))} onError={() => setErr(w(lang, 'err'))} />
+          )}
         </View>
       )}
       {err ? <Text style={{ color: C.coral, fontSize: 13, textAlign: 'center', marginBottom: 10 }}>{err}</Text> : null}
@@ -250,6 +269,7 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
   const [safe, setSafe] = useState(null);
   const [tables, setTables] = useState([]);     // Table Chats: every table you claimed a seat at, or host
   const [room, setRoom] = useState(null);
+  const [sec, setSec] = useState('tables');   // Table Chats | Connections
   useSheetBack(open ? () => setOpen(null) : mt ? () => setMt(false) : onClose);
   useEffect(() => {
     myPassport().then((p) => p && p.ok && setDmOn(p.dm_open !== false));
@@ -293,15 +313,21 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: 40 }}>
               <Text style={{ color: C.text, fontSize: 28, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.7 }}>{mw(lang, 'chats')}</Text>
-              <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{w(lang, 'sub')}</Text>
-              {passLeft > 0 ? (
-                <View style={{ marginTop: 14, borderRadius: 16, borderWidth: 1, borderColor: C.line, paddingVertical: 12, paddingHorizontal: 14 }}>
-                  <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19 }}>{FOUNDING[lang === 'ar' ? 'ar' : 'en'].replace('{n}', String(passLeft))}</Text>
-                </View>
-              ) : null}
+              {/* Ayser, November 2026: two clean sections — Table Chats and Connections */}
+              <View style={{ flexDirection: 'row', marginTop: 14, borderRadius: 999, padding: 4, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }} accessibilityRole="tablist">
+                {[['tables', SEC[lang === 'ar' ? 'ar' : 'en'][0]], ['people', SEC[lang === 'ar' ? 'ar' : 'en'][1]]].map(([k, label]) => (
+                  <Pressable key={k} testID={'msg-tab-' + k} onPress={() => { tapLight(); setSec(k); }} accessibilityRole="tab" accessibilityState={{ selected: sec === k }} style={{ flex: 1 }}>
+                    <View style={{ borderRadius: 999, paddingVertical: 9, alignItems: 'center', backgroundColor: sec === k ? C.text : 'transparent' }}>
+                      <Text style={{ color: sec === k ? C.bg : C.text, fontSize: 14, fontWeight: '700' }}>{label}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
 
-              {/* pinned for everybody, first: the Cairo Weekend Lounge (src/components/WeekendLounge.js) */}
-              <WeekendLounge lang={lang} />
+              {sec === 'tables' ? (
+                <>
+                  {/* pinned for everybody, first: the Cairo Weekend Lounge (src/components/WeekendLounge.js) */}
+                  <WeekendLounge lang={lang} />
               {/* Table Chats: you are in from the moment you claim a seat; each opens 4 hours before */}
               {tables.length ? (
                 <View style={{ marginTop: 18 }}>
@@ -328,94 +354,26 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
                   })}
                 </View>
               ) : null}
-              {room ? <EventRoom kind="offer" id={room} lang={lang} onClose={() => { setRoom(null); load(); }} /> : null}
-
-              {/* the Midnight Table: paused for the final MVP (chat is earned at a table or a Circle) — ?midnight brings it back to look at */}
-              {MIDNIGHT ? <Pressable onPress={() => { tapLight(); setMt(true); }} accessibilityRole="button" style={{ marginTop: 16 }}>
-                {({ pressed }) => (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 18, backgroundColor: pressed ? C.glassHi : C.glass, borderWidth: 1, borderColor: C.text }}>
-                    <Text style={{ color: C.text, fontSize: 22, marginEnd: 14 }}>✦</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: C.text, fontSize: 17, fontWeight: '700' }}>{mw(lang, 'title')}</Text>
-                      <Text style={{ color: C.dim, fontSize: 13, lineHeight: 18, marginTop: 3 }} numberOfLines={2}>{mw(lang, 'sub')}</Text>
-                    </View>
-                    <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color={C.dim} />
-                  </View>
-                )}
-              </Pressable> : null}
-
-              {sparks.length ? (
-                <View style={{ marginTop: 20 }}>
-                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '600', letterSpacing: lang === 'ar' ? 0 : 0.4 }}>{mw(lang, 'mutual').toUpperCase()}</Text>
-                  {sparks.map((c) => <Row key={c.thread_id} person={c.other} premium={prem[c.other.id]} last={c.last} onPress={() => { tapLight(); setOpen({ threadId: c.thread_id }); }} />)}
-                </View>
-              ) : null}
-
-              {/* who may start a conversation with me */}
-              {dmOn != null ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 16, marginTop: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-                  <View style={{ flex: 1, marginEnd: 12 }}>
-                    <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '600' }}>{pw(lang, 'dm_open')}</Text>
-                    <Text style={{ color: C.dim, fontSize: 13, marginTop: 3, lineHeight: 18 }}>{pw(lang, 'dm_open_s')}</Text>
-                  </View>
-                  <Switch value={dmOn} accessibilityLabel={pw(lang, 'dm_open')} trackColor={{ false: C.glassHi, true: C.text }} activeThumbColor={C.bg} thumbColor={C.text}
-                    onValueChange={async (v) => { setDmOn(v); const r = await setDmOpen(v); if (!(r && r.ok)) setDmOn(!v); }} />
-                </View>
-              ) : null}
-
-              {/* the passport: what you earned at the tables */}
-              {pass ? (
-                <View style={{ marginTop: 20, borderRadius: 24, padding: 20, backgroundColor: C.purple }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 }}>{w(lang, 'pass').toUpperCase()}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
-                    <Text style={[{ color: '#FFF', fontSize: 34, fontWeight: '700', letterSpacing: -0.8 }, NUM]}>{String(pass.buddies || 0)}</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 15, fontWeight: '600', marginStart: 8 }}>{w(lang, 'title')}</Text>
-                  </View>
-                  {vibes.length ? (
-                    <>
-                      <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12.5, marginTop: 12 }}>{w(lang, 'vibes')}</Text>
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
-                        {vibes.map(([b, e]) => (
-                          <View key={b} style={{ borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: 'rgba(255,255,255,0.16)', marginEnd: 6, marginBottom: 6 }}>
-                            <Text style={[{ color: '#FFF', fontSize: 12.5 }, NUM]}>{e + ' ' + badgeName(lang, b) + ' · ' + pass.vibes[b]}</Text>
-                          </View>
-                        ))}
+                  {!tables.length ? (
+                    <Pressable onPress={() => { tapLight(); goToTab('TOGETHER'); onClose && onClose(); }} accessibilityRole="button" style={{ marginTop: 18 }}>
+                      <View style={{ borderRadius: 18, borderWidth: 1, borderStyle: 'dashed', borderColor: C.line, padding: 18, alignItems: 'center' }}>
+                        <Ionicons name="restaurant-outline" size={22} color={C.text} />
+                        <Text style={{ color: C.text, fontSize: 15, fontWeight: '700', marginTop: 8, textAlign: 'center' }}>{SEC[lang === 'ar' ? 'ar' : 'en'][2]}</Text>
+                        <Text style={{ color: C.purple, fontSize: 14, fontWeight: '700', marginTop: 8 }}>{SEC[lang === 'ar' ? 'ar' : 'en'][3]}</Text>
                       </View>
-                    </>
+                    </Pressable>
                   ) : null}
-                  {pass.capsules && pass.capsules.length ? (
-                    <Text style={[{ color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 10 }, NUM]}>{w(lang, 'mem') + ' · ' + pass.capsules.length}</Text>
-                  ) : null}
-                </View>
-              ) : null}
-
-              {list == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 24 }} /> : !list.length ? (
-                <Text style={{ color: C.dim, fontSize: 14.5, lineHeight: 21, marginTop: 24 }}>{w(lang, 'empty')}</Text>
+                </>
               ) : (
-                <View style={{ marginTop: 16 }}>
-                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '600', letterSpacing: lang === 'ar' ? 0 : 0.4 }}>{w(lang, 'title').toUpperCase()}</Text>
-                  {list.map((b) => <Row key={b.id} person={b} premium={prem[b.id]} match={match[b.id]} lang={lang} last={b.last ? b.last.body : null} onPress={() => { tapLight(); setOpen({ other: b }); }} />)}
-                </View>
-              )}
-
-              {convs.length ? (
-                <View style={{ marginTop: 20 }}>
-                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '600', letterSpacing: 0.4 }}>{w(lang, 'partners').toUpperCase()}</Text>
+                <>
+                  {sparks.map((c) => <Row key={c.thread_id} person={c.other} premium={prem[c.other.id]} last={c.last} onPress={() => { tapLight(); setOpen({ threadId: c.thread_id }); }} />)}
+                  {(list || []).map((b) => <Row key={b.id} person={b} premium={prem[b.id]} match={match[b.id]} lang={lang} last={b.last ? b.last.body : null} onPress={() => { tapLight(); setOpen({ other: b }); }} />)}
                   {convs.map((c) => <Row key={c.thread_id} person={c.other} premium={c.other && prem[c.other.id]} last={c.last ? c.last.body : null} onPress={() => { tapLight(); setOpen({ threadId: c.thread_id }); }} />)}
-                </View>
-              ) : null}
-
-              {pass && pass.capsules && pass.capsules.length ? (
-                <View style={{ marginTop: 20 }}>
-                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '600', letterSpacing: 0.4 }}>{w(lang, 'mem').toUpperCase()}</Text>
-                  {pass.capsules.slice(0, 12).map((c) => (
-                    <View key={c.kind + c.id} style={{ flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, borderColor: C.line }}>
-                      <Text style={{ color: C.text, fontSize: 15, flex: 1 }} numberOfLines={1}>{titleFor(c.title, lang)}</Text>
-                      <Text style={[{ color: C.dim, fontSize: 13 }, NUM]}>{new Date(c.starts_at).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { day: 'numeric', month: 'short' })}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
+                  {list == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 24 }} />
+                    : !list.length && !sparks.length && !convs.length ? <Text style={{ color: C.dim, fontSize: 14.5, lineHeight: 21, marginTop: 20 }}>{w(lang, 'empty')}</Text> : null}
+                </>
+              )}
+              {room ? <EventRoom kind="offer" id={room} lang={lang} onClose={() => { setRoom(null); load(); }} /> : null}
             </ScrollView>
           </>
         )}

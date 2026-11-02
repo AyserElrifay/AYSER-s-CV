@@ -26719,6 +26719,85 @@ grant execute on function public.trips_ok() to authenticated;
 -- ═══════════════════════════════════════════════════════════════════════
 drop policy if exists "a finished moment is its owner's" on public.posts;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  THE MOMENT BOND · VOICE NOTES · THE CARD BEFORE A TABLE CHAT
+--  Ayser, November 2026.
+--  · bond_info(other): since when you two are connected — the first table
+--    you both scanned into, or the day you became buddies or a Mutual
+--    Spark, whichever came first — and each one's city (never a location),
+--    unless that person hid it (profiles.bond_hide_city). The app draws
+--    "connected for 12d : 04h : 31m : 08s" and "X km apart" between city
+--    centres.
+--  · voice notes: a message of kind 'voice' with its audio in our storage
+--    (media_kind 'audio', 15 seconds at most, checked in the app).
+--  · a Drop's table chat takes messages only from people with the 3-photo
+--    card (and from its host).
+-- ═══════════════════════════════════════════════════════════════════════
+alter table public.profiles add column if not exists bond_hide_city boolean not null default false;
+
+create or replace function public.bond_info(p_other uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); s timestamptz; how text;
+begin
+  if me is null or p_other is null or me = p_other then return jsonb_build_object('ok', false, 'reason', 'who'); end if;
+  if not (public.are_buddies(me, p_other) or public.are_sparks(me, p_other)) or public.blocked_between(me, p_other) then
+    return jsonb_build_object('ok', false, 'reason', 'not_connected');
+  end if;
+  select min(x.at), (array_agg(x.how order by x.at))[1] into s, how from (
+    select greatest(c1.at, c2.at) as at, 'table'::text as how
+      from public.event_checkins c1 join public.event_checkins c2 on c2.kind = c1.kind and c2.event_id = c1.event_id
+     where c1.user_id = me and c2.user_id = p_other
+    union all select since, 'buddies' from public.buddies where a = least(me, p_other) and b = greatest(me, p_other)
+    union all select since, 'spark' from public.mutual_sparks where a = least(me, p_other) and b = greatest(me, p_other)
+  ) x;
+  return jsonb_build_object('ok', true, 'since', s, 'how', how, 'now', now(),
+    'met_at', (select coalesce(o.title, g.title) from public.event_checkins c1
+                 join public.event_checkins c2 on c2.kind = c1.kind and c2.event_id = c1.event_id
+                 left join public.offers o on c1.kind = 'offer' and o.id = c1.event_id
+                 left join public.green_gatherings g on c1.kind = 'gathering' and g.id = c1.event_id
+                where c1.user_id = me and c2.user_id = p_other order by greatest(c1.at, c2.at) limit 1),
+    'my_city', (select case when p.bond_hide_city then null else p.city end from public.profiles p where p.id = me),
+    'their_city', (select case when p.bond_hide_city then null else p.city end from public.profiles p where p.id = p_other),
+    'i_hide', (select bond_hide_city from public.profiles where id = me));
+end $$;
+revoke execute on function public.bond_info(uuid) from public, anon;
+grant execute on function public.bond_info(uuid) to authenticated;
+
+create or replace function public.bond_hide(p_hide boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false); end if;
+  update public.profiles set bond_hide_city = coalesce(p_hide, false) where id = auth.uid();
+  return jsonb_build_object('ok', true, 'hide', coalesce(p_hide, false));
+end $$;
+revoke execute on function public.bond_hide(boolean) from public, anon;
+grant execute on function public.bond_hide(boolean) to authenticated;
+
+-- a voice note's audio comes from our own storage, in the sender's folder
+create or replace function public.messages_voice_guard()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.kind = 'voice' then
+    if new.media_url is null or not public.own_upload(new.user_id, new.media_url) then
+      raise exception 'voice note must be in your own storage';
+    end if;
+    new.media_kind := 'audio';
+  end if;
+  return new;
+end $$;
+drop trigger if exists messages_voice_guard on public.messages;
+create trigger messages_voice_guard before insert on public.messages for each row execute function public.messages_voice_guard();
+
+-- a Drop's table chat: the 3-photo card first (its host is always in)
+drop policy if exists "a table chat needs the card" on public.messages;
+create policy "a table chat needs the card" on public.messages as restrictive for insert to authenticated
+  with check (
+    squad_id is null
+    or not exists (select 1 from public.offers o where o.squad_id = messages.squad_id and o.is_drop)
+    or public.card_ready(auth.uid())
+    or exists (select 1 from public.offers o where o.squad_id = messages.squad_id and public.table_host(o.id) = auth.uid())
+  );
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

@@ -20,7 +20,8 @@ import { lazyOverlay } from '../lib/lazyScreen';
 const CallScreen = lazyOverlay(() => import('./CallScreen').then((m) => ({ default: m.CallScreen })));
 import { TableIcebreakers } from './ScaleKit';
 import { SeatBadge, seatLabel, SeatPeek, SparksDeck } from './SeatCard';
-import { tableSeats } from '../services/card';
+import { tableSeats, askCard } from '../services/card';
+import { VoiceButton, VoicePlayer, voiceSeconds } from './VoiceNote';
 
 /* ─── THE EVENT PAGE ──────────────────────────────────────────────────
    Ayser: "No endless chatting — subscribe, book a seat, and meet in real
@@ -231,6 +232,7 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
   const [lineSaved, setLineSaved] = useState(false);
   const [seats, setSeats] = useState(null);        // who sits where, blurred until the QR (RUN_ME.sql table_seats)
   const [peek, setPeek] = useState(null);
+  const [playing, setPlaying] = useState(null);   // the voice note playing now; the next one follows
 
   const load = () => {
     eventExtras(kind, id).then((x) => setEx(x && x.ok ? x : null));
@@ -258,7 +260,12 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
     if (!body || !sq) return;
     tapLight(); setDraft('');
     try { const row = await sendMessage({ squadId: sq, userId: user.id, body }); setMsgs((m) => (m.some((x) => x.id === row.id) ? m : m.concat(row))); }
-    catch (e) { setMsg(w(lang, 'err')); setDraft(body); load(); }
+    catch (e) {
+      setDraft(body);
+      // a Drop's table chat takes messages from people with the 3-photo card (RUN_ME.sql)
+      if (/row-level security|policy/i.test((e && e.message) || '')) { askCard(); return; }
+      setMsg(w(lang, 'err')); load();
+    }
   };
   const arrive = async () => {
     tapMedium();
@@ -504,8 +511,9 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
                 {chatState === 'over' ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{ex && ex.phase === 'archived' ? w2(lang, 4) : w(lang, 'chatOver')}</Text> : null}
                 {/* Ayser, November 2026: "Seat #04 • Coffee & Art", a line-drawn badge and a blurred face
                     until you have both scanned the table's QR; the organizer is always shown. Tap to peek. */}
-                {msgs.map((m) => {
+                {msgs.map((m, mi) => {
                   const mine = m.user_id === user.id;
+                  const nextVoice = () => { const n = msgs.slice(mi + 1).find((x) => x.kind === 'voice'); setPlaying(n ? n.id : null); };
                   const seat = !mine && seats ? seats.find((s) => s.uid === m.user_id) : null;
                   const label = seat ? seatLabel(seat, lang) : m.user ? m.user.name : '';
                   return (
@@ -513,7 +521,9 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
                       {seat ? <View style={{ marginEnd: 6 }}><SeatBadge seat={seat} lang={lang} onPress={() => { tapLight(); setPeek(m.user_id); }} /></View> : null}
                       <View style={{ flexShrink: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: mine ? C.purple : C.glass, borderWidth: mine ? 0 : 1, borderColor: C.line }}>
                         {!mine && label ? <Text testID="msg-alias" onPress={seat ? () => { tapLight(); setPeek(m.user_id); } : undefined} style={{ color: C.faint, fontSize: 11.5, fontWeight: '700' }}>{label}</Text> : null}
-                        <Text style={{ color: mine ? '#FFF' : C.text, fontSize: 14.5 }}>{m.body}</Text>
+                        {m.kind === 'voice' && m.media_url
+                          ? <VoicePlayer url={m.media_url} seconds={voiceSeconds(m)} mine={mine} autoPlay={playing === m.id} onEnded={nextVoice} />
+                          : <Text style={{ color: mine ? '#FFF' : C.text, fontSize: 14.5 }}>{m.body}</Text>}
                       </View>
                     </View>
                   );
@@ -522,11 +532,17 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
                     <TextInput value={draft} onChangeText={setDraft} placeholder={chatState === 'capsule' ? w2(lang, 6) : w(lang, 'say')} placeholderTextColor={C.faint} maxLength={chatState === 'capsule' ? 280 : 500} onSubmitEditing={send}
                       style={{ flex: 1, color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.line, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, textAlign: lang === 'ar' ? 'right' : 'left' }} />
-                    <Pressable onPress={send} accessibilityRole="button" accessibilityLabel="send" style={{ marginStart: 8 }}>
-                      <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="arrow-up" size={20} color="#FFF" />
-                      </View>
-                    </Pressable>
+                    {draft.trim() || chatState !== 'open' ? (
+                      <Pressable onPress={send} accessibilityRole="button" accessibilityLabel="send" style={{ marginStart: 8 }}>
+                        <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
+                          <Ionicons name="arrow-up" size={20} color="#FFF" />
+                        </View>
+                      </Pressable>
+                    ) : (
+                      /* nothing typed: hold the mic for a 15-second voice note to the table */
+                      <VoiceButton lang={lang} userId={user && user.id} squadId={sq} disabled={!sq}
+                        onSent={(row) => setMsgs((mm) => (mm.some((x) => x.id === row.id) ? mm : mm.concat(row)))} onError={(e) => (/row-level security|policy/i.test((e && e.message) || '') ? askCard() : setMsg(w(lang, 'err')))} />
+                    )}
                   </View>
                 ) : null}
               </View>
