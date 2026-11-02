@@ -264,6 +264,12 @@ export const HomeScreen = () => {
   const [composing, setComposing] = useState(null); // null | 'post' | 'reel' | 'story'
   const [snapPrompt, setSnapPrompt] = useState(null);   // the day's photo prompt the camera is answering
   const snap = (pr) => { setSnapPrompt(pr); setComposing('reel'); };
+  /* "Add your photo" on today's page of the Moments Book (MemoryBook.js) */
+  useEffect(() => {
+    const on = () => snap(todaysPrompt(lang));
+    try { window.addEventListener('mm-open-capture', on); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-open-capture', on); } catch (e) {} };
+  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
   /* after a plan you went to: how was it (src/components/AfterOuting.js) */
   const [after, setAfter] = useState(null);
   useEffect(() => {

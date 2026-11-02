@@ -29,6 +29,8 @@ const WORDMARK = require('../assets/brand/wordmark.png');
 const WORDMARK_WHITE = require('../assets/brand/wordmark-white.png');
 
 const PAPER = { bg: '#FAF9F6', page: '#FFFFFF', ink: '#1A1A1A', dim: '#6B6B6B', faint: '#9A9A95', line: '#E8E6DF', btn: '#1A1A1A', btnInk: '#FFFFFF', stamp: '#B08D57', stampBg: '#F5EEDF' };
+const VINTAGE = { paper: '#F5EFE6', edge: '#E7DDCC', ink: '#2A2118', dim: '#6E6152', faint: '#A0927F', frame: '#FFFDF8', gold: '#B08D57', crease: 'rgba(90,70,40,0.22)' };
+const VINTAGE_NIGHT = { paper: '#17140F', edge: '#2A241B', ink: '#EFE6D6', dim: '#B5A78F', faint: '#7D705C', frame: '#211C15', gold: '#D9C08C', crease: 'rgba(0,0,0,0.55)' };
 const OBSIDIAN = { bg: '#0B0B0B', page: '#161616', ink: '#EDEDED', dim: '#A3A3A3', faint: '#6B6B6B', line: '#262626', btn: '#EDEDED', btnInk: '#0B0B0B', stamp: '#D9C08C', stampBg: 'rgba(217,192,140,0.10)' };
 /* the four pillars, in pastel on paper and quietly on black */
 const PILLAR = {
@@ -206,6 +208,130 @@ const PageCard = ({ pg, lang, P, black, member, full, price, total, tilt, onOpen
   );
 };
 
+/* ─── A SPREAD OF THE VINTAGE BOOK ────────────────────────────────────
+   Ayser, November 2026: aged cream paper with the edges of the pages
+   stacked at the top; the day's photo in a printed frame on the upper
+   half, a spine crease across the middle, and the words on the lower half
+   in a book serif — the date and page number, the question, your answer,
+   the table you checked into, and the notes your table left. A day with
+   no photo gets a drawn landscape in the colours of its mood. Pages 6 and
+   after, for free readers, are there under a gold lock. */
+const MOOD_SKY = [['#C9C2B8', '#E9E1D3', '#8E8578'], ['#D8CDBB', '#EFE5D3', '#A69477'], ['#E8C9A0', '#F4E3C6', '#B98B57'], ['#F0B98A', '#F8DDBA', '#C77E4A'], ['#F2A97E', '#FBE0B5', '#D06E3E']];
+const Landscape = ({ mood }) => {
+  const c = MOOD_SKY[Math.max(0, Math.min(4, (mood || 3) - 1))];
+  return (
+    <View style={{ flex: 1, backgroundColor: c[1], overflow: 'hidden' }}>
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '55%', backgroundColor: c[0], opacity: 0.55 }} />
+      <View style={{ position: 'absolute', top: '22%', alignSelf: 'center', width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFF6E6', opacity: 0.9 }} />
+      <View style={{ position: 'absolute', bottom: -60, left: -40, width: '80%', height: 150, borderRadius: 200, backgroundColor: c[2], opacity: 0.55 }} />
+      <View style={{ position: 'absolute', bottom: -80, right: -50, width: '85%', height: 160, borderRadius: 200, backgroundColor: c[2], opacity: 0.8 }} />
+      <View style={{ position: 'absolute', top: '16%', left: '22%', width: 14, height: 2, backgroundColor: c[2], transform: [{ rotate: '-18deg' }] }} />
+      <View style={{ position: 'absolute', top: '16%', left: '24.5%', width: 14, height: 2, backgroundColor: c[2], transform: [{ rotate: '18deg' }] }} />
+    </View>
+  );
+};
+const isToday = (day) => { const d = dayOf(day), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate(); };
+const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHighlight }) => {
+  const V = black ? VINTAGE_NIGHT : VINTAGE;
+  const d = dayOf(pg.day);
+  const ph = (pg.photos || [])[0] || null;
+  const pic = picOf(ph);
+  const refl = pg.reflection;
+  const mom = pg.moment;
+  const stamps = pg.stamps || [];
+  const notes = [].concat(...(pg.photos || []).map((x) => (Array.isArray(x.notes) ? x.notes : [])));
+  const locked = pg.open === false;
+  const mood = refl && refl.mood ? refl.mood : 3;
+  const serif = { fontFamily: SERIF, fontStyle: lang === 'ar' ? 'normal' : 'italic' };
+  const lockText = '✦ ' + mw(lang, 'unlockShort', { p: price || 129, c: lang === 'ar' ? 'جنيه' : 'EGP' });
+  const body = (
+    <View style={{ flex: 1 }}>
+      {/* the stacked edges of the pages underneath */}
+      {[3, 2, 1].map((k) => (
+        <View key={k} style={{ position: 'absolute', top: -k * 3, left: k * 5, right: k * 5, height: 10, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: k % 2 ? V.edge : V.paper, borderWidth: 1, borderColor: V.edge }} />
+      ))}
+      <View style={[{ flex: 1, borderRadius: 6, backgroundColor: V.paper, borderWidth: 1, borderColor: V.edge, overflow: 'hidden' }, Platform.OS === 'web' ? { boxShadow: '0 10px 28px rgba(60,40,20,0.18)', backgroundImage: 'radial-gradient(120% 80% at 50% 50%, rgba(255,255,255,0.0) 60%, rgba(120,90,50,0.10) 100%)' } : null]}>
+        {/* top half: the picture, in a printed frame */}
+        <Pressable testID="mb-page" onPress={() => onOpen(pg)} accessibilityRole="button" accessibilityHint={mw(lang, 'flip')} style={{ flex: 1, padding: 16, paddingBottom: 12 }}>
+          <View style={{ flex: 1, backgroundColor: V.frame, padding: 8, borderWidth: 1, borderColor: V.edge }}>
+            <View style={{ flex: 1, borderWidth: 1, borderColor: V.faint, overflow: 'hidden' }}>
+              {pic ? <Image source={{ uri: pic }} style={{ flex: 1 }} resizeMode="cover" /> : <Landscape mood={mood} />}
+              {!pic && isToday(pg.day) ? (
+                <Pressable testID="mb-add-photo" onPress={() => { tapLight(); try { window.dispatchEvent(new CustomEvent('mm-open-capture')); } catch (e) {} }} accessibilityRole="button"
+                  style={{ position: 'absolute', bottom: 10, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: 'rgba(42,33,24,0.82)', paddingHorizontal: 12, paddingVertical: 7 }}>
+                  <Ionicons name="camera-outline" size={14} color="#FFF6E6" />
+                  <Text style={{ color: '#FFF6E6', fontSize: 12.5, fontWeight: '700', marginStart: 6 }}>{mw(lang, 'addPhoto')}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        </Pressable>
+        {/* the spine crease */}
+        <View style={{ height: 14, justifyContent: 'center' }}>
+          <View style={[{ height: 14 }, Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, ' + V.crease + ' 50%, rgba(0,0,0,0) 100%)' } : { backgroundColor: V.crease, height: 2 }]} />
+        </View>
+        {/* bottom half: the words */}
+        <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+            <Text style={{ flex: 1, color: V.dim, fontSize: 11, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{stampLine(lang, d, placeOf(pg))}</Text>
+            <Text style={{ color: V.faint, fontSize: 12, fontFamily: SERIF }}>{'— ' + (lang === 'ar' ? AR(n) : n) + ' —'}</Text>
+          </View>
+          <ScrollView style={{ flex: 1, marginTop: 6 }} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+            {refl && refl.prompt ? <Text style={{ color: V.dim, fontSize: 13, lineHeight: 18 }}>{refl.prompt}</Text> : null}
+            {refl ? <Text style={[{ color: V.ink, fontSize: 19, lineHeight: 27, marginTop: 4 }, serif]}>{'“' + refl.body + '”'}</Text>
+              : ph && titleOf(ph).title ? <Text style={[{ color: V.ink, fontSize: 18, lineHeight: 26 }, serif]}>{titleOf(ph).title}</Text>
+              : <Text style={[{ color: V.faint, fontSize: 16, lineHeight: 23 }, serif]}>{mw(lang, 'quietDay')}</Text>}
+            {mom && (mom.body || mom.choice) ? (
+              <Text style={{ color: V.dim, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>
+                <Text style={{ color: V.faint, fontWeight: '800', fontSize: 10, letterSpacing: lang === 'ar' ? 0 : 1.2 }}>{mw(lang, 'moment') + '  '}</Text>
+                {(lang === 'ar' && mom.q_ar ? mom.q_ar : mom.q || '') + ' — ' + (mom.body || (Array.isArray(mom.choice) ? mom.choice[lang === 'ar' ? 1 : 0] : ''))}
+              </Text>
+            ) : null}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
+              {stamps.map((st, i) => (
+                <View key={i} style={{ marginTop: 8, marginEnd: 6, borderRadius: 4, borderWidth: 1.5, borderColor: V.gold, paddingHorizontal: 8, paddingVertical: 3, transform: [{ rotate: i % 2 ? '1.5deg' : '-1.5deg' }] }}>
+                  <Text style={{ color: V.gold, fontSize: 11.5, fontWeight: '800' }}>{'✦ ' + (st.title || st.place || '')}</Text>
+                </View>
+              ))}
+            </View>
+            {notes.slice(0, 2).map((x, i) => (
+              <Text key={i} style={[{ color: V.ink, fontSize: 13.5, lineHeight: 19, marginTop: 8 }, serif]}>{'“' + x.body + '” '}<Text style={{ color: V.dim, fontStyle: 'normal', fontSize: 11.5 }}>{'— ' + (x.buddy ? mw(lang, 'secretFriend') : (x.name || ''))}</Text></Text>
+            ))}
+          </ScrollView>
+          <View style={{ flexDirection: 'row', marginTop: 8 }}>
+            {!member ? (
+              <Pressable testID="mb-keep" onPress={() => onKeep(pg)} accessibilityRole="button" hitSlop={6}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: pg.keep ? V.ink : V.edge, backgroundColor: pg.keep ? V.ink : 'transparent', paddingHorizontal: 11, paddingVertical: 6 }}>
+                  <Ionicons name={pg.keep ? 'bookmark' : 'bookmark-outline'} size={12} color={pg.keep ? V.paper : V.ink} />
+                  <Text style={{ color: pg.keep ? V.paper : V.ink, fontSize: 12, fontWeight: '700', marginHorizontal: 5 }}>{pg.keep ? mw(lang, 'kept') : mw(lang, 'keep')}</Text>
+                </View>
+              </Pressable>
+            ) : (
+              <Pressable testID="mb-highlight" onPress={() => onHighlight(pg)} accessibilityRole="switch" accessibilityState={{ checked: !!pg.highlight }} hitSlop={6}>
+                <View style={{ borderRadius: 999, borderWidth: 1, borderColor: pg.highlight ? V.ink : V.edge, backgroundColor: pg.highlight ? V.ink : 'transparent', paddingHorizontal: 11, paddingVertical: 6 }}>
+                  <Text style={{ color: pg.highlight ? V.paper : V.ink, fontSize: 12, fontWeight: '700' }}>{pg.highlight ? '✦ ' + mw(lang, 'highlighted') : mw(lang, 'highlight')}</Text>
+                </View>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+  if (!locked) return <View style={{ flex: 1, width: '100%', maxWidth: 460, paddingTop: 10 }}>{body}</View>;
+  return (
+    <Pressable testID="mb-locked" onPress={() => { tapLight(); askUpgrade('member'); }} accessibilityRole="button" style={{ flex: 1, width: '100%', maxWidth: 460, paddingTop: 10 }}>
+      <View style={[{ flex: 1 }, Platform.OS === 'web' ? { filter: 'blur(8px)' } : { opacity: 0.35 }]} pointerEvents="none">{body}</View>
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <View style={{ borderRadius: 14, backgroundColor: '#2A2118', borderWidth: 1.5, borderColor: '#D9C08C', paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center' }}>
+          <Ionicons name="lock-closed" size={18} color="#D9C08C" />
+          <Text style={{ color: '#F5EFE6', fontSize: 14.5, fontWeight: '700', textAlign: 'center', lineHeight: 20, marginTop: 6 }}>{lockText}</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+};
+
 /* ─── THE PAGE, OPENED ── every photo, the whole reflection, the notes */
 const OpenPage = ({ pg, lang, P, onClose }) => {
   useSheetBack(onClose);
@@ -359,7 +485,8 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
   const [making, setMaking] = useState(null);
   const [open, setOpen] = useState(null);
   const [idx, setIdx] = useState(0);
-  const [w, setW] = useState(0);
+  const [size, setSize] = useState(null);         // the spread fills the reader: one day per screen, vertical
+  const w = size ? size.w : 0;
   const pager = useRef(null);
   const load = () => memoryBook().then((b) => { if (b && b.ok) setBook(b); });
   useEffect(() => { load(); }, []);
@@ -441,13 +568,13 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
   const go = (i) => {
     const n = Math.max(0, Math.min(pages.length - 1, i));
     tapLight(); setIdx(n);
-    try { pager.current && pager.current.scrollTo({ x: n * w, animated: true }); } catch (e) {}
+    try { pager.current && size && pager.current.scrollTo({ y: n * size.h, animated: true }); } catch (e) {}
   };
-  const onScroll = (e) => { if (!w) return; const n = Math.round(e.nativeEvent.contentOffset.x / w); if (n !== idx) setIdx(n); };
+  const onScroll = (e) => { if (!size) return; const n = Math.round(e.nativeEvent.contentOffset.y / size.h); if (n !== idx) setIdx(n); };
   const unlock = '✦ ' + mw(lang, 'unlockAll', { n: book.total || 0, p: price || 129, c: lang === 'ar' ? 'جنيه' : 'EGP' });
 
   return (
-    <View nativeID="moments-book" testID="memory-book" style={{ flex: 1, backgroundColor: P.bg }}>
+    <View nativeID="moments-book" testID="memory-book" style={{ flex: 1, backgroundColor: black ? '#0B0B0B' : '#EDE5D8' }}>
       <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
         <Text style={{ color: P.faint, fontSize: 11, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{mw(lang, 'kicker')}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', marginTop: 4 }}>
@@ -470,36 +597,32 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
       </View>
 
       {!pages.length ? <Text style={{ color: P.dim, fontSize: 14, lineHeight: 20, paddingHorizontal: 16, marginTop: 16 }}>{mw(lang, 'empty')}</Text> : (
-        <View style={{ flex: 1 }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-          {w ? (
-            <ScrollView ref={pager} testID="mb-pager" horizontal pagingEnabled keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}
-              onScroll={onScroll} scrollEventThrottle={32} style={{ flex: 1, direction: 'ltr' }}>
-              {pages.map((pg) => (
-                <ScrollView key={pg.day} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ width: w, direction: lang === 'ar' ? 'rtl' : 'ltr' }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 20, alignItems: 'center' }}>
-                  <View style={{ width: '100%', maxWidth: 460 }}>
-                    <PageCard pg={pg} lang={lang} P={P} black={black} member={member} full={full} price={price} total={book.total}
-                      tilt="0deg" onOpen={(x) => { tapLight(); setOpen(x); }} onKeep={keep} onHighlight={highlight} />
-                  </View>
-                </ScrollView>
+        <View style={{ flex: 1 }} onLayout={(e) => { const l = e.nativeEvent.layout; setSize({ w: l.width, h: l.height }); }}>
+          {size ? (
+            /* Ayser, November 2026: a vintage open book, read top to bottom — one spread per day, snapping */
+            <ScrollView ref={pager} testID="mb-pager" pagingEnabled keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+              onScroll={onScroll} scrollEventThrottle={32} style={{ flex: 1 }}>
+              {pages.map((pg, i) => (
+                <View key={pg.day} style={{ width: size.w, height: size.h, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 10, alignItems: 'center' }}>
+                  <Spread pg={pg} n={i + 1} lang={lang} black={black} member={member} price={price} total={book.total}
+                    onOpen={(x) => { tapLight(); setOpen(x); }} onKeep={keep} onHighlight={highlight} />
+                </View>
               ))}
             </ScrollView>
           ) : null}
         </View>
       )}
 
+
       {pages.length ? (
         <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6, borderTopWidth: 1, borderTopColor: P.line }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', direction: 'ltr' }}>
-            <Pressable testID="mb-prev" disabled={idx === 0} onPress={() => go(idx - 1)} hitSlop={10} accessibilityRole="button" accessibilityLabel="‹" style={{ opacity: idx === 0 ? 0.3 : 1, padding: 6 }}>
-              <Ionicons name="chevron-back" size={22} color={P.ink} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Pressable testID="mb-prev" disabled={idx === 0} onPress={() => go(idx - 1)} hitSlop={10} accessibilityRole="button" accessibilityLabel="↑" style={{ opacity: idx === 0 ? 0.3 : 1, padding: 4 }}>
+              <Ionicons name="chevron-up" size={20} color={P.ink} />
             </Pressable>
-            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }}>
-              {pages.length <= 14 ? pages.map((pg, i) => (
-                <View key={pg.day} style={{ width: i === idx ? 14 : 6, height: 6, borderRadius: 3, marginHorizontal: 2.5, backgroundColor: i === idx ? P.ink : pg.open === false ? P.line : P.faint }} />
-              )) : <Text style={{ color: P.dim, fontSize: 12.5, fontWeight: '700' }}>{(idx + 1) + ' / ' + pages.length}</Text>}
-            </View>
-            <Pressable testID="mb-next" disabled={idx >= pages.length - 1} onPress={() => go(idx + 1)} hitSlop={10} accessibilityRole="button" accessibilityLabel="›" style={{ opacity: idx >= pages.length - 1 ? 0.3 : 1, padding: 6 }}>
-              <Ionicons name="chevron-forward" size={22} color={P.ink} />
+            <Text style={{ color: P.dim, fontSize: 12.5, fontWeight: '700', marginHorizontal: 12, fontFamily: SERIF }}>{mw(lang, 'pageOf', { i: idx + 1, n: pages.length })}</Text>
+            <Pressable testID="mb-next" disabled={idx >= pages.length - 1} onPress={() => go(idx + 1)} hitSlop={10} accessibilityRole="button" accessibilityLabel="↓" style={{ opacity: idx >= pages.length - 1 ? 0.3 : 1, padding: 4 }}>
+              <Ionicons name="chevron-down" size={20} color={P.ink} />
             </Pressable>
           </View>
           {Platform.OS === 'web' && curCh ? (
@@ -528,8 +651,9 @@ export const MomentsBookCover = () => {
   useEffect(() => { load(); }, []);
   useEffect(() => {
     const go = () => setOpen(true);
-    try { window.addEventListener('mm-open-book', go); } catch (e) {}
-    return () => { try { window.removeEventListener('mm-open-book', go); } catch (e) {} };
+    const shut = () => setOpen(false);   // the camera opened from today's page
+    try { window.addEventListener('mm-open-book', go); window.addEventListener('mm-open-capture', shut); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-open-book', go); window.removeEventListener('mm-open-capture', shut); } catch (e) {} };
   }, []);
   const black = book && book.tier === 'VIP';
   const P = black ? OBSIDIAN : PAPER;
@@ -574,7 +698,7 @@ export const MomentsBookCover = () => {
       </Pressable>
       {open ? (
         <Modal visible animationType="slide" onRequestClose={close}>
-          <View style={{ flex: 1, backgroundColor: P.bg, paddingTop: insets.top + 8, paddingBottom: insets.bottom }}>
+          <View style={{ flex: 1, backgroundColor: black ? '#0B0B0B' : '#EDE5D8', paddingTop: insets.top + 8, paddingBottom: insets.bottom }}>
             <View style={{ paddingHorizontal: 16, paddingBottom: 6, flexDirection: 'row' }}>
               <Pressable testID="book-close" onPress={close} hitSlop={12} accessibilityRole="button" accessibilityLabel={mw(lang, 'close')}>
                 <Ionicons name="close" size={26} color={P.ink} />
