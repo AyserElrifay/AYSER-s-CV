@@ -3,6 +3,7 @@ import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, Tex
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
+import { Wordmark } from './Wordmark';
 import { useAuth } from '../context/AuthContext';
 import { fetchReports, setReportStatus } from '../services/reports';
 import { removeGatheringPhoto } from '../services/green';
@@ -796,10 +797,11 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
     setBardiBusy(false);
   };
 
+  /* Ayser, November 2026: the Studio in the app's own look — calm cards, one accent */
   const Stat = useStable(({ n, l, tint }) => (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ color: tint || C.text, fontSize: 19, fontWeight: '900' }}>{n == null ? '—' : n}</Text>
-      <Text style={{ color: C.faint, fontSize: 9.5, fontWeight: '700', letterSpacing: 0.5, marginTop: 1 }}>{l}</Text>
+    <View style={{ flex: 1, marginHorizontal: 4, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, paddingVertical: 12, paddingHorizontal: 10 }}>
+      <Text style={{ color: tint || C.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 }}>{n == null ? '—' : n}</Text>
+      <Text style={{ color: C.faint, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 2 }}>{l}</Text>
     </View>
   ));
   const Empty = useStable(({ t }) => <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 40 }}>{t}</Text>);
@@ -807,14 +809,23 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10}><Ionicons name="chevron-down" size={26} color={C.text} /></Pressable>
-          <Text style={{ flex: 1, textAlign: 'center', color: C.text, fontSize: 16, fontWeight: '900' }}>{owner ? 'Moments Studio' : 'Moments Studio · ' + (access.username || 'team')}</Text>
-          <View style={{ width: 26 }} />
+        {/* the workspace header: the wordmark, "Studio", who you are */}
+        <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+            <Wordmark height={30} style={{ marginLeft: -2 }} />
+            <View style={{ marginStart: 8, borderRadius: 999, backgroundColor: C.text, paddingHorizontal: 9, paddingVertical: 3 }}>
+              <Text style={{ color: C.bg, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.2 }}>STUDIO</Text>
+            </View>
+            {!owner ? <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '700', marginStart: 8 }}>{access.username || 'team'}</Text> : null}
+          </View>
+          <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close"
+            style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="close" size={20} color={C.text} />
+          </Pressable>
         </View>
 
         {/* live stats — the owner's */}
-        {owner ? <View style={{ marginHorizontal: 16, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, flexDirection: 'row', paddingVertical: 14 }}>
+        {owner ? <View style={{ marginHorizontal: 12, flexDirection: 'row' }}>
           <Stat n={stats && stats.users} l="USERS" />
           <Stat n={stats && stats.posts} l="POSTS" />
           <Stat n={stats && stats.openReports} l="REPORTS" tint={stats && stats.openReports ? C.coral : C.text} />
@@ -835,13 +846,14 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
 
         {/* tabs */}
         {/* ten tabs do not fit a phone's width: they scroll sideways */}
-        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginTop: 12, marginBottom: 4 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginTop: 14, marginBottom: 6 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
           {tabs.map((t) => {
             const on = tab === t.k;
             return (
-              <Pressable key={t.k} onPress={() => { tapLight(); setTab(t.k); }} style={{ minWidth: 58, paddingHorizontal: 8, alignItems: 'center', paddingVertical: 9, borderBottomWidth: 2, borderBottomColor: on ? C.purple : 'transparent' }}>
-                <Ionicons name={t.icon} size={18} color={on ? C.purple : C.faint} />
-                <Text style={{ color: on ? C.purple : C.faint, fontSize: 11, fontWeight: '800', marginTop: 2 }}>{t.label}</Text>
+              <Pressable key={t.k} testID={'studio-tab-' + t.k} onPress={() => { tapLight(); setTab(t.k); }} accessibilityRole="tab" accessibilityState={{ selected: on }}
+                style={{ flexDirection: 'row', alignItems: 'center', marginEnd: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: on ? C.text : C.bg2, borderWidth: 1, borderColor: on ? C.text : C.line }}>
+                <Ionicons name={t.icon} size={15} color={on ? C.bg : C.dim} />
+                <Text style={{ color: on ? C.bg : C.text, fontSize: 13, fontWeight: '700', marginStart: 6 }}>{t.label}</Text>
               </Pressable>
             );
           })}

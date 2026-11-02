@@ -26710,6 +26710,15 @@ $$;
 revoke execute on function public.trips_ok() from public, anon;
 grant execute on function public.trips_ok() to authenticated;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  A PROFILE SHOWS THE PHOTOS ITS OWNER POSTED
+--  Ayser, November 2026: tapping somebody's account shows the photos they
+--  posted, and your own profile has its posts again. The 48 hours were for
+--  the Live Moments strip on Home; after them a moment stays on its
+--  owner's profile (and in the Moments Book). The camera says so.
+-- ═══════════════════════════════════════════════════════════════════════
+drop policy if exists "a finished moment is its owner's" on public.posts;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

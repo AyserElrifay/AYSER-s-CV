@@ -43,9 +43,13 @@ export const offerSave = (p) => act('offer_save', { p });
 export const offerSetStatus = (id, status) => act('offer_set_status', { p_id: id, p_status: status });
 export const ownerBookings = async (offerId) => { const r = await call('owner_bookings', { p_offer: offerId }); return Array.isArray(r) ? r : []; };
 export const ownerMarkBooking = (id, status) => act('owner_mark_booking', { p_id: id, p_status: status });
-export const ownerSetSetting = (key, value) => act('owner_set_setting', { p_key: key, p_value: value });
+export const ownerSetSetting = (key, value) => { forget('app_settings'); return act('owner_set_setting', { p_key: key, p_value: value }); };
 export const ownerLoungePoll = (q, qAr, options) => act('owner_lounge_poll', { p_question: q, p_question_ar: qAr || null, p_options: options });
-export async function appSettings() {
+import { share, forget } from '../lib/shareFetch';
+/* asked by the trips page, the Drops, the WhatsApp button and the Studio — shared for 30 seconds */
+export function appSettings() { return share('app_settings', 30000, appSettingsNow); }
+export const forgetSettings = () => forget('app_settings');
+async function appSettingsNow() {
   if (!SUPABASE_READY) return {};
   try {
     const { data } = await withDeadline(supabase.from('app_settings').select('key, value'));

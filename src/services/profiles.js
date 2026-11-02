@@ -39,7 +39,15 @@ async function myId() {
   try { const { data } = await supabase.auth.getSession(); return (data && data.session && data.session.user && data.session.user.id) || null; } catch (e) { return null; }
 }
 
-export async function getProfile(userId) {
+import { share, forget } from '../lib/shareFetch';
+
+/* asked by many screens at once: shared, and good for 15 seconds (src/lib/shareFetch.js) */
+export function getProfile(userId) {
+  return share('profile:' + userId, 15000, () => getProfileNow(userId));
+}
+export const forgetProfile = (userId) => forget(userId ? 'profile:' + userId : 'profile:');
+
+async function getProfileNow(userId) {
   // your own full row — only ever yours — from the server
   if (userId && userId === (await myId())) {
     const { data, error } = await supabase.rpc('my_profile');
@@ -104,6 +112,7 @@ export async function decideVerification(targetUserId, approve) {
    file not run yet), drop just that field and retry — so changing your
    name/username NEVER fails because an optional column is absent. */
 export async function updateProfile(userId, fields) {
+  forgetProfile(userId);   // the next read is the new row
   let attempt = { ...fields };
   for (let i = 0; i < 8; i++) {
     // no "select" back: the row is read again the one way that may read all of it

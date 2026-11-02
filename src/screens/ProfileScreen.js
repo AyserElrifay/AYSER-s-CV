@@ -805,9 +805,8 @@ export const ProfileScreen = () => {
         {/* Lamma, the table games — the same door as on Together */}
         <LammaCard style={{ marginHorizontal: 16, marginTop: 14 }} />
 
-        {/* Ayser, October 2026: your moments live in the Moments Book above — the closed
-            book is the one place for them, not a second grid of the same photos */}
-        {SUPABASE_READY && user ? <View style={{ height: 30 }} /> : (<>
+        {/* Ayser, November 2026: the posts are back on the profile, as before */}
+        {(<>
         {/* tab strip — only the tabs with something in them. Five icons
             over five empty pages was a new profile's first sight; with
             only moments, there is no strip at all, just the moments. */}

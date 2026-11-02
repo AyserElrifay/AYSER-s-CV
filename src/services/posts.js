@@ -187,8 +187,9 @@ export async function fetchMyMoments(userId, own = false) {
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  // your own page also keeps what you saved; anybody else's shows what is still live
-  return (data || []).filter((r) => alive(r) || (own && r.keep)).map((row) => ({
+  // Ayser, November 2026: a profile shows every photo its owner posted — the
+  // 48 hours are for the Live Moments strip on Home, not for the profile
+  return (data || []).map((row) => ({
     ...row,
     vibesCount: (row.vibes && row.vibes[0] && row.vibes[0].count) || 0,
   }));

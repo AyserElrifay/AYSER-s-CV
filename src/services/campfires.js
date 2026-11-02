@@ -2,7 +2,9 @@ import { supabase } from '../lib/supabase';
 
 /* Real live rooms. A campfire is "live" while ended_at is null. */
 
-export async function fetchLiveCampfires() {
+import { share } from '../lib/shareFetch';
+export function fetchLiveCampfires() { return share('campfires', 15000, fetchLiveCampfiresNow); }
+async function fetchLiveCampfiresNow() {
   const { data, error } = await supabase
     .from('campfires')
     .select('*, host:profiles!campfires_host_id_fkey(name, handle, avatar_url, emoji)')

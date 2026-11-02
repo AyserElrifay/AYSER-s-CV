@@ -18,6 +18,8 @@ import { isOffline, remember, recall, enqueue, flush, withPendingJoins } from '.
 
 const rpc = async (name, args) => {
   if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
+  // any change to a plan: the shared plans list is asked fresh next time (src/lib/shareFetch.js)
+  if (!/^green_(album|impact)$/.test(name)) forgetPlans();
   try {
     const { data, error } = await withDeadline(supabase.rpc(name, args));
     /* supabase-js hands a failed fetch back as an error rather than
@@ -59,14 +61,19 @@ export function keptGatherings(country) {
   return kept ? withPendingJoins(kept) : null;
 }
 
-async function askGatherings(country) {
+import { share, forget } from '../lib/shareFetch';
+function forgetPlans() { forget('green_list:'); }
+/* the plans list, asked by Together, Map and Home: one request at a time, good for 15 seconds */
+function askGatherings(country) { return share('green_list:' + (country || 'all'), 15000, () => askGatheringsNow(country)); }
+let rolledAt = 0;   // the week is rolled at most every 10 minutes from this phone
+async function askGatheringsNow(country) {
   const ask = () => withDeadline(supabase.rpc('green_list', { p_country: country || null }));
   /* The weekly plans are turned into this week's gatherings by the
      server. Asked at the same time as the list, not before it: almost
      always it has nothing new to make, and when it did make some, the
      list is asked once more. */
   const [rolled, first] = await Promise.all([
-    withDeadline(supabase.rpc('green_roll_week')).catch(() => ({ data: 0 })),
+    Date.now() - rolledAt < 600000 ? Promise.resolve({ data: 0 }) : withDeadline(supabase.rpc('green_roll_week')).then((r) => { rolledAt = Date.now(); return r; }).catch(() => ({ data: 0 })),
     ask(),
   ]);
   const res = rolled && rolled.data > 0 ? await ask() : first;
