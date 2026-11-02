@@ -5,7 +5,7 @@
        node scripts/check-action-feed.mjs
 */
 import fs from 'node:fs';
-import { isActionPost, actionOf, actionFeed, FEED_MAX, isVisualPost, isLive } from '../src/lib/actionFeed.js';
+import { isActionPost, actionOf, actionFeed, FEED_MAX, isVisualPost, isLive, liveStrip } from '../src/lib/actionFeed.js';
 let bad = 0;
 const is = (what, got, want) => {
   const ok = JSON.stringify(got) === JSON.stringify(want);
@@ -20,13 +20,18 @@ is('a post pinned on the map', isActionPost({ coords: { latitude: 1, longitude: 
 is('a plan with a time', isActionPost({ joinable: true }), true);
 is('a travel plan', isActionPost({ plan: { to: 'Tallinn' } }), true);
 is('a photo of nowhere in particular is not an action post', isActionPost({ caption: 'mood', place: '  ' }), false);
-// Ayser, October 2026: LIVE MOMENTS — camera moments of the last 48 hours, no old text posts
+// Ayser, November 2026: the feed is PERMANENT; only the day's prompt answers run out, in their own strip
 const now = new Date().toISOString();
-is('a text-only post is not in the feed any more', actionFeed([{ id: 1, userId: 'x', caption: 'I love cheese', createdAt: now }], 'me').length, 0);
-is('a photo from July is not in the feed', actionFeed([{ id: 1, userId: 'x', media: 'https://x/p.jpg', createdAt: '2026-07-14T10:00:00Z' }], 'me').length, 0);
+const soon = new Date(Date.now() + 3600e3).toISOString();
+is('a light text moment stays in the feed', actionFeed([{ id: 1, userId: 'x', caption: 'I love cheese' }], 'me').length, 1);
+is('a photo from July stays in the feed', actionFeed([{ id: 1, userId: 'x', media: 'https://x/p.jpg', createdAt: '2026-07-14T10:00:00Z' }], 'me').length, 1);
+is('your own moment with no place still stays in your feed', actionFeed([{ id: 1, userId: 'me', caption: 'I love cheese' }], 'me').length, 1);
+is('a prompt answer is not in the permanent feed', actionFeed([{ id: 1, userId: 'x', type: 'reel', media: 'https://x/p.jpg', expiresAt: soon }], 'me').length, 0);
+is('it is in the Live Moments strip while it lasts', liveStrip([{ id: 1, type: 'reel', media: 'https://x/p.jpg', expiresAt: soon }]).length, 1);
+is('and leaves the strip when its 48 hours end', liveStrip([{ id: 1, type: 'reel', media: 'https://x/p.jpg', expiresAt: '2026-01-01T00:00:00Z' }]).length, 0);
 is('a moment whose 48 hours ran out is not live', isLive({ expiresAt: '2026-01-01T00:00:00Z' }), false);
 is('an advert is not', isActionPost({ sponsored: true, place: 'Mall' }), false);
-is('a photo or a video of the last 48 hours is in the feed', actionFeed([{ id: 1, userId: 'x', type: 'reel', media: 'https://x/v.mp4', createdAt: now }, { id: 2, userId: 'x', media: 'https://x/p.jpg', createdAt: now }], 'me').length, 2);
+is('a photo or a video is in the feed', actionFeed([{ id: 1, userId: 'x', type: 'vod', media: 'https://x/v.mp4', createdAt: now }, { id: 2, userId: 'x', media: 'https://x/p.jpg', createdAt: now }], 'me').length, 2);
 is('an advert with a photo is still not', isVisualPost({ sponsored: true, media: 'x' }), false);
 // Ayser, October 2026: clips play by themselves, silent — but the data
 // saver and "less motion" still keep them still (videoPolicy decides)
@@ -37,7 +42,7 @@ is('the feed stops at thirty', actionFeed(Array.from({ length: 50 }, (_, i) => (
 
 console.log('\nand the app keeps to it');
 const feed = read('src/hooks/useFeed.js');
-is('the feed is filtered on the way in', /all: actionFeed\(/.test(feed) && /return actionFeed\(c\.posts/.test(feed), true);
+is('the feed is filtered on the way in', /all: actionFeed\(/.test(feed) && /return actionFeed\(c\.posts/.test(feed) && /live: liveStrip\(/.test(feed) && /\.is\('expires_at', null\)/.test(read('src/services/posts.js')), true);
 is('no adverts are mixed in', !/injectAds|fetchFeedAds/.test(feed), true);
 is('a new moment needs a place', /feed_need_place/.test(read('src/components/ComposeModal.js')), true);
 is('an ordinary moment is not turned into a pitch (no "make a plan here" under every post)', /onHangoutHere\(post\)/.test(read('src/components/PostCard.js')), false);

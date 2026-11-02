@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SUPABASE_READY, storedSessionNow } from '../lib/supabase';
 import { explain } from '../lib/explain';
-import { fetchFeed } from '../services/posts';
+import { fetchFeed, fetchLiveMoments } from '../services/posts';
 import { fetchTagsForPosts } from '../services/tags';
 import { rankFeed } from '../services/algorithm';
-import { actionFeed } from '../lib/actionFeed';
+import { actionFeed, liveStrip } from '../lib/actionFeed';
 import { FEED, ME, AV_NEUTRAL } from '../constants/mockData';
 
 /* Feed source for HomeScreen.
@@ -124,8 +124,7 @@ function readCache() {
     if (!c || c.uid !== uid || !Array.isArray(c.posts)) return null;
     /* a day-old feed is a worse first look than a skeleton */
     if (Date.now() - (c.at || 0) > 24 * 3600e3) return null;
-    // a moment whose 48 hours ran out since then is not shown again
-    return actionFeed(c.posts.filter((x) => !x.expiresAt || new Date(x.expiresAt).getTime() > Date.now()), uid);
+    return actionFeed(c.posts, uid);
   } catch (e) { return null; }
 }
 
@@ -141,12 +140,12 @@ function writeCache(posts) {
 async function fetchFresh() {
   /* no adverts in the feed: an organisation reaches people by hosting
      something on the map, not by buying a card between their friends */
-  /* Ayser, October 2026: the feed is live moments only — no reposts
-     carrying old posts back in, nothing older than 48 hours */
-  const rows = await fetchFeed();
+  /* Ayser, November 2026: the feed is permanent (no reposts, no button
+     for them); the day's prompt answers come on their own, for the
+     LIVE MOMENTS strip, and leave it after 48 hours */
+  const [rows, live] = await Promise.all([fetchFeed(), fetchLiveMoments().catch(() => [])]);
   const cards = (rows || []).map(toCard);
-  const revived = [];
-  return { all: actionFeed(cards.concat(revived), whoNow()) };
+  return { all: actionFeed(cards, whoNow()), live: liveStrip((live || []).map(toCard)) };
 }
 
 /* The head start. A request already on its way is reused by the first
@@ -168,6 +167,7 @@ const takePrimed = () => {
 
 export function useFeed() {
   const [posts, setPosts] = useState(() => (SUPABASE_READY ? (readCache() || []) : FEED));
+  const [live, setLive] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isLive] = useState(SUPABASE_READY); // true whenever real mode is on, empty or not
   const [loadError, setLoadError] = useState(null);
@@ -191,7 +191,8 @@ export function useFeed() {
       return;
     }
     try {
-      const { all } = await (takePrimed() || fetchFresh());
+      const { all, live: strip } = await (takePrimed() || fetchFresh());
+      setLive(strip || []);
       const ranked = await rankFeed(all);
       setPosts(ranked);
       setLoadError(null);
@@ -223,12 +224,14 @@ export function useFeed() {
 
   /* Optimistic insert — a just-shared moment appears at the top instantly. */
   const prependPost = useCallback((card) => {
+    if (card && card.expiresAt) { setLive((l) => [card, ...l]); return; }
     setPosts((p) => [card, ...p]);
   }, []);
 
   /* Optimistic removal — a deleted moment disappears instantly. */
   const removePost = useCallback((id) => {
     setPosts((p) => p.filter((x) => x.id !== id));
+    setLive((l) => l.filter((x) => x.id !== id));
   }, []);
 
   /* Optimistic edit — patch fields on a card instantly (e.g. caption). */
@@ -236,5 +239,5 @@ export function useFeed() {
     setPosts((p) => p.map((x) => (x.id === id ? { ...x, ...fields } : x)));
   }, []);
 
-  return { posts, refreshing, refresh, isLive, prependPost, removePost, patchPost, loadError, settled };
+  return { posts, live, refreshing, refresh, isLive, prependPost, removePost, patchPost, loadError, settled };
 }

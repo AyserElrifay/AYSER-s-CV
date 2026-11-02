@@ -25,6 +25,7 @@ import { sfxNotify } from '../utils/sfx';
 import { Glass } from '../components/Glass';
 import { PostCard } from '../components/PostCard';
 import { PhotoPrompt } from '../components/PhotoPrompt';
+import { LiveStrip } from '../components/LiveStrip';
 import { todaysPrompt, lw } from '../constants/loopWords';
 import { Wordmark } from '../components/Wordmark';
 import { Greeting } from '../components/Greeting';
@@ -124,7 +125,7 @@ export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t, rtl, lang } = useLang();
-  const { posts, refreshing, refresh, prependPost, removePost, patchPost, loadError, settled } = useFeed();
+  const { posts, live, refreshing, refresh, prependPost, removePost, patchPost, loadError, settled } = useFeed();
 
   /* ── TWO TABS, AND A FEED WITH A DAILY WINDOW ───────────────────────
      Moments: photos and videos (src/lib/actionFeed.js). Reflection: one
@@ -644,8 +645,8 @@ export const HomeScreen = () => {
                 the photo above, a heavy switch was the loudest thing on
                 the screen, and it is only a way of choosing what to read */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 22 }} accessibilityRole="tablist">
-              {/* Ayser, October 2026: two clear headers — the day's question, and the last 48 hours */}
-              {[['reflect', lw(lang, 'tab_reflect')], ['moments', lw(lang, 'tab_live')]].map(([k, label]) => (
+              {/* Ayser, November 2026: the day's question, and the Moments feed — permanent; the 48 hours are the LIVE MOMENTS strip's alone */}
+              {[['reflect', lw(lang, 'tab_reflect')], ['moments', lw(lang, 'tab_moments')]].map(([k, label]) => (
                 <Pressable key={k} onPress={() => pickTab(k)} accessibilityRole="tab" accessibilityState={{ selected: homeTab === k }} hitSlop={8} style={{ marginEnd: 22 }}>
                   <Text style={{ color: homeTab === k ? C.text : C.faint, fontSize: 13.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{label}</Text>
                   <View style={{ height: 3, width: 18, borderRadius: 2, marginTop: 5, backgroundColor: homeTab === k ? C.purple : 'transparent' }} />
@@ -664,6 +665,9 @@ export const HomeScreen = () => {
 
             {/* the camera opens from the day's prompt, in Moments and in Reflection */}
             {user ? <PhotoPrompt onShare={snap} /> : null}
+
+            {/* the day's prompt answers, 48 hours each — the only thing on Home that runs out */}
+            {homeTab === 'moments' && !feedClosed ? <LiveStrip items={live} lang={lang} /> : null}
 
             {/* real evenings and real plans with real photos — the reason to go (src/components/GoOutRail.js) */}
             {user && homeTab === 'moments' ? (

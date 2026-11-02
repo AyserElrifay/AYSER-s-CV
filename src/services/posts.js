@@ -8,12 +8,19 @@ import { supabase } from '../lib/supabase';
    deletes it that night unless a member kept it for themselves */
 export const alive = (r) => !r || !r.expires_at || new Date(r.expires_at).getTime() > Date.now();
 
+const FEED_COLS = '*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibe_rows:post_vibes(count), comment_rows:comments(count)';
+/* the permanent feed: every post without an end (posts.expires_at is
+   null). The day's prompt answers, which end after 48 hours, are asked
+   for on their own (fetchLiveMoments) so they never push old posts out. */
 export async function fetchFeed() {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibe_rows:post_vibes(count), comment_rows:comments(count)')
+    .select(FEED_COLS)
+    .is('expires_at', null)
     .order('created_at', { ascending: false })
     .limit(30);
+  /* a database that has not had RUN_ME.sql's expires_at yet: everything */
+  if (error && /expires_at/.test(error.message || '')) ({ data, error } = await supabase.from('posts').select(FEED_COLS).order('created_at', { ascending: false }).limit(30));
   if (error) throw error;
   // flatten the embedded counts so every caller sees plain numbers
   return (data || []).filter(alive).map((row) => ({
@@ -21,6 +28,18 @@ export async function fetchFeed() {
     vibes: (row.vibe_rows && row.vibe_rows[0] && row.vibe_rows[0].count) || 0,
     comments: (row.comment_rows && row.comment_rows[0] && row.comment_rows[0].count) || 0,
   }));
+}
+
+/* LIVE MOMENTS: the day's prompt answers still inside their 48 hours */
+export async function fetchLiveMoments() {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('id, user_id, type, media_url, thumb_url, caption, created_at, expires_at, user:profiles!posts_user_id_fkey(id, name, avatar_url, avatar_dna, verified)')
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error) return [];
+  return (data || []).filter(alive);
 }
 
 /* ── REPOSTS, with an actual effect ───────────────────────────────

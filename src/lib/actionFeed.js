@@ -44,14 +44,15 @@ export function actionOf(c) {
 /* your own moments always stay in your feed — a moment that is not from
    an outing reaches other people through your profile, but it never
    vanishes from under the person who just posted it */
-/* Ayser, October 2026: LIVE MOMENTS is the last 48 hours of camera
-   moments and nothing else — no old text posts from July, no reposts.
-   A moment counts down to its end (posts.expires_at); one without an
-   end is live for 48 hours from when it was posted. */
+/* Ayser, November 2026 — "Keep the main Moments feed 100% PERMANENT".
+   The feed keeps every post, from July or from this morning, text or
+   photo; only the repost button is gone. The 48-hour rule is for the
+   day's photo-prompt answers alone (posts.expires_at, set by
+   RUN_ME.sql posts_lifetime): they live in the LIVE MOMENTS strip above
+   the feed, count down, and when their 48 hours end they are in their
+   owner's Moments Book, never in the feed. */
 export const LIVE_HOURS = 48;
-export const isLive = (c, now = Date.now()) => {
-  if (!c) return false;
-  if (c.expiresAt) return new Date(c.expiresAt).getTime() > now;
-  return !!c.createdAt && now - new Date(c.createdAt).getTime() < LIVE_HOURS * 3600e3;
-};
-export const actionFeed = (cards, me) => (cards || []).filter((c) => isVisualPost(c) && isLive(c)).slice(0, FEED_MAX);
+export const isEphemeral = (c) => !!(c && c.expiresAt);
+export const isLive = (c, now = Date.now()) => !!(c && c.expiresAt && new Date(c.expiresAt).getTime() > now);
+export const actionFeed = (cards, me) => (cards || []).filter((c) => !isEphemeral(c) && (isActionPost(c) || isLightPost(c) || isVisualPost(c) || (me && c && !c.sponsored && c.userId === me))).slice(0, FEED_MAX);
+export const liveStrip = (cards, now = Date.now()) => (cards || []).filter((c) => !c.sponsored && c.media && isLive(c, now)).slice(0, 20);
