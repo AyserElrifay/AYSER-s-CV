@@ -45,6 +45,7 @@ import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
 import { JourneyCard, JourneyMap } from '../components/JourneyMap';
 import { jw, mapsLink, seatsLeftOf } from '../constants/joinWords';
+import { LammaCard } from '../components/LammaCard';
 const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
 const EventRoom = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.EventRoom })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
@@ -1030,14 +1031,8 @@ export const TogetherScreen = () => {
             </View>
           </View>
         </Pressable>
-        {/* trips live inside Explore now; play is the one other door */}
-        <Pressable onPress={() => { tapLight(); nav.navigate('CHILL'); }} accessibilityRole="button" accessibilityLabel={t('tg_play')} style={{ marginTop: 10 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, paddingVertical: 15, paddingHorizontal: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-            <Ionicons name="game-controller-outline" size={21} color={C.text} />
-            <Text style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', marginStart: 12 }}>{t('tg_play')}</Text>
-            <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={C.dim} />
-          </View>
-        </Pressable>
+        {/* play is Lamma, at the table (Ayser, October 2026) */}
+        <LammaCard style={{ marginTop: 10 }} />
 
         {/* ── bring your people ── one quiet line; the details are in Rewards */}
         {uid ? (

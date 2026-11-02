@@ -73,6 +73,7 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { LammaCard } from '../components/LammaCard';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
@@ -799,6 +800,8 @@ export const ProfileScreen = () => {
 
         {/* the Moments Book: one page a day — the photo, the reflection, the tables you checked into */}
         {SUPABASE_READY && user ? <MomentsBookCover /> : null}
+        {/* Lamma, the table games — the same door as on Together */}
+        <LammaCard style={{ marginHorizontal: 16, marginTop: 14 }} />
 
         {/* Ayser, October 2026: your moments live in the Moments Book above — the closed
             book is the one place for them, not a second grid of the same photos */}

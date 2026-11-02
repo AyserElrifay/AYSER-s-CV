@@ -27,12 +27,6 @@ import { setupNotice } from '../lib/plumbing';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { useSheetBack } from '../hooks/useSheetBack';
 const GroupPage = lazyOverlay(() => import('./GroupPage').then((m) => ({ default: m.GroupPage })));
-const GameRunner = lazyOverlay(() => import('./GameRunner').then((m) => ({ default: m.GameRunner })));
-const RooftopRush = lazyOverlay(() => import('./RooftopRush').then((m) => ({ default: m.RooftopRush })));
-const RockPaperScissors = lazyOverlay(() => import('./RockPaperScissors').then((m) => ({ default: m.RockPaperScissors })));
-const StackGame = lazyOverlay(() => import('./StackGame').then((m) => ({ default: m.StackGame })));
-const TowerClimb = lazyOverlay(() => import('./TowerClimb').then((m) => ({ default: m.TowerClimb })));
-const StreetHop = lazyOverlay(() => import('./StreetHop').then((m) => ({ default: m.StreetHop })));
 
 /* Discover — people, groups, posts and what's trending (X / Facebook style).
    One search box, a tab row, and results that filter as you type. */
@@ -509,7 +503,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
     : FEED.filter((p) => !q || (p.caption || '').toLowerCase().includes(q) || (p.place || '').toLowerCase().includes(q));
   const trendsSource = SUPABASE_READY ? (realTrends || []) : TRENDING;
   const trends = trendsSource.filter((t) => !q || t.tag.toLowerCase().includes(q));
-  const games = PLAY_GAMES.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tag.toLowerCase().includes(q));
+  const games = [];
 
   const launchGame = (g) => {
     tapLight();
@@ -696,12 +690,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
           {tab === 'Play' ? (games.length ? games.map((g) => <GameRow key={g.id} item={g} onPlay={launchGame} t={t} />) : <Empty q={q} />) : null}
         </ScrollView>
       </View>
-      {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />
-        : game && game.kind === 'tower' ? <TowerClimb onClose={() => setGame(null)} />
-        : game && game.kind === 'hop' ? <StreetHop onClose={() => setGame(null)} />
-        : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
-        : game && game.kind === 'rps' ? <RockPaperScissors onClose={() => setGame(null)} />
-        : game ? <GameRunner onClose={() => setGame(null)} /> : null}
+      {/* the solo arcade games are gone (Ayser, October 2026): play is Lamma, at a table */}
       {/* The group's own page, over the top of Discover. Closing it
           reloads the list so a join, a leave or a post you have just
           made is reflected in the row you came from. */}

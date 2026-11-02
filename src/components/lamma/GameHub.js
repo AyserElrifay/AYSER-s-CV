@@ -14,6 +14,7 @@ import { getProfile } from '../../services/profiles';
 import { CHANNELS } from './channels';
 import { flagOf } from '../../constants/countries';
 import { LammaGame } from './LammaGame';
+import { TableGames } from './TableGames';
 import { tapLight, tapMedium } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
 import { kept, keep } from '../../lib/kept';
@@ -50,6 +51,7 @@ export const GameHub = ({ onClose, focusPack = null }) => {
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
   const [game, setGame] = useState(null);        // { roomId, joinCode, packId, isHost }
+  const [table, setTable] = useState(false);     // the four heads-up table games (TableGames.js)
 
   /* A missing table is a one-time setup somebody has to run; a refused
      row is a sign-in; a dead connection is a retry. Three different
@@ -123,6 +125,7 @@ export const GameHub = ({ onClose, focusPack = null }) => {
     else setErr(t('lamma_bad_code'));
   };
 
+  if (table) return <TableGames onClose={() => setTable(false)} />;
   if (game) {
     return (
       <Modal visible transparent={false} animationType="slide" onRequestClose={() => setGame(null)}>
@@ -175,6 +178,16 @@ export const GameHub = ({ onClose, focusPack = null }) => {
           </LinearGradient>
 
           <View style={{ padding: 16 }}>
+            {/* ── THE TABLE GAMES ── Spy, Arousty & the Bomb, Sparks, Karaoke (Ayser, October 2026) */}
+            <Pressable testID="lamma-table-games" onPress={() => { tapMedium(); setTable(true); }} accessibilityRole="button" style={{ marginBottom: 16 }}>
+              {({ pressed }) => (
+                <View style={{ borderRadius: 20, padding: 16, backgroundColor: '#17131F', transform: [{ scale: pressed ? 0.985 : 1 }] }}>
+                  <Text style={{ color: '#D9C08C', fontSize: 11.5, fontWeight: '900', letterSpacing: 1.4 }}>{lang === 'ar' ? 'ألعاب الترابيزة' : 'TABLE GAMES'}</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '800', marginTop: 6 }}>{lang === 'ar' ? 'المندَسّ · عروستي · مين فينا · غنّوا سوا' : 'Spy · Arousty · Table Sparks · Karaoke'}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 4 }}>{lang === 'ar' ? 'موبايل واحد يبدأ، والترابيزة كلها تدخل بكود من ٦ أرقام.' : 'One phone starts, the whole table joins with a 6-digit code.'}</Text>
+                </View>
+              )}
+            </Pressable>
             {/* ── JOIN WITH A CODE ────────────────────────────────
                 The button sits UNDER the field at full width, not
                 beside it. A pill next to a text box has to survive
