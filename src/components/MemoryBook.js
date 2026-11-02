@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Image, Modal, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -358,14 +358,11 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
   const [note, setNote] = useState(null);
   const [making, setMaking] = useState(null);
   const [open, setOpen] = useState(null);
+  const [idx, setIdx] = useState(0);
+  const [w, setW] = useState(0);
+  const pager = useRef(null);
   const load = () => memoryBook().then((b) => { if (b && b.ok) setBook(b); });
   useEffect(() => { load(); }, []);
-  // "Open your Moments Book" from Reflection: come back to it on Space
-  useEffect(() => {
-    const go = () => { try { const el = document.getElementById('moments-book'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} };
-    try { window.addEventListener('mm-open-book', go); } catch (e) {}
-    return () => { try { window.removeEventListener('mm-open-book', go); } catch (e) {} };
-  }, []);
   const pages = (book && Array.isArray(book.pages)) ? book.pages : [];
   // kept photos are made light, a few at a time, once each
   useEffect(() => {
@@ -435,51 +432,85 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
   const last = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const ready = today.getDate() <= 7 ? chapters.find((c) => c.key === last.getFullYear() + '-' + last.getMonth()) : null;
 
+  /* ─── THE READER ── Ayser, November 2026: "swipe horizontally (left/
+     right page-by-page)". One day a page, a page a screen; Keep this page
+     and Share Monthly Recap are on the page you are reading. Free readers
+     read five pages; the rest are there, blurred, behind Moments+. */
+  const cur = pages[Math.min(idx, Math.max(0, pages.length - 1))] || null;
+  const curCh = cur ? chapters.find((c) => c.pages.includes(cur)) : null;
+  const go = (i) => {
+    const n = Math.max(0, Math.min(pages.length - 1, i));
+    tapLight(); setIdx(n);
+    try { pager.current && pager.current.scrollTo({ x: n * w, animated: true }); } catch (e) {}
+  };
+  const onScroll = (e) => { if (!w) return; const n = Math.round(e.nativeEvent.contentOffset.x / w); if (n !== idx) setIdx(n); };
+  const unlock = '✦ ' + mw(lang, 'unlockAll', { n: book.total || 0, p: price || 129, c: lang === 'ar' ? 'جنيه' : 'EGP' });
+
   return (
-    <View nativeID="moments-book" testID="memory-book" style={bare ? { padding: 16 } : { marginHorizontal: 16, marginTop: 22, borderRadius: 24, backgroundColor: P.bg, borderWidth: 1, borderColor: P.line, padding: 16 }}>
-      <Text style={{ color: P.faint, fontSize: 11, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{mw(lang, 'kicker')}</Text>
-      <Text style={{ color: P.ink, fontSize: 26, fontWeight: '600', marginTop: 6, fontFamily: SERIF, fontStyle: lang === 'ar' ? 'normal' : 'italic' }}>{mw(lang, 'title')}</Text>
-      <Text style={{ color: P.dim, fontSize: 13.5, lineHeight: 20, marginTop: 4 }}>
-        {member ? mw(lang, 'subMember') : mw(lang, 'subOpen', { n: Math.min(5, book.total || 0), t: book.total || 0 })}
-      </Text>
-      {!member ? (
-        <Pressable onPress={() => { tapLight(); askUpgrade('member'); }} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
-          <Text style={{ color: P.ink, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' }}>{'✦ ' + mw(lang, 'unlockAll', { n: book.total || 0, p: price || 129, c: lang === 'ar' ? 'جنيه' : 'EGP' })}</Text>
-        </Pressable>
-      ) : null}
-      {note ? <Text style={{ color: P.ink, fontSize: 13, marginTop: 10 }}>{note}</Text> : null}
+    <View nativeID="moments-book" testID="memory-book" style={{ flex: 1, backgroundColor: P.bg }}>
+      <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+        <Text style={{ color: P.faint, fontSize: 11, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{mw(lang, 'kicker')}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', marginTop: 4 }}>
+          <Text style={{ color: P.ink, fontSize: 22, fontWeight: '600', fontFamily: SERIF, fontStyle: lang === 'ar' ? 'normal' : 'italic' }}>{curCh ? mw(lang, 'chapter', { m: monthName(lang, curCh.d) }) : mw(lang, 'title')}</Text>
+          {pages.length ? <Text testID="mb-pageno" style={{ color: P.dim, fontSize: 13, marginHorizontal: 8 }}>{mw(lang, 'pageOf', { i: idx + 1, n: pages.length })}</Text> : null}
+        </View>
+        {!member && (book.total || 0) > 5 ? (
+          <Pressable onPress={() => { tapLight(); askUpgrade('member'); }} accessibilityRole="button" style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+            <Text style={{ color: P.ink, fontSize: 12.5, fontWeight: '700', textDecorationLine: 'underline' }}>{unlock}</Text>
+          </Pressable>
+        ) : null}
+        {note ? <Text style={{ color: P.ink, fontSize: 13, marginTop: 8 }}>{note}</Text> : null}
+        {ready && Platform.OS === 'web' ? (
+          <Pressable testID="mb-recap-ready" onPress={() => recap(ready)} accessibilityRole="button" style={{ marginTop: 10 }}>
+            <View style={{ borderRadius: 14, backgroundColor: P.btn, paddingHorizontal: 14, paddingVertical: 10 }}>
+              <Text style={{ color: P.btnInk, fontSize: 14.5, fontWeight: '700', fontFamily: SERIF }}>{mw(lang, 'recapReady', { m: monthName(lang, ready.d) }) + '  ·  ' + mw(lang, 'recap') + ' ✦'}</Text>
+            </View>
+          </Pressable>
+        ) : null}
+      </View>
 
-      {ready && Platform.OS === 'web' ? (
-        <Pressable testID="mb-recap-ready" onPress={() => recap(ready)} accessibilityRole="button" style={{ marginTop: 16 }}>
-          <View style={{ borderRadius: 16, backgroundColor: P.btn, padding: 16 }}>
-            <Text style={{ color: P.btnInk, fontSize: 17, fontWeight: '700', fontFamily: SERIF }}>{mw(lang, 'recapReady', { m: monthName(lang, ready.d) })}</Text>
-            <Text style={{ color: P.btnInk, opacity: 0.75, fontSize: 13, lineHeight: 18, marginTop: 4 }}>{mw(lang, 'recapReadySub')}</Text>
-            <Text style={{ color: P.btnInk, fontSize: 13.5, fontWeight: '700', marginTop: 10 }}>{mw(lang, 'recap') + ' ✦'}</Text>
+      {!pages.length ? <Text style={{ color: P.dim, fontSize: 14, lineHeight: 20, paddingHorizontal: 16, marginTop: 16 }}>{mw(lang, 'empty')}</Text> : (
+        <View style={{ flex: 1 }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+          {w ? (
+            <ScrollView ref={pager} testID="mb-pager" horizontal pagingEnabled keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}
+              onScroll={onScroll} scrollEventThrottle={32} style={{ flex: 1, direction: 'ltr' }}>
+              {pages.map((pg) => (
+                <ScrollView key={pg.day} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ width: w, direction: lang === 'ar' ? 'rtl' : 'ltr' }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 20, alignItems: 'center' }}>
+                  <View style={{ width: '100%', maxWidth: 460 }}>
+                    <PageCard pg={pg} lang={lang} P={P} black={black} member={member} full={full} price={price} total={book.total}
+                      tilt="0deg" onOpen={(x) => { tapLight(); setOpen(x); }} onKeep={keep} onHighlight={highlight} />
+                  </View>
+                </ScrollView>
+              ))}
+            </ScrollView>
+          ) : null}
+        </View>
+      )}
+
+      {pages.length ? (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6, borderTopWidth: 1, borderTopColor: P.line }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', direction: 'ltr' }}>
+            <Pressable testID="mb-prev" disabled={idx === 0} onPress={() => go(idx - 1)} hitSlop={10} accessibilityRole="button" accessibilityLabel="‹" style={{ opacity: idx === 0 ? 0.3 : 1, padding: 6 }}>
+              <Ionicons name="chevron-back" size={22} color={P.ink} />
+            </Pressable>
+            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }}>
+              {pages.length <= 14 ? pages.map((pg, i) => (
+                <View key={pg.day} style={{ width: i === idx ? 14 : 6, height: 6, borderRadius: 3, marginHorizontal: 2.5, backgroundColor: i === idx ? P.ink : pg.open === false ? P.line : P.faint }} />
+              )) : <Text style={{ color: P.dim, fontSize: 12.5, fontWeight: '700' }}>{(idx + 1) + ' / ' + pages.length}</Text>}
+            </View>
+            <Pressable testID="mb-next" disabled={idx >= pages.length - 1} onPress={() => go(idx + 1)} hitSlop={10} accessibilityRole="button" accessibilityLabel="›" style={{ opacity: idx >= pages.length - 1 ? 0.3 : 1, padding: 6 }}>
+              <Ionicons name="chevron-forward" size={22} color={P.ink} />
+            </Pressable>
           </View>
-        </Pressable>
-      ) : null}
-
-      {!pages.length ? <Text style={{ color: P.dim, fontSize: 14, lineHeight: 20, marginTop: 16 }}>{mw(lang, 'empty')}</Text> : null}
-
-      {chapters.map((ch) => (
-        <View key={ch.key} style={{ marginTop: 22 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', borderBottomWidth: 1, borderBottomColor: P.line, paddingBottom: 8, marginBottom: 14 }}>
-            <Text style={{ color: P.ink, fontSize: 18, fontWeight: '600', fontFamily: SERIF }}>{mw(lang, 'chapter', { m: monthName(lang, ch.d) })}</Text>
-            <Text style={{ color: P.dim, fontSize: 13, marginHorizontal: 8 }}>{'•  ' + subOf(ch)}</Text>
-          </View>
-          {ch.pages.map((pg, i) => (
-            <PageCard key={pg.day} pg={pg} lang={lang} P={P} black={black} member={member} full={full} price={price} total={book.total}
-              tilt={i % 2 ? '0.5deg' : '-0.5deg'} onOpen={(x) => { tapLight(); setOpen(x); }} onKeep={keep} onHighlight={highlight} />
-          ))}
-          {Platform.OS === 'web' ? (
-            <Pressable testID="mb-recap" onPress={() => recap(ch)} accessibilityRole="button" style={{ marginTop: 2 }}>
-              <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', backgroundColor: P.btn }}>
-                {making === ch.key ? <ActivityIndicator color={P.btnInk} /> : <Text style={{ color: P.btnInk, fontSize: 14.5, fontWeight: '700' }}>{mw(lang, 'recap') + ' ✦'}</Text>}
+          {Platform.OS === 'web' && curCh ? (
+            <Pressable testID="mb-recap" onPress={() => recap(curCh)} accessibilityRole="button" style={{ marginTop: 8 }}>
+              <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', backgroundColor: P.btn }}>
+                {making === curCh.key ? <ActivityIndicator color={P.btnInk} /> : <Text style={{ color: P.btnInk, fontSize: 14.5, fontWeight: '700' }}>{mw(lang, 'recap') + ' ✦'}</Text>}
               </View>
             </Pressable>
           ) : null}
         </View>
-      ))}
+      ) : null}
       {open ? <OpenPage pg={open} lang={lang} P={P} onClose={() => setOpen(null)} /> : null}
     </View>
   );
@@ -503,39 +534,53 @@ export const MomentsBookCover = () => {
   const black = book && book.tier === 'VIP';
   const P = black ? OBSIDIAN : PAPER;
   const n = (book && book.total) || 0;
-  const cover = black ? '#121212' : '#2A1F57';
+  const pgs = (book && Array.isArray(book.pages)) ? book.pages : [];
+  // the chapter on the cover: the newest month with a page, or this month
+  const latest = pgs.length ? pgs.map((pg) => dayOf(pg.day)).sort((x, y) => y - x)[0] : new Date();
+  const badge = mw(lang, 'chapter', { m: monthName(lang, latest) }) + '  •  ' + (n === 1 ? mw(lang, 'page1') : mw(lang, 'pageN', { n }));
+  const cloth = black ? '#141414' : '#2A1F57';
   const foil = '#D9C08C';
+  /* linen: a fine woven grain over the cloth, drawn by the browser */
+  const linen = Platform.OS === 'web' ? { backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0,0,0,0.10) 0 1px, transparent 1px 3px)' } : null;
+  const close = () => { tapLight(); setOpen(false); load(); };
   return (
     <>
+      {/* Ayser, November 2026: a closed hardcover, about 130 high — never the pages themselves on Space */}
       <Pressable testID="book-cover" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" accessibilityLabel={mw(lang, 'coverTitle')} style={{ marginHorizontal: 16, marginTop: 22 }}>
         {({ pressed }) => (
-          <View style={{ flexDirection: 'row', borderRadius: 14, overflow: 'hidden', backgroundColor: cover, height: 200, transform: [{ scale: pressed ? 0.985 : 1 }] }}>
-            {/* the spine */}
-            <View style={{ width: 18, backgroundColor: 'rgba(0,0,0,0.35)', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.08)' }} />
-            <View style={{ flex: 1, padding: 20, justifyContent: 'space-between' }}>
-              <View style={{ borderWidth: 1, borderColor: 'rgba(217,192,140,0.45)', borderRadius: 6, padding: 14, flex: 1, justifyContent: 'center' }}>
-                <Text style={{ color: foil, fontSize: 18, textAlign: 'center' }}>✦</Text>
-                <Text style={{ color: foil, fontSize: 22, fontWeight: '600', textAlign: 'center', marginTop: 6, fontFamily: SERIF, fontStyle: lang === 'ar' ? 'normal' : 'italic' }}>{mw(lang, 'coverTitle')}</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 13, textAlign: 'center', marginTop: 6 }}>{mw(lang, 'coverSub')}</Text>
+          <View style={[{ flexDirection: 'row', borderRadius: 12, overflow: 'hidden', backgroundColor: cloth, height: 130, transform: [{ scale: pressed ? 0.985 : 1 }], direction: 'ltr' }, linen]}>
+            {/* the spine, on the left */}
+            <View style={{ width: 16, backgroundColor: 'rgba(0,0,0,0.38)', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.10)' }}>
+              <View style={{ position: 'absolute', top: 14, left: 3, right: 3, height: 1, backgroundColor: 'rgba(217,192,140,0.5)' }} />
+              <View style={{ position: 'absolute', bottom: 14, left: 3, right: 3, height: 1, backgroundColor: 'rgba(217,192,140,0.5)' }} />
+            </View>
+            <View style={{ flex: 1, margin: 10, borderWidth: 1, borderColor: 'rgba(217,192,140,0.40)', borderRadius: 6, paddingHorizontal: 14, paddingVertical: 10, justifyContent: 'space-between', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text numberOfLines={1} style={{ color: foil, fontSize: 19, fontWeight: '600', fontFamily: SERIF, fontStyle: lang === 'ar' ? 'normal' : 'italic' }}>{mw(lang, 'coverTitle')}</Text>
+                  <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12.5, marginTop: 2 }}>{'(' + mw(lang, 'title') + ')'}</Text>
+                </View>
+                <Text style={{ color: foil, fontSize: 16, marginStart: 8 }}>✦</Text>
               </View>
-              <Text style={[{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.2, marginTop: 10, textAlign: 'center' }]}>
-                {n === 1 ? mw(lang, 'page1').toUpperCase() : mw(lang, 'pageN', { n }).toUpperCase()}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ borderRadius: 999, borderWidth: 1, borderColor: 'rgba(217,192,140,0.55)', paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 }}>
+                  <Text testID="book-badge" numberOfLines={1} style={{ color: foil, fontSize: 10.5, fontWeight: '700' }}>{badge}</Text>
+                </View>
+                <Text numberOfLines={1} style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700', marginStart: 8, flexShrink: 1 }}>{mw(lang, 'tapOpen')}</Text>
+              </View>
             </View>
           </View>
         )}
       </Pressable>
       {open ? (
-        <Modal visible animationType="slide" onRequestClose={() => { setOpen(false); load(); }}>
-          <View style={{ flex: 1, backgroundColor: P.bg }}>
-            <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16 }}>
-              <Pressable onPress={() => { tapLight(); setOpen(false); load(); }} hitSlop={12} accessibilityRole="button" accessibilityLabel={mw(lang, 'close')}>
+        <Modal visible animationType="slide" onRequestClose={close}>
+          <View style={{ flex: 1, backgroundColor: P.bg, paddingTop: insets.top + 8, paddingBottom: insets.bottom }}>
+            <View style={{ paddingHorizontal: 16, paddingBottom: 6, flexDirection: 'row' }}>
+              <Pressable testID="book-close" onPress={close} hitSlop={12} accessibilityRole="button" accessibilityLabel={mw(lang, 'close')}>
                 <Ionicons name="close" size={26} color={P.ink} />
               </Pressable>
             </View>
-            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 30, alignItems: 'center' }}>
-              <View style={{ width: '100%', maxWidth: 560 }}><MemoryBook initial={book} bare /></View>
-            </ScrollView>
+            <View style={{ flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center' }}><MemoryBook initial={book} bare /></View>
           </View>
         </Modal>
       ) : null}

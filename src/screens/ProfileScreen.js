@@ -685,7 +685,7 @@ export const ProfileScreen = () => {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScrollView keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingTop: insets.top + 10, paddingBottom: 130 }}
+        contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: 130 }}
         showsVerticalScrollIndicator={false}
       >
         {/* top bar — handle + gear */}
