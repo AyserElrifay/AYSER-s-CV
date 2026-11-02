@@ -371,13 +371,13 @@ export const OffersTab = ({ userId }) => {
   const [party, setParty] = useState(null);             // the offer just published
   const [hook, setHook] = useState('');
   const [instapay, setInstapay] = useState(''); const [vodafone, setVodafone] = useState('');
-  const [wa, setWa] = useState('');
+  const [wa, setWa] = useState({ name: '', number: '', backup_name: '', backup_number: '' });
   const [pollQ, setPollQ] = useState(''); const [pollQa, setPollQa] = useState(''); const [pollO, setPollO] = useState('');
 
   const load = () => {
     ownerOffers().then((r) => setList(r == null ? false : r));
     appSettings().then((s) => {
-      setSettings(s); setWa(typeof s.whatsapp_booking === 'string' ? s.whatsapp_booking : ''); setHook(s.bookings_sheet_hook && s.bookings_sheet_hook !== 'null' ? String(s.bookings_sheet_hook).replace(/^"|"$/g, '') : ''); const lp = s.local_pay && typeof s.local_pay === 'object' ? s.local_pay : null; setInstapay((lp && lp.instapay) || ''); setVodafone((lp && lp.vodafone) || ''); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
+      setSettings(s); { const v = s.whatsapp_booking; setWa(v && typeof v === 'object' ? { name: v.name || '', number: v.number || '', backup_name: v.backup_name || '', backup_number: v.backup_number || '' } : { name: '', number: typeof v === 'string' ? v : '', backup_name: '', backup_number: '' }); } setHook(s.bookings_sheet_hook && s.bookings_sheet_hook !== 'null' ? String(s.bookings_sheet_hook).replace(/^"|"$/g, '') : ''); const lp = s.local_pay && typeof s.local_pay === 'object' ? s.local_pay : null; setInstapay((lp && lp.instapay) || ''); setVodafone((lp && lp.vodafone) || ''); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
       const pr = s.plus_price && typeof s.plus_price === 'object' ? s.plus_price : null;
       setPriceM(pr ? String(pr.month) : ''); setPriceY(pr ? String(pr.year) : ''); setPriceC(pr ? pr.currency : 'EGP');
     });
@@ -578,14 +578,23 @@ export const OffersTab = ({ userId }) => {
           const r = await ownerLoungePoll(pollQ.trim(), pollQa.trim(), opts); setMsg(r && r.ok ? 'The lounge has a new question.' : 'Could not save.');
           if (r && r.ok) { setPollQ(''); setPollQa(''); setPollO(''); }
         }} />
-        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Book via WhatsApp</Text>
-        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>The team’s WhatsApp number. With one, every open trip and Drop shows “Book via WhatsApp”, which opens a chat with the person’s name, the trip and the date already written. Empty = the button is hidden.</Text>
-        <Field label="WhatsApp number (digits, with country code)" value={wa} onChange={(v) => setWa(v.replace(/[^0-9]/g, '').slice(0, 15))} ph="2010…" />
-        <Btn label="Save WhatsApp number" onPress={async () => {
-          const v = wa.trim() ? wa.trim() : null;
-          if (v && !/^[0-9]{8,15}$/.test(v)) { setMsg('Digits only, 8 to 15, starting with the country code (20 for Egypt).'); return; }
-          const r = await ownerSetSetting('whatsapp_booking', v); setMsg(r && r.ok ? 'WhatsApp number saved.' : 'Could not save — check the number.'); load();
-        }} />
+        {/* Ayser, November 2026: who answers trip bookings on WhatsApp — two people, simply */}
+        <View style={{ marginTop: 14, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 12 }}>
+          <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>Trip bookings on WhatsApp</Text>
+          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>The button on the open trip writes to the first person; the second is the backup. Numbers as you dial them (010… or +20…).</Text>
+          <Field label="Answers bookings — name" value={wa.name} onChange={(v) => setWa({ ...wa, name: v.slice(0, 40) })} ph="Awad" />
+          <Field label="Their WhatsApp" value={wa.number} onChange={(v) => setWa({ ...wa, number: v })} ph="+20 102 226 2486" />
+          <Field label="Backup — name" value={wa.backup_name} onChange={(v) => setWa({ ...wa, backup_name: v.slice(0, 40) })} ph="Ayser" />
+          <Field label="Backup WhatsApp" value={wa.backup_number} onChange={(v) => setWa({ ...wa, backup_number: v })} ph="010 1630 4979" />
+          <Btn label="Save" onPress={async () => {
+            // 010… → 2010…; +20 / 0020 → 20; spaces and dashes out
+            const norm = (x) => { let d = String(x || '').replace(/[^0-9]/g, ''); if (d.startsWith('00')) d = d.slice(2); if (d.startsWith('0')) d = '20' + d.slice(1); return d; };
+            const v = { name: wa.name.trim(), number: norm(wa.number), backup_name: wa.backup_name.trim(), backup_number: norm(wa.backup_number) };
+            if (!v.number) { const r = await ownerSetSetting('whatsapp_booking', null); setMsg(r && r.ok ? 'WhatsApp booking is off.' : 'Could not save.'); load(); return; }
+            if (!/^[0-9]{8,15}$/.test(v.number) || (v.backup_number && !/^[0-9]{8,15}$/.test(v.backup_number))) { setMsg('That number does not look right.'); return; }
+            const r = await ownerSetSetting('whatsapp_booking', v); setMsg(r && r.ok ? 'Saved.' : 'Could not save — check the numbers.'); load();
+          }} />
+        </View>
         <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>{'Roam Drops: ' + (settings && settings.roam_open === true ? 'OPEN' : 'COMING SOON')}</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>While it says Coming Soon, Roam Drops show a lock and nobody can apply. Trips are opened and locked one by one with their own status above.</Text>
         <Btn label={settings && settings.roam_open === true ? 'Lock Roam (Coming Soon)' : 'Open Roam'} onPress={async () => { const r = await ownerSetSetting('roam_open', !(settings && settings.roam_open === true)); setMsg(r && r.ok ? 'Saved.' : 'Could not save.'); load(); }} />

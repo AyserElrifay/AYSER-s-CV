@@ -26292,6 +26292,54 @@ end $$;
 revoke execute on function public.owner_lounge_poll(text, text, jsonb) from public, anon;
 grant execute on function public.owner_lounge_poll(text, text, jsonb) to authenticated;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  WHO ANSWERS TRIP BOOKINGS ON WHATSAPP
+--  Ayser, November 2026: Awad from Moments answers the people booking the
+--  trip; Ayser is the backup. Set once here; the Studio changes it after.
+-- ═══════════════════════════════════════════════════════════════════════
+create or replace function public.owner_set_setting(p_key text, p_value jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_key not in ('plus_free_until', 'payments_online', 'plus_price', 'plus_prices', 'bookings_sheet_hook', 'local_pay', 'whatsapp_booking', 'roam_open') then return jsonb_build_object('ok', false, 'reason', 'key'); end if;
+  if p_key = 'plus_price' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value -> 'month') = 'number' and (p_value ->> 'month')::numeric > 0
+   and jsonb_typeof(p_value -> 'year') = 'number' and (p_value ->> 'year')::numeric > 0
+   and coalesce(p_value ->> 'currency', '') ~ '^[A-Z]{3}$') then
+    return jsonb_build_object('ok', false, 'reason', 'price');
+  end if;
+  if p_key = 'bookings_sheet_hook' and p_value is not null and p_value <> 'null'::jsonb and (p_value #>> '{}') !~ '^https://script\.google\.com/' then
+    return jsonb_build_object('ok', false, 'reason', 'url');
+  end if;
+  if p_key = 'local_pay' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value) = 'object'
+   and length(coalesce(p_value ->> 'instapay', '')) <= 60 and length(coalesce(p_value ->> 'vodafone', '')) <= 20
+   and coalesce(p_value ->> 'vodafone', '') ~ '^[0-9 +]*$'
+   and (coalesce(p_value ->> 'instapay', '') <> '' or coalesce(p_value ->> 'vodafone', '') <> '')) then
+    return jsonb_build_object('ok', false, 'reason', 'pay');
+  end if;
+  -- the team's WhatsApp for bookings: digits only, with the country code (2010…)
+  -- the team's WhatsApp for bookings: who answers, and a backup — digits with the country code (2010…)
+  if p_key = 'whatsapp_booking' and p_value is not null and p_value <> 'null'::jsonb and not (
+       (jsonb_typeof(p_value) = 'string' and (p_value #>> '{}') ~ '^[0-9]{8,15}$')
+    or (jsonb_typeof(p_value) = 'object'
+        and coalesce(p_value ->> 'number', '') ~ '^[0-9]{8,15}$'
+        and coalesce(p_value ->> 'backup_number', '') ~ '^([0-9]{8,15})?$'
+        and length(coalesce(p_value ->> 'name', '')) <= 40 and length(coalesce(p_value ->> 'backup_name', '')) <= 40)) then
+    return jsonb_build_object('ok', false, 'reason', 'phone');
+  end if;
+  insert into public.app_settings (key, value, updated_at) values (p_key, p_value, now())
+  on conflict (key) do update set value = excluded.value, updated_at = now();
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.owner_set_setting(text, jsonb) from public, anon;
+grant execute on function public.owner_set_setting(text, jsonb) to authenticated;
+
+insert into public.app_settings (key, value, updated_at)
+values ('whatsapp_booking', '{"name":"Awad","number":"201022262486","backup_name":"Ayser","backup_number":"201016304979"}'::jsonb, now())
+on conflict (key) do nothing;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

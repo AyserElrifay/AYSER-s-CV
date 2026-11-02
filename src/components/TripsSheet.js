@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { listOffers, bookOffer, bookingPhotoOk, cancelBooking, restoreBooking, hideBooking, myBookings, myPlus, offerWant, photoUrl, money } from '../services/offers';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { payBooking } from '../services/payments';
-import { WhatsAppBook } from './WhatsAppBook';
+import { WhatsAppBook, useTeamWhatsApp } from './WhatsAppBook';
 import { openInvite } from '../lib/tripLink';
 import { remember, recall } from '../lib/offline';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
@@ -199,6 +199,8 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
   const [note2, setNote2] = useState(null);
   const unit = o.plus && o.member_price != null ? Number(o.member_price) : Number(o.price);
   const max = o.seats_left == null ? 20 : Math.min(20, o.seats_left);
+  const team = useTeamWhatsApp();                 // Ayser, November 2026: book on WhatsApp first, simply
+  const [inApp, setInApp] = useState(false);
   const full = o.seats_left === 0;
 
   /* a link that opens this very trip — and counts as your invite for
@@ -406,6 +408,18 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
             </View>
           </Pressable>
         </View>
+      ) : team && !full && !inApp ? (
+        /* the simple bar: the price, one button to the team on WhatsApp, and the in-app way small */
+        <View testID="wa-bar" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.floatSolid, borderTopWidth: 1, borderTopColor: C.line, padding: 14, paddingBottom: insets.bottom + 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+            <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{money(unit, o.currency, lang)}</Text>
+            {o.seats_left != null ? <Text style={{ color: o.seats_left <= 5 ? '#E11D48' : C.dim, fontSize: 13, fontWeight: '800' }}>{t('bk_seats_left').replace('{n}', String(o.seats_left))}</Text> : null}
+          </View>
+          <WhatsAppBook lang={lang} userId={user && user.id} title={lang === 'ar' && o.title_ar ? o.title_ar : o.title} at={o.starts_at} />
+          <Pressable testID="book-in-app" onPress={() => { tapLight(); setInApp(true); }} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'center', marginTop: 8 }}>
+            <Text style={{ color: C.faint, fontSize: 12, textDecorationLine: 'underline' }}>{lang === 'ar' ? 'أو احجز من جوه الأبلكيشن' : 'or reserve in the app'}</Text>
+          </Pressable>
+        </View>
       ) : <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.floatSolid, borderTopWidth: 1, borderTopColor: C.line, padding: 14, paddingBottom: insets.bottom + 14 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{t('bk_people')}</Text>
@@ -433,8 +447,6 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
             {busy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{full ? t('bk_full') : t('bk_book')}</Text>}
           </View>
         </Pressable>
-        {/* while the gateway waits: book by writing to the team (src/components/WhatsAppBook.js) */}
-        {!full ? <WhatsAppBook lang={lang} userId={user && user.id} title={lang === 'ar' && o.title_ar ? o.title_ar : o.title} at={o.starts_at} style={{ marginTop: 8 }} /> : null}
       </View>}
     </View>
   );
@@ -597,7 +609,8 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
                     const ph = photoUrl((o.photos || [])[0]);
                     return (
                       <Pressable key={o.id} onPress={() => { tapLight(); setOpen(o); }} accessibilityRole="button" style={{ marginBottom: 14 }}>
-                        <View style={{ borderRadius: 22, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+                        {/* Coming Soon: dimmed and locked, still there to browse (Ayser, November 2026) */}
+                        <View style={{ borderRadius: 22, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, opacity: o.status === 'soon' ? 0.62 : 1 }}>
                           {ph ? <Image source={{ uri: ph }} style={{ width: '100%', height: 190, backgroundColor: C.glassHi }} /> : <Cover kind={o.kind} h={150} flag={flagOf(o.country).trim()} />}
                           {o.video ? <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>▶ video</Text></View> : null}
                           <View style={{ padding: 14 }}>
