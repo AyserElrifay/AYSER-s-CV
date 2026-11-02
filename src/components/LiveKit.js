@@ -9,6 +9,7 @@ export { EventRoom } from './EventRoom';
 export { BuddiesSheet } from './BuddiesSheet';
 export { LoungesSheet } from './LoungesSheet';
 export { StampFlow, StampScanner, StampBook, HostQr } from './StampKit';
+export { OrganizerHub, HubEntry, PingHostBar, RateEvent } from './OrganizerHub';
 // the QR drawer travels here too: the café portal asks for it from this piece, so it is never in the first download
 export { Qr, printTableCard } from './biz/Qr';
 // matching, city hubs and certified hosts travel here too (one piece, never the first download)

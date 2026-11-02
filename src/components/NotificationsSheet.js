@@ -37,6 +37,13 @@ const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ def
 const LikersSheet = lazyOverlay(() => import('./LikersSheet').then((m) => ({ default: m.LikersSheet })));
 const ProfileModal = lazyOverlay(() => import('./ProfileModal').then((m) => ({ default: m.ProfileModal })));
 const KitchenSheet = lazyOverlay(() => import('./KitchenSheet').then((m) => ({ default: m.KitchenSheet })));
+const OrganizerHub = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.OrganizerHub })));
+/* a ping to the organizer: kind|id|reason|title (RUN_ME.sql ping_host) */
+const pingLine = (body, lang) => {
+  const [, , reason, ...rest] = String(body || '').split('|'); const tt = rest.join('|');
+  if (lang === 'ar') return (reason === 'sos' ? 'بعت SOS من ' : reason === 'late' ? 'هيتأخر على ' : 'وصل ومش لاقي الترابيزة في ') + tt;
+  return (reason === 'sos' ? 'sent an SOS from ' : reason === 'late' ? 'is running late for ' : "has arrived and can't find the table at ") + tt;
+};
 const BuddiesSheet = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.BuddiesSheet })));
 const GreenSheet = lazyOverlay(() => import('./green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 
@@ -123,6 +130,7 @@ export const NotificationsSheet = ({ onClose }) => {
   const [profileUser, setProfileUser] = useState(null);
   const [greenOpen, setGreenOpen] = useState(false);   // a green invite, tapped
   const [buddiesOpen, setBuddiesOpen] = useState(false);
+  const [hubFor, setHubFor] = useState(null);   // a ping opens that event in the Organizer Hub
   const [goNowFrom, setGoNowFrom] = useState(null);    // Bardi's "make it a hangout"
   const [foodTab, setFoodTab] = useState(null);       // a food notification, tapped
   const [viewPost, setViewPost] = useState(null);
@@ -200,6 +208,7 @@ export const NotificationsSheet = ({ onClose }) => {
   const openNotif = async (n) => {
     /* an invitation opens the week it is in, where Join is one tap */
     if (n.kind === 'green_invite') { tapSelection(); setGreenOpen(true); return; }
+    if (n.kind === 'host_ping') { tapSelection(); const [k, id, , ...rest] = String(n.body || '').split('|'); if (k && id) setHubFor({ kind: k, id, title: rest.join('|') }); return; }
     // a new buddy, or a message from one: the Buddies page, where the chat is
     if (n.kind === 'buddy' || n.kind === 'message' || n.kind === 'spark') { tapSelection(); setBuddiesOpen(true); return; }
     // a buddy's invitation to their table: the trip page, or the plans of the week
@@ -351,7 +360,7 @@ export const NotificationsSheet = ({ onClose }) => {
         <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
           <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20 }} numberOfLines={3}>
             <Text style={{ fontWeight: '800' }}>{g && !SYSTEM_KINDS.has(n.kind) ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || SYSTEM_KINDS.has(n.kind)) ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
-            {' '}<Text style={{ color: C.dim }}>{(n.kind === 'drop_open' ? (lang === 'ar' ? 'فتحت Drop كنت مستنيها: {t}' : 'opened a Drop you were waiting for: {t}') : verbOf(t, n.kind, g && g.actors.length > 1)).replace('{n}', titleFor(String(n.body || ''), lang)).replace('{t}', titleFor(String(n.body || '').split('|').slice(1).join('|'), lang)).replace('{title}', titleFor(String(n.body || '').split('|').slice(1).join('|'), lang))}</Text>
+            {' '}<Text style={{ color: C.dim }}>{(n.kind === 'host_ping' ? pingLine(n.body, lang) : n.kind === 'drop_open' ? (lang === 'ar' ? 'فتحت Drop كنت مستنيها: {t}' : 'opened a Drop you were waiting for: {t}') : verbOf(t, n.kind, g && g.actors.length > 1)).replace('{n}', titleFor(String(n.body || ''), lang)).replace('{t}', titleFor(String(n.body || '').split('|').slice(1).join('|'), lang)).replace('{title}', titleFor(String(n.body || '').split('|').slice(1).join('|'), lang))}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
           {(n.kind === 'green_invite' || n.kind === 'creator_plan' || n.kind === 'booking' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision' || n.kind === 'biz_request' || n.kind === 'biz_reply') && n.body ? (
@@ -487,6 +496,7 @@ export const NotificationsSheet = ({ onClose }) => {
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
       {buddiesOpen ? <BuddiesSheet onClose={() => setBuddiesOpen(false)} /> : null}
+      {hubFor ? <OrganizerHub start={hubFor} onClose={() => setHubFor(null)} /> : null}
       {bizOpen ? <BizHub lang={lang} onClose={() => setBizOpen(false)} /> : null}
       {goNowFrom ? (
         <GoNowSheet initialKind={goNowFrom.kind}

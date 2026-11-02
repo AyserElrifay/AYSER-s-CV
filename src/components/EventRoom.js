@@ -22,6 +22,7 @@ import { TableIcebreakers } from './ScaleKit';
 import { SeatBadge, seatLabel, SeatPeek, SparksDeck } from './SeatCard';
 import { tableSeats, askCard } from '../services/card';
 import { VoiceButton, VoicePlayer, voiceSeconds } from './VoiceNote';
+import { PingHostBar, RateEvent, OrganizerHub } from './OrganizerHub';   // the same chunk (LiveKit)
 
 /* ─── THE EVENT PAGE ──────────────────────────────────────────────────
    Ayser: "No endless chatting — subscribe, book a seat, and meet in real
@@ -222,6 +223,7 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
   const [ex, setEx] = useState(null);
   const [scan, setScan] = useState(false);
   const [hostQr, setHostQr] = useState(false);
+  const [hub, setHub] = useState(false);
   const [here, setHere] = useState(null);         // who pinged "I've arrived"
   const [pinged, setPinged] = useState(false);
   const [beacon, setBeacon] = useState(false);     // the host's phone as the table's flag
@@ -340,6 +342,8 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
                 </Pressable>
               </View>
             ) : null}
+            {/* Ayser: "وصلت ومش لاقي الترابيزة" — one tap to the organizer, and an SOS that also reaches the team */}
+            {r.arrival && r.arrival.open && !r.is_host ? <PingHostBar kind={kind} id={id} lang={lang} /> : null}
             {r.arrival && r.arrival.open && r.host_tel ? (
               <Pressable onPress={() => { tapLight(); Linking.openURL('tel:' + r.host_tel).catch(() => {}); }} accessibilityRole="link" hitSlop={8} style={{ marginTop: 10, alignSelf: 'center' }}>
                 <Text style={{ color: C.bg, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' }}>{tbw(lang, 'callPhone')}</Text>
@@ -350,6 +354,7 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
         {walkie && r && r.ok && r.arrival && r.arrival.open ? <View style={{ marginHorizontal: 16 }}><Walkie lang={lang} id={r.id} onOut={() => setWalkie(false)} /></View> : null}
         {peek ? <SeatPeek kind={kind} id={id} uid={peek} lang={lang} onClose={() => setPeek(null)} /> : null}
         {calling && r && r.host ? <CallScreen peer={{ id: r.host.id, name: r.host.name, avatar: r.host.avatar }} video={false} onClose={() => setCalling(false)} /> : null}
+        {hub && r && r.ok ? <OrganizerHub start={{ kind, id, title: r.title, starts_at: r.starts_at }} onClose={() => setHub(false)} /> : null}
         {beacon && r && r.ok ? <TableBeacon kind={kind} id={id} cat={r.category} no={r.table_no} onClose={() => setBeacon(false)} /> : null}
         {r == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 40 }} /> : !r.ok ? (
           <Text style={{ color: C.dim, fontSize: 14, margin: 24 }}>{w(lang, 'err')}</Text>
@@ -431,6 +436,16 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
                 </View>
               </Pressable>
             ) : null}
+            {/* the organizer's whole evening: people, pings, check-ins, wallet (src/components/OrganizerHub.js) */}
+            {r.is_host && !r.online ? (
+              <Pressable testID="btn-hub" onPress={() => { tapLight(); setHub(true); }} accessibilityRole="button" style={{ marginTop: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 14, borderWidth: 1, borderColor: C.text }}>
+                  <Ionicons name="clipboard-outline" size={18} color={C.text} />
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '700', marginStart: 8 }}>{lang === 'ar' ? 'لوحة المنظّم' : 'Organizer Hub'}</Text>
+                </View>
+              </Pressable>
+            ) : null}
+            {!r.is_host && !r.online ? <RateEvent kind={kind} id={id} lang={lang} /> : null}
             {!r.is_host && !r.call && ex && ex.can_checkin && !ex.checked_in ? (
               <Pressable onPress={() => { tapLight(); setScan(true); }} accessibilityRole="button" style={{ marginTop: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 15, backgroundColor: C.purple }}>

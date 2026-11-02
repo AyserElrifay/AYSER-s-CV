@@ -88,6 +88,7 @@ const QuotaLine = lazyOverlay(() => import('../components/WeeklyDrops').then((m)
 const GlobalTrack = lazyOverlay(() => import('../components/GlobalTrack').then((m) => ({ default: m.GlobalTrack })));
 const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
+const HubEntry = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.HubEntry })));
 const ProfileCardEntry = lazyOverlay(() => import('../components/ProfileCardSheet').then((m) => ({ default: m.ProfileCardEntry })));
 const MomentsBookCover = lazyOverlay(() => import('../components/MemoryBook').then((m) => ({ default: m.MomentsBookCover })));
 const StampBook = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.StampBook })));
@@ -800,6 +801,7 @@ export const ProfileScreen = () => {
         {SUPABASE_READY && user ? <StampBook /> : null}
 
         {/* the Moments Book: one page a day — the photo, the reflection, the tables you checked into */}
+        {SUPABASE_READY && user ? <HubEntry /> : null}
         {SUPABASE_READY && user ? <ProfileCardEntry /> : null}
         {SUPABASE_READY && user ? <MomentsBookCover /> : null}
         {/* Lamma, the table games — the same door as on Together */}

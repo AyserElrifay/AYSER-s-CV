@@ -12,6 +12,7 @@ import { searchProfiles } from '../services/social';
 import { giftMembership, endGift, giftList } from '../services/gifts';
 import { ownerDrops, ownerDropSave, ownerDropLevel } from '../services/mvp';
 import { ownerContacts } from '../services/contact';
+import { ownerHostWallets, ownerHostRate, ownerHostPayout, ownerAssignHost } from '../services/hub';
 
 // the event page, as its host sees it: write the pin, open or end the workshop room
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -362,6 +363,90 @@ const GiftBox = () => {
 /* ─── PEOPLE'S NUMBERS ── the numbers given at sign-up (RUN_ME.sql
    owner_contacts): the owner and the Trips & bookings team only, to call
    people about their seats. Read here; never shown anywhere else. */
+/* ─── ORGANIZERS ── who runs what, their balance, and paying them
+   (RUN_ME.sql THE ORGANIZER HUB). An organizer earns the amount per
+   person set here for everyone who really checked in; an event unlocks at
+   3+ ratings averaging 4.2★. Every payout is written down. Owner only. */
+const OrganizersBox = ({ offers }) => {
+  const [w, setW] = useState(null);
+  const [rate, setRate] = useState('');
+  const [pay, setPay] = useState({});        // host id → { amount, note }
+  const [note, setNote] = useState(null);
+  const [q, setQ] = useState('');
+  const [found, setFound] = useState([]);
+  const [who, setWho] = useState(null);
+  const [offer, setOffer] = useState(null);
+  const load = () => ownerHostWallets().then((x) => { if (x && x.ok) { setW(x); setRate(x.rate != null ? String(x.rate) : ''); } else setW({ ok: false }); });
+  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (q.trim().length < 2) { setFound([]); return undefined; }
+    const t = setTimeout(() => { searchProfiles(q).then((r) => setFound(r || [])).catch(() => setFound([])); }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
+  const upcoming = (offers || []).filter((o) => o.starts_at && new Date(o.starts_at).getTime() > Date.now() - 864e5).slice(0, 30);
+  return (
+    <View testID="studio-organizers" style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
+      <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Organizers</Text>
+      <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Who runs each Drop or trip, what they earned, and paying them. They see their own events and wallet in the Organizer Hub on their Space.</Text>
+      {w && w.ok === false ? <Text style={{ color: C.coral, fontSize: 13, marginTop: 8 }}>Owner only.</Text> : null}
+      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 12 }}>Put an organizer on an event</Text>
+      {who ? <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', marginTop: 8 }}>{'→ ' + (who.name || '') + (who.handle ? '  @' + who.handle : '')}</Text> : (
+        <>
+          <Field label="Find the person" value={q} onChange={setQ} ph="Name or @handle" />
+          {found.slice(0, 5).map((p) => (
+            <Pressable key={p.id} onPress={() => { tapLight(); setWho(p); setQ(''); }} accessibilityRole="button" style={{ paddingVertical: 6 }}>
+              <Text style={{ color: C.text, fontSize: 14 }}>{(p.name || '') + (p.handle ? '  @' + p.handle : '')}</Text>
+            </Pressable>
+          ))}
+        </>
+      )}
+      {who ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+          {upcoming.map((o) => (
+            <Pressable key={o.id} onPress={() => { tapLight(); setOffer(o); }} accessibilityRole="button" style={{ marginEnd: 6, marginTop: 6 }}>
+              <View style={{ borderRadius: 999, borderWidth: 1, borderColor: offer && offer.id === o.id ? C.text : C.line, backgroundColor: offer && offer.id === o.id ? C.text : 'transparent', paddingHorizontal: 10, paddingVertical: 6 }}>
+                <Text style={{ color: offer && offer.id === o.id ? C.bg : C.text, fontSize: 12.5, fontWeight: '700' }} numberOfLines={1}>{o.title}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+      {who && offer ? (
+        <View style={{ flexDirection: 'row' }}>
+          <Btn label="Assign" solid onPress={async () => { const r = await ownerAssignHost(offer.id, who.id, true); setNote(r && r.ok ? (who.name || 'They') + ' runs ' + offer.title + ' now.' : 'Could not assign.'); if (r && r.ok) { setWho(null); setOffer(null); load(); } }} />
+          <View style={{ width: 8 }} />
+          <Btn label="Remove" onPress={async () => { const r = await ownerAssignHost(offer.id, who.id, false); setNote(r && r.ok ? 'Removed.' : 'Could not remove.'); load(); }} />
+          <View style={{ width: 8 }} />
+          <Btn label="Cancel" onPress={() => { setWho(null); setOffer(null); }} />
+        </View>
+      ) : null}
+      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 14 }}>Amount per checked-in person (EGP)</Text>
+      <Field label="EGP" value={rate} onChange={setRate} ph="15" num />
+      <Btn label="Save amount" onPress={async () => { const r = await ownerHostRate(rate.trim()); setNote(r && r.ok ? 'Saved.' : 'Could not save — 0 to 1000.'); load(); }} />
+      {((w && w.hosts) || []).map((h) => {
+        const bal = Math.max(0, (Number(h.unlocked) || 0) - (Number(h.paid) || 0));
+        const p = pay[h.id] || { amount: '', note: '' };
+        return (
+          <View key={h.id} style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: C.line, paddingTop: 10 }}>
+            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{(h.name || '') + (h.handle ? '  @' + h.handle : '')}</Text>
+            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{'Balance ' + Math.round(bal) + ' · unlocked ' + Math.round(h.unlocked || 0) + ' · waiting ' + Math.round(h.waiting || 0) + ' · paid ' + Math.round(h.paid || 0) + ' EGP · ' + (h.events || []).length + ' events'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+              <View style={{ flex: 1, marginEnd: 8 }}><Field label="Pay (EGP)" value={p.amount} onChange={(v) => setPay((x) => ({ ...x, [h.id]: { ...p, amount: v } }))} ph={String(Math.round(bal))} num /></View>
+              <View style={{ flex: 2 }}><Field label="Note (InstaPay ref…)" value={p.note} onChange={(v) => setPay((x) => ({ ...x, [h.id]: { ...p, note: v } }))} ph="InstaPay 12345" /></View>
+            </View>
+            <Btn label="Record payout" onPress={async () => {
+              const r = await ownerHostPayout(h.id, p.amount, p.note);
+              setNote(r && r.ok ? 'Payout recorded for ' + (h.name || '') + '.' : 'Could not record — check the amount.');
+              if (r && r.ok) { setPay((x) => ({ ...x, [h.id]: { amount: '', note: '' } })); load(); }
+            }} />
+          </View>
+        );
+      })}
+      {note ? <Text style={{ color: C.text, fontSize: 13, marginTop: 8 }}>{note}</Text> : null}
+    </View>
+  );
+};
+
 const ContactsBox = () => {
   const [q, setQ] = useState('');
   const [list, setList] = useState(null);
@@ -666,6 +751,7 @@ export const OffersTab = ({ userId, owner = true }) => {
       </View> : null}
       <DropsBox />
       {owner ? <GiftBox /> : null}
+      {owner ? <OrganizersBox offers={list} /> : null}
       {msg ? <Text style={{ color: C.green, fontSize: 13.5, marginTop: 10 }}>{msg}</Text> : null}
       {party ? <Party offer={party} onClose={() => setParty(null)} /> : null}
 

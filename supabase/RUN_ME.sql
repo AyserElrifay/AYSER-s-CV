@@ -27056,6 +27056,343 @@ revoke execute on function public.owner_contacts(text) from public, anon;
 grant execute on function public.owner_contacts(text) to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  THE ORGANIZER HUB
+--  Ayser, November 2026: the people who run a table or a trip get one
+--  place to run it from: who is coming and who paid, who arrived, a
+--  check-in by hand, "I'm here" (with where, for the team), the pings
+--  from people who cannot find the table, an SOS that also reaches the
+--  team, the ratings people leave afterwards, and a wallet.
+--  The wallet: for every person who really checked in (QR or by hand),
+--  the organizer earns the amount set in the Studio (host_rate_egp —
+--  nothing is shown as money until the owner sets it). An event's money
+--  unlocks once at least 3 people rated it and the average is 4.2 or
+--  more; the owner pays out from the Studio and every payout is written
+--  down. Who runs what is public.event_runner (an event's verified
+--  leader, a gathering's host). Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.host_ratings (
+  kind     text not null check (kind in ('offer','gathering')),
+  event_id uuid not null,
+  user_id  uuid not null references public.profiles(id) on delete cascade,
+  stars    int  not null check (stars between 1 and 5),
+  note     text check (note is null or char_length(note) <= 300),
+  at       timestamptz not null default now(),
+  primary key (kind, event_id, user_id)
+);
+alter table public.host_ratings enable row level security;
+
+create table if not exists public.host_pings (
+  id       uuid primary key default gen_random_uuid(),
+  kind     text not null check (kind in ('offer','gathering')),
+  event_id uuid not null,
+  from_id  uuid not null references public.profiles(id) on delete cascade,
+  reason   text not null check (reason in ('lost','late','sos')),
+  body     text check (body is null or char_length(body) <= 200),
+  at       timestamptz not null default now(),
+  done_at  timestamptz
+);
+create index if not exists host_pings_event on public.host_pings (kind, event_id, at desc);
+alter table public.host_pings enable row level security;
+
+create table if not exists public.host_here (
+  kind     text not null check (kind in ('offer','gathering')),
+  event_id uuid not null,
+  host_id  uuid not null references public.profiles(id) on delete cascade,
+  at       timestamptz not null default now(),
+  lat      double precision check (lat is null or lat between -90 and 90),
+  lng      double precision check (lng is null or lng between -180 and 180),
+  primary key (kind, event_id, host_id)
+);
+alter table public.host_here enable row level security;
+
+create table if not exists public.host_payouts (
+  id      uuid primary key default gen_random_uuid(),
+  host_id uuid not null references public.profiles(id) on delete cascade,
+  amount  numeric(10,2) not null check (amount > 0 and amount < 100000),
+  note    text check (note is null or char_length(note) <= 200),
+  at      timestamptz not null default now(),
+  by_id   uuid references public.profiles(id) on delete set null
+);
+alter table public.host_payouts enable row level security;
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch','trip_invite','level_up','event_update','buddy','buddy_ping','arrived','spark','circle_open','drop_open','host_ping'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+-- who runs an event (never the owner just because they are the owner)
+create or replace function public.event_hosts(p_kind text, p_id uuid)
+returns setof uuid language sql stable security definer set search_path = public as $$
+  select l.profile_id from public.offer_leaders l where p_kind = 'offer' and l.offer_id = p_id and l.verified and l.profile_id is not null
+  union
+  select g.host_id from public.green_gatherings g where p_kind = 'gathering' and g.id = p_id and g.host_id is not null;
+$$;
+revoke all on function public.event_hosts(text, uuid) from public, anon, authenticated;
+
+create or replace function public.host_rate_egp()
+returns numeric language sql stable security definer set search_path = public as $$
+  select case when jsonb_typeof(value) = 'number' then (value #>> '{}')::numeric end from public.app_settings where key = 'host_rate_egp';
+$$;
+revoke all on function public.host_rate_egp() from public, anon, authenticated;
+
+-- one event, as its organizer sees it
+create or replace function public.host_event_line(p_kind text, p_id uuid, me uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('kind', p_kind, 'id', p_id, 'title', m.title, 'starts_at', m.starts_at, 'ends_at', m.ends_at,
+    'going', (case when p_kind = 'offer' then (select count(*) from public.bookings b where b.offer_id = p_id and b.status in ('reserved','paid','attended'))
+                   else (select count(*) from public.green_joins j where j.gathering_id = p_id) end),
+    'paid', (case when p_kind = 'offer' then (select count(*) from public.bookings b where b.offer_id = p_id and b.status in ('paid','attended')) else null end),
+    'arrived', (select count(*) from public.event_arrivals a where a.kind = p_kind and a.event_id = p_id),
+    'checked', (select count(*) from public.event_checkins c where c.kind = p_kind and c.event_id = p_id and c.user_id not in (select public.event_hosts(p_kind, p_id))),
+    'pings', (select count(*) from public.host_pings h where h.kind = p_kind and h.event_id = p_id and h.done_at is null),
+    'sos', (select count(*) from public.host_pings h where h.kind = p_kind and h.event_id = p_id and h.done_at is null and h.reason = 'sos'),
+    'here', exists (select 1 from public.host_here x where x.kind = p_kind and x.event_id = p_id and x.host_id = me),
+    'stars', (select round(avg(r.stars)::numeric, 1) from public.host_ratings r where r.kind = p_kind and r.event_id = p_id),
+    'ratings', (select count(*) from public.host_ratings r where r.kind = p_kind and r.event_id = p_id))
+  from public.event_meta(p_kind, p_id) m;
+$$;
+revoke all on function public.host_event_line(text, uuid, uuid) from public, anon, authenticated;
+
+-- every event I run, from a month ago to two months ahead
+create or replace function public.my_hosting()
+returns jsonb language sql stable security definer set search_path = public as $$
+  with mine as (
+    select 'offer'::text k, l.offer_id id from public.offer_leaders l where l.profile_id = auth.uid() and l.verified
+    union select 'gathering', g.id from public.green_gatherings g where g.host_id = auth.uid() and g.cancelled_at is null)
+  select jsonb_build_object('ok', auth.uid() is not null, 'events', coalesce(jsonb_agg(public.host_event_line(x.k, x.id, auth.uid()) order by m.starts_at), '[]'::jsonb))
+    from mine x cross join lateral public.event_meta(x.k, x.id) m
+   where m.starts_at > now() - interval '30 days' and m.starts_at < now() + interval '60 days';
+$$;
+revoke execute on function public.my_hosting() from public, anon;
+grant execute on function public.my_hosting() to authenticated;
+
+-- the people: who is coming, who paid, who arrived, who is checked in
+create or replace function public.host_roster(p_kind text, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if not public.event_runner(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+  return jsonb_build_object('ok', true, 'event', public.host_event_line(p_kind, p_id, me), 'rate', public.host_rate_egp(),
+    'people', coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url, 'status', x.status,
+        'arrived', exists (select 1 from public.event_arrivals a where a.kind = p_kind and a.event_id = p_id and a.user_id = p.id),
+        'checked', public.event_in(p_kind, p_id, p.id)) order by p.name)
+      from (select b.user_id u, b.status from public.bookings b where p_kind = 'offer' and b.offer_id = p_id and b.status in ('reserved','paid','attended')
+            union all select j.user_id, 'joined' from public.green_joins j where p_kind = 'gathering' and j.gathering_id = p_id) x
+      join public.profiles p on p.id = x.u
+     where p.id not in (select public.event_hosts(p_kind, p_id))), '[]'::jsonb),
+    'pings', coalesce((select jsonb_agg(jsonb_build_object('id', h.id, 'reason', h.reason, 'body', h.body, 'at', h.at, 'done', h.done_at is not null, 'name', p.name) order by h.at desc)
+      from public.host_pings h join public.profiles p on p.id = h.from_id where h.kind = p_kind and h.event_id = p_id), '[]'::jsonb));
+end $$;
+revoke execute on function public.host_roster(text, uuid) from public, anon;
+grant execute on function public.host_roster(text, uuid) to authenticated;
+
+-- check somebody in by hand (no phone, a camera that will not focus), or take it back
+create or replace function public.host_checkin(p_kind text, p_id uuid, p_user uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare m record;
+begin
+  if not public.event_runner(p_kind, p_id, auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+  if not public.event_going(p_kind, p_id, p_user) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found or now() < m.starts_at - interval '2 hours' or now() > m.ends_at + interval '6 hours' then return jsonb_build_object('ok', false, 'reason', 'not_now'); end if;
+  if coalesce(p_on, true) then
+    insert into public.event_checkins (kind, event_id, user_id) values (p_kind, p_id, p_user) on conflict do nothing;
+  else
+    delete from public.event_checkins where kind = p_kind and event_id = p_id and user_id = p_user;
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.host_checkin(text, uuid, uuid, boolean) from public, anon;
+grant execute on function public.host_checkin(text, uuid, uuid, boolean) to authenticated;
+
+-- "I'm here": the organizer arrived (where, for the team; never shown to members)
+create or replace function public.host_im_here(p_kind text, p_id uuid, p_lat double precision, p_lng double precision)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record;
+begin
+  if not public.event_runner(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found or now() < m.starts_at - interval '3 hours' or now() > m.ends_at then return jsonb_build_object('ok', false, 'reason', 'not_now'); end if;
+  insert into public.host_here (kind, event_id, host_id, lat, lng) values (p_kind, p_id, me, p_lat, p_lng)
+    on conflict (kind, event_id, host_id) do update set at = now(), lat = excluded.lat, lng = excluded.lng;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.host_im_here(text, uuid, double precision, double precision) from public, anon;
+grant execute on function public.host_im_here(text, uuid, double precision, double precision) to authenticated;
+
+-- for the people coming: is the organizer there yet
+create or replace function public.event_host_here(p_kind text, p_id uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('here', exists (select 1 from public.host_here x where x.kind = p_kind and x.event_id = p_id and x.at > now() - interval '8 hours'),
+                            'at', (select max(x.at) from public.host_here x where x.kind = p_kind and x.event_id = p_id))
+   where public.event_going(p_kind, p_id, auth.uid());
+$$;
+revoke execute on function public.event_host_here(text, uuid) from public, anon;
+grant execute on function public.event_host_here(text, uuid) to authenticated;
+
+-- "I've arrived and can't find the table" / "running late" / SOS
+create or replace function public.ping_host(p_kind text, p_id uuid, p_reason text, p_body text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record; pid uuid; owner_id uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_reason not in ('lost','late','sos') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  if not public.event_going(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found or now() < m.starts_at - interval '4 hours' or now() > m.ends_at + interval '2 hours' then return jsonb_build_object('ok', false, 'reason', 'not_now'); end if;
+  if p_reason <> 'sos' and exists (select 1 from public.host_pings h where h.from_id = me and h.kind = p_kind and h.event_id = p_id and h.at > now() - interval '2 minutes') then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  insert into public.host_pings (kind, event_id, from_id, reason, body) values (p_kind, p_id, me, p_reason, nullif(btrim(left(coalesce(p_body, ''), 200)), '')) returning id into pid;
+  insert into public.notifications (user_id, actor_id, kind, body)
+  select h, me, 'host_ping', p_kind || '|' || p_id::text || '|' || p_reason || '|' || left(m.title, 80)
+    from public.event_hosts(p_kind, p_id) h where h <> me;
+  -- an SOS also reaches the team, whoever runs the event
+  if p_reason = 'sos' then
+    for owner_id in select p.id from public.profiles p join auth.users u on u.id = p.id
+                     where lower(u.email) = 'ayseryourlifecoach@gmail.com'
+                        or lower(u.email) in (select lower(o.email) from public.app_owners o)
+                        or p.id in (select t.user_id from public.team_members t where t.disabled_at is null and t.role in ('safety','all'))
+    loop
+      insert into public.notifications (user_id, actor_id, kind, body) values (owner_id, me, 'host_ping', p_kind || '|' || p_id::text || '|sos|' || left(m.title, 80));
+    end loop;
+  end if;
+  return jsonb_build_object('ok', true, 'id', pid);
+exception when undefined_table or undefined_column then
+  return jsonb_build_object('ok', true, 'id', pid);
+end $$;
+revoke execute on function public.ping_host(text, uuid, text, text) from public, anon;
+grant execute on function public.ping_host(text, uuid, text, text) to authenticated;
+
+create or replace function public.host_ping_done(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare k text; e uuid;
+begin
+  select kind, event_id into k, e from public.host_pings where id = p_id;
+  if k is null or not public.event_runner(k, e, auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+  update public.host_pings set done_at = coalesce(done_at, now()) where id = p_id;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.host_ping_done(uuid) from public, anon;
+grant execute on function public.host_ping_done(uuid) to authenticated;
+
+-- rating the evening: only people who really checked in, after it started, once (can change it for 3 days)
+create or replace function public.rate_event(p_kind text, p_id uuid, p_stars int, p_note text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record;
+begin
+  if p_stars is null or p_stars not between 1 and 5 then return jsonb_build_object('ok', false, 'reason', 'stars'); end if;
+  if not public.event_in(p_kind, p_id, me) or me in (select public.event_hosts(p_kind, p_id)) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found or now() < m.starts_at or now() > m.ends_at + interval '3 days' then return jsonb_build_object('ok', false, 'reason', 'not_now'); end if;
+  insert into public.host_ratings (kind, event_id, user_id, stars, note) values (p_kind, p_id, me, p_stars, nullif(btrim(coalesce(p_note, '')), ''))
+    on conflict (kind, event_id, user_id) do update set stars = excluded.stars, note = excluded.note, at = now();
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.rate_event(text, uuid, int, text) from public, anon;
+grant execute on function public.rate_event(text, uuid, int, text) to authenticated;
+
+create or replace function public.my_event_rating(p_kind text, p_id uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('can', public.event_in(p_kind, p_id, auth.uid()) and auth.uid() not in (select public.event_hosts(p_kind, p_id)),
+    'stars', (select r.stars from public.host_ratings r where r.kind = p_kind and r.event_id = p_id and r.user_id = auth.uid()));
+$$;
+revoke execute on function public.my_event_rating(text, uuid) from public, anon;
+grant execute on function public.my_event_rating(text, uuid) to authenticated;
+
+-- the wallet, one host
+create or replace function public.host_wallet(h uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  with ev as (
+    select 'offer'::text k, l.offer_id id from public.offer_leaders l where l.profile_id = h and l.verified
+    union select 'gathering', g.id from public.green_gatherings g where g.host_id = h and g.cancelled_at is null),
+  lines as (
+    select e.k, e.id, m.title, m.starts_at, m.ends_at,
+           (select count(*) from public.event_checkins c where c.kind = e.k and c.event_id = e.id and c.user_id not in (select public.event_hosts(e.k, e.id))) as scanned,
+           (select round(avg(r.stars)::numeric, 1) from public.host_ratings r where r.kind = e.k and r.event_id = e.id) as stars,
+           (select count(*) from public.host_ratings r where r.kind = e.k and r.event_id = e.id) as ratings
+      from ev e cross join lateral public.event_meta(e.k, e.id) m where m.ends_at < now()),
+  priced as (
+    select l.*, l.scanned * coalesce(public.host_rate_egp(), 0) as earned,
+           (l.ratings >= 3 and l.stars >= 4.2) as unlocked from lines l)
+  select jsonb_build_object('rate', public.host_rate_egp(),
+    'events', coalesce((select jsonb_agg(jsonb_build_object('kind', p.k, 'id', p.id, 'title', p.title, 'starts_at', p.starts_at, 'scanned', p.scanned,
+                  'stars', p.stars, 'ratings', p.ratings, 'earned', p.earned, 'unlocked', p.unlocked) order by p.starts_at desc) from priced p), '[]'::jsonb),
+    'unlocked', coalesce((select sum(earned) from priced where unlocked), 0),
+    'waiting', coalesce((select sum(earned) from priced where not unlocked), 0),
+    'paid', coalesce((select sum(amount) from public.host_payouts where host_id = h), 0),
+    'payouts', coalesce((select jsonb_agg(jsonb_build_object('amount', x.amount, 'note', x.note, 'at', x.at) order by x.at desc) from public.host_payouts x where x.host_id = h), '[]'::jsonb));
+$$;
+revoke all on function public.host_wallet(uuid) from public, anon, authenticated;
+
+create or replace function public.my_wallet()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select public.host_wallet(auth.uid()) || jsonb_build_object('ok', auth.uid() is not null);
+$$;
+revoke execute on function public.my_wallet() from public, anon;
+grant execute on function public.my_wallet() to authenticated;
+
+-- the Studio: every organizer's balance, the rate, and paying out
+create or replace function public.owner_host_wallets()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not coalesce(public.owner_ok(), false) then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  return jsonb_build_object('ok', true, 'rate', public.host_rate_egp(), 'hosts', coalesce((
+    select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'handle', p.handle) || public.host_wallet(p.id) order by p.name)
+      from public.profiles p
+     where p.id in (select l.profile_id from public.offer_leaders l where l.verified and l.profile_id is not null
+                    union select g.host_id from public.green_gatherings g where g.host_id is not null and g.starts_at > now() - interval '120 days')), '[]'::jsonb));
+end $$;
+revoke execute on function public.owner_host_wallets() from public, anon;
+grant execute on function public.owner_host_wallets() to authenticated;
+
+create or replace function public.owner_host_rate(p_egp numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not coalesce(public.owner_ok(), false) then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_egp is not null and (p_egp < 0 or p_egp > 1000) then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
+  if p_egp is null then delete from public.app_settings where key = 'host_rate_egp';
+  else insert into public.app_settings (key, value) values ('host_rate_egp', to_jsonb(p_egp)) on conflict (key) do update set value = excluded.value, updated_at = now(); end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.owner_host_rate(numeric) from public, anon;
+grant execute on function public.owner_host_rate(numeric) to authenticated;
+
+create or replace function public.owner_host_payout(p_host uuid, p_amount numeric, p_note text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not coalesce(public.owner_ok(), false) then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_amount is null or p_amount <= 0 or p_amount >= 100000 then return jsonb_build_object('ok', false, 'reason', 'amount'); end if;
+  insert into public.host_payouts (host_id, amount, note, by_id) values (p_host, p_amount, nullif(btrim(left(coalesce(p_note, ''), 200)), ''), auth.uid());
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.owner_host_payout(uuid, numeric, text) from public, anon;
+grant execute on function public.owner_host_payout(uuid, numeric, text) to authenticated;
+
+-- the Studio assigns an organizer to a Drop or trip (a verified leader on it)
+create or replace function public.owner_assign_host(p_offer uuid, p_user uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare nm text;
+begin
+  if not coalesce(public.trips_ok(), false) then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select name into nm from public.profiles where id = p_user;
+  if nm is null then return jsonb_build_object('ok', false, 'reason', 'no_user'); end if;
+  if coalesce(p_on, true) then
+    if not exists (select 1 from public.offer_leaders where offer_id = p_offer and profile_id = p_user) then
+      insert into public.offer_leaders (offer_id, profile_id, name, role, verified) values (p_offer, p_user, left(case when char_length(nm) >= 2 then nm else 'Host' end, 80), 'guide', true);
+    else update public.offer_leaders set verified = true where offer_id = p_offer and profile_id = p_user; end if;
+  else
+    delete from public.offer_leaders where offer_id = p_offer and profile_id = p_user;
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.owner_assign_host(uuid, uuid, boolean) from public, anon;
+grant execute on function public.owner_assign_host(uuid, uuid, boolean) to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
