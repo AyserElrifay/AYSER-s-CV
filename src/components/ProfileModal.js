@@ -41,6 +41,7 @@ import { fetchMyBlocks, unblockPerson } from '../services/standing';
 // opened only on a tap: fetched then, not with the first download
 const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 const StoryViewer = lazyOverlay(() => import('./StoryViewer').then((m) => ({ default: m.StoryViewer })));
+const BuddiesSheet = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.BuddiesSheet })));
 const MemoryHighlights = lazyOverlay(() => import('./MemoryBook').then((m) => ({ default: m.MemoryHighlights })));
 
 const { width: W } = Dimensions.get('window');
@@ -64,6 +65,7 @@ export const ProfileModal = ({ user, onClose }) => {
   // their live stories — tap the photo to watch them
   const [theirStories, setTheirStories] = useState([]);
   const [storyOpen, setStoryOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);   // a chat with a friend (RUN_ME.sql FRIENDS CAN CHAT)
   const { user: me } = useAuth();
   const { rtl, t, lang } = useLang();
   const [posts, setPosts] = useState(null);         // their real moments
@@ -243,7 +245,7 @@ export const ProfileModal = ({ user, onClose }) => {
   const mateLabel =
     mateState === 'mates' ? 'Mates ✓'
     : mateState === 'requested' ? 'Requested ✓'
-    : mateState === 'incoming' ? 'Accept request 🤝'
+    : mateState === 'incoming' ? 'Accept request'
     : '＋ Mate up';
 
   // Same three stats as your own space — one unified profile look.
@@ -310,6 +312,14 @@ export const ProfileModal = ({ user, onClose }) => {
                     </Text>
                   </View>
                 </Pressable>
+                {mateState === 'mates' ? (
+                  <Pressable testID="pm-message" onPress={() => { tapLight(); setChatOpen(true); }} accessibilityRole="button" style={{ flex: 1, marginStart: 10 }}>
+                    <View style={{ borderRadius: 14, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', backgroundColor: C.text }}>
+                      <Ionicons name="chatbubble-outline" size={16} color={C.bg} />
+                      <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '900', marginStart: 6 }}>{lang === 'ar' ? 'رسالة' : 'Message'}</Text>
+                    </View>
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
 
@@ -483,6 +493,7 @@ export const ProfileModal = ({ user, onClose }) => {
           />
         ) : null}
 
+        {chatOpen ? <BuddiesSheet other={{ id: user.id, name: user.name, avatar_url: user.avatar }} onClose={() => setChatOpen(false)} /> : null}
         {commentsPost ? (() => { const CS = getCommentsSheet(); return <CS post={commentsPost} onClose={() => setCommentsPost(null)} />; })() : null}
       </View>
     </Modal>

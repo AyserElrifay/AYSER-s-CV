@@ -54,14 +54,14 @@ export const FeedClock = ({ budget, running }) => {
    (Ayser: "a sleek progress bar … urgency to post and view before midnight") */
 export const FeedBar = ({ budget, running }) => {
   const [, tick] = useState(0);
-  useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 3000); return () => clearInterval(id); }, []);
+  useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(id); }, []);
   if (!isFinite(budget) || budget <= 0) return null;
   const g = readGate();
   const since = running && g.at && Date.now() - g.at < 5500 ? (Date.now() - g.at) / 1000 : 0;
   const frac = Math.max(0, Math.min(1, (budget - g.used - since) / budget));
   return (
-    <View style={{ height: 2, borderRadius: 1, backgroundColor: C.line, overflow: 'hidden', marginTop: 4 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={{ height: 2, width: Math.round(frac * 1000) / 10 + '%', backgroundColor: frac < 0.2 ? C.gold : C.text }} />
+    <View testID="feed-bar" style={{ height: 3, borderRadius: 2, backgroundColor: C.line, overflow: 'hidden', marginTop: 2 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={{ height: 3, borderRadius: 2, width: Math.round(frac * 1000) / 10 + '%', backgroundColor: frac < 0.2 ? C.gold : C.purple }} />
     </View>
   );
 };
@@ -85,7 +85,7 @@ export const FeedReopen = ({ onReflect, onPlans }) => {
   return (
     <View style={{ alignSelf: 'stretch', marginTop: 16 }}>
       <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', textAlign: 'center' }}>
-        {'🌙 ' + t('fg_reopens').replace('{h}', String(u.h)).replace('{m}', String(u.m))}
+        {t('fg_reopens').replace('{h}', String(u.h)).replace('{m}', String(u.m))}
       </Text>
       {/* the countdown runs with the app closed; the phone's own calendar
           rings when it is over (the same .ics My day uses) */}

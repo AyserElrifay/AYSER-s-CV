@@ -28,7 +28,7 @@ import { fetchTopics } from '../services/topics';
    clean, and blew up the moment you opened the library or the effects
    drawer — "Can't find variable: MediaLibrarySheet". */
 import { MediaLibrarySheet } from './MediaLibrarySheet';
-import { EffectsSheet } from './EffectsSheet';
+import { EffectsSheet, LOOK_TINT, FX_ICON, LensThumb } from './EffectsSheet';
 import { loadFaceDetector, findFace, makeFaceTracker } from '../lib/faceDetect';
 import { loadFaceMesh, meshReady, readFace, makeMeshTracker, mirrorFace } from '../lib/faceMesh';
 import { note } from '../lib/crashLog';
@@ -112,7 +112,12 @@ const EFFECTS = [
 /* Effects that transform the WHOLE frame (not an overlay) — applied to the
    base pixels in bake + the video compositor. */
 const FRAME_FX = { pixel: 1, cartoon: 1, arcade: 1 };
-const EFFECT_PARTICLES = { hearts: ['💖', '💕', '💗'], confetti: ['🎉', '🎊', '🟣', '🟡'], snow: ['❄️', '✻', '•'], stars: ['✨', '⭐', '✦'] };
+/* drawn glyphs, not emoji (Ayser: "شيل الإيموجيز الرخيصة من الكاميرا") */
+const EFFECT_PARTICLES = { hearts: ['\u2665\uFE0E'], confetti: ['\u25CF', '\u25A0', '\u25B2'], snow: ['\u273B', '\u2022', '\u273C'], stars: ['\u2726', '\u2727', '\u22C6'] };
+const PARTICLE_INK = { hearts: ['#FF5A8A', '#FF8FB1', '#FFFFFF'], confetti: ['#7C3AED', '#FFC233', '#22C7A9', '#FF5A6E'], snow: ['#FFFFFF'], stars: ['#FFC233', '#FFFFFF'] };
+/* every word the camera writes on a photo, without emoji */
+export const noEmoji = (x) => String(x == null ? '' : x).replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\uFE0F\u200D\u20E3]/gu, '').replace(/\s{2,}/g, ' ').trim();
+const cleanGames = (list) => list.filter((g) => g.id !== 'love').map((g) => ({ ...g, title: noEmoji(g.title), rows: g.rows.map((r) => ({ ...r, label: noEmoji(r.label), pool: r.pool.map(noEmoji) })) }));
 
 /* GAME FILTERS — our own take on Snapchat's filter games: a roulette
    that lands on a random answer, and a question card that dares you to
@@ -349,7 +354,7 @@ const REEL_GAMES_ES = [
   ] },
 ];
 
-const REEL_GAMES_BY_LANG = { en: REEL_GAMES, ar: REEL_GAMES_AR, fr: REEL_GAMES_FR, es: REEL_GAMES_ES };
+const REEL_GAMES_BY_LANG = { en: cleanGames(REEL_GAMES), ar: cleanGames(REEL_GAMES_AR), fr: cleanGames(REEL_GAMES_FR), es: cleanGames(REEL_GAMES_ES) };
 
 // slot-machine timing (ms): each row locks in sequence
 const REEL_LOCK_MS = 520, REEL_STEP_MS = 430, REEL_TAIL_MS = 340;
@@ -518,6 +523,7 @@ function drawEffectsCanvas(ctx, w, h, effectId, particles, t) {
   } else if (particles) {
     particles.forEach((p) => {
       ctx.font = Math.round(p.s * w * 0.055) + 'px sans-serif';
+      ctx.fillStyle = p.ink || '#FFFFFF';
       ctx.fillText(p.c, p.x * w * 0.94, p.y * h * 0.94 + 20);
     });
   }
@@ -525,7 +531,7 @@ function drawEffectsCanvas(ctx, w, h, effectId, particles, t) {
 function drawSimpleCardCanvas(ctx, w, h, gameCard) {
   const fs = Math.round(w * 0.045);
   ctx.font = '700 ' + fs + 'px sans-serif';
-  const label = (gameCard.kind === 'roulette' ? '🎲 ' : '❓ ') + gameCard.text;
+  const label = gameCard.text;
   const tw = ctx.measureText(label).width;
   const pad = fs * 0.8;
   const bw = Math.min(w * 0.92, tw + pad * 2);
@@ -591,7 +597,7 @@ function drawReelCardCanvas(ctx, w, h, game, elapsed) {
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = Math.round(9 * s); ctx.shadowOffsetY = Math.round(1 * s);
   // title
   ctx.fillStyle = '#FFFFFF'; ctx.font = '900 ' + titleFs + 'px sans-serif';
-  ctx.fillText(game.emoji + '  ' + game.title, w / 2, by + pad + titleFs * 0.82, innerW);
+  ctx.fillText(noEmoji(game.title), w / 2, by + pad + titleFs * 0.82, innerW);
   if (single) {
     ctx.fillStyle = '#FFFFFF'; ctx.font = '800 ' + valueFs + 'px sans-serif';
     const lh = Math.round(valueFs * 1.3);
@@ -754,10 +760,10 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
     const now = Date.now();
     const plans = (keptGatherings(null) || []).filter((g) => g.im_going && g.lat != null && g.lng != null
       && Math.abs(new Date(g.starts_at).getTime() - now) < 12 * 3600 * 1000).slice(0, 3)
-      .map((g) => ({ key: 'g' + g.id, label: '🌿 ' + (g.title || g.place_name), name: g.place_name || g.title, lat: g.lat, lng: g.lng, gid: g.id }));
+      .map((g) => ({ key: 'g' + g.id, label: g.title || g.place_name, name: g.place_name || g.title, lat: g.lat, lng: g.lng, gid: g.id }));
     placesNear(at, 5, 4).then((r) => {
       if (!alive) return;
-      setCapPicks(plans.concat(r.map((d) => ({ key: 'd' + d.id, label: d.emoji + ' ' + d.name, name: d.name, lat: d.lat, lng: d.lng }))));
+      setCapPicks(plans.concat(r.map((d) => ({ key: 'd' + d.id, label: d.name, name: d.name, lat: d.lat, lng: d.lng }))));
     }).catch(() => setCapPicks(plans));
     return () => { alive = false; };
   }, [onMap, mapCoords && mapCoords.latitude, mapCoords && mapCoords.longitude]);
@@ -855,8 +861,8 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
     tapLight(); sfxPop();
     if (gameCard && gameCard.kind === kind) { setGameCard(null); return; }
     const text = kind === 'roulette'
-      ? ROULETTE[Math.floor(Math.random() * ROULETTE.length)]
-      : QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+      ? noEmoji(ROULETTE[Math.floor(Math.random() * ROULETTE.length)])
+      : noEmoji(QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)]);
     setGameCard({ kind, text });
   };
   const pickEffect = (id) => {
@@ -864,7 +870,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
     setEffectId(id);
     const chars = EFFECT_PARTICLES[id];
     particlesRef.current = chars
-      ? Array.from({ length: 26 }, () => ({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.9, c: chars[Math.floor(Math.random() * chars.length)] }))
+      ? Array.from({ length: 26 }, () => ({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.9, c: chars[Math.floor(Math.random() * chars.length)], ink: PARTICLE_INK[id][Math.floor(Math.random() * PARTICLE_INK[id].length)] }))
       : null;
   };
 
@@ -913,7 +919,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
     const nf = FILTERS[(idx + dir + FILTERS.length) % FILTERS.length];
     tapLight(); sfxPop();
     setFilterId(nf.id);
-    setFilterFlash(nf.emoji + '  ' + nf.label);
+    setFilterFlash(nf.label);
     clearTimeout(flashTimer.current);
     flashTimer.current = setTimeout(() => setFilterFlash(null), 900);
   };
@@ -1151,7 +1157,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
            uploader gets the file itself rather than a link to it. */
         setShot({ uri, blob, bytes: blob.size, kind: 'video', ext, contentType: actual, baked: composite });
         if (!blob.size) {
-          setClipWarn('The recording came out empty — nothing was captured. Try again, and hold the button a little longer 🎥');
+          setClipWarn('The recording came out empty — nothing was captured. Try again, and hold the button a little longer');
           return;
         }
         probeClip(uri);
@@ -1338,7 +1344,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
       }
       setDiag((d2) => ({ ...(d2 || {}), peak }));
       setProbeDone(true);
-      setClipWarn(peak < 10 ? 'This clip came out completely black. Record it again — and check the camera isn\'t covered 🎥' : null);
+      setClipWarn(peak < 10 ? 'This clip came out completely black. Record it again — and check the camera isn\'t covered' : null);
     } catch (e) { setProbeDone(true); }
   };
 
@@ -1399,7 +1405,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
           try { setFirstFrame(big.toDataURL('image/jpeg', 0.82)); } catch (e) {}
         }
         setDiag((d) => ({ ...(d || {}), peak }));
-        finish(peak < 10 ? 'This clip came out completely black. Record it again — and check the camera isn\'t covered 🎥' : null);
+        finish(peak < 10 ? 'This clip came out completely black. Record it again — and check the camera isn\'t covered' : null);
       } catch (e) { finish(null); } // cross-origin frame we can't read: say nothing
     };
     el.onloadeddata = () => { try { el.currentTime = Math.min(0.25, (el.duration || 1) / 4); } catch (e) { grab(); } };
@@ -1909,7 +1915,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
           });
         } else if (mode === 'video') {
           const row = await createPost({
-            userId: user.id, type: 'vod', caption: finalCaption() || '🎬 Video', mediaUrl, thumbUrl, durationSec, sound, soundReuse,
+            userId: user.id, type: 'vod', caption: finalCaption() || 'Video', mediaUrl, thumbUrl, durationSec, sound, soundReuse,
             place: onMap ? (placeName.trim() || null) : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -1918,7 +1924,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
           onPosted && onPosted(row);
         } else {
           const row = await createPost({
-            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, soundReuse, thumbUrl, durationSec, keep: !member && keep && !pinFull,
+            userId: user.id, type: 'reel', caption: finalCaption() || 'Reel', mediaUrl, sound, soundReuse, thumbUrl, durationSec, keep: !member && keep && !pinFull,
             place: onMap ? (placeName.trim() || null) : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -1937,8 +1943,8 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
       } else {
         // demo mode — local only
         if (mode === 'story') onPostedStory && onPostedStory({ user: { id: 'me', name: 'You', avatar: AV_NEUTRAL }, media: workingShot.uri, sound, caption: caption.trim() || null });
-        else if (mode === 'video') onPosted && onPosted({ id: 'local-' + Date.now(), type: 'vod', media_url: workingShot.uri, caption: caption.trim() || '🎬 Video', user: { name: 'You', avatar_url: AV_NEUTRAL } });
-        else onPosted && onPosted({ id: 'local-' + Date.now(), user: { name: 'You', avatar: AV_NEUTRAL, verified: false }, type: 'reel', media: workingShot.uri, caption: caption.trim() || '🎬', place: null, startsIn: 'Live now', coords: null, sound, vibes: 0, comments: 0, squad: 'New Vibe Squad' });
+        else if (mode === 'video') onPosted && onPosted({ id: 'local-' + Date.now(), type: 'vod', media_url: workingShot.uri, caption: caption.trim() || 'Video', user: { name: 'You', avatar_url: AV_NEUTRAL } });
+        else onPosted && onPosted({ id: 'local-' + Date.now(), user: { name: 'You', avatar: AV_NEUTRAL, verified: false }, type: 'reel', media: workingShot.uri, caption: caption.trim() || 'Reel', place: null, startsIn: 'Live now', coords: null, sound, vibes: 0, comments: 0, squad: 'New Vibe Squad' });
       }
       tapSuccess(); sfxSuccess();
       clearDraft();
@@ -2095,13 +2101,13 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
               <div style={{ position: 'absolute', inset: 0, opacity: 0.5, backgroundImage: 'repeating-radial-gradient(circle at 17% 32%, rgba(255,255,255,0.06) 0 1px, transparent 1px 3px)' }} />
             ) : null}
             {particlesRef.current ? particlesRef.current.map((p, i) => (
-              <Text key={i} style={{ position: 'absolute', left: (p.x * 94) + '%', top: (p.y * 94) + '%', fontSize: 14 + p.s * 14 }}>{p.c}</Text>
+              <Text key={i} style={{ position: 'absolute', left: (p.x * 94) + '%', top: (p.y * 94) + '%', fontSize: 14 + p.s * 14, color: p.ink || '#FFFFFF' }}>{p.c}</Text>
             )) : null}
             {gameCard ? (
               <View style={{ position: 'absolute', top: '7%', left: 0, right: 0, alignItems: 'center' }}>
                 <View style={{ backgroundColor: 'rgba(10,6,25,0.72)', borderRadius: 18, paddingHorizontal: 18, paddingVertical: 11, maxWidth: '92%' }}>
                   <Text style={{ color: '#FFF', fontSize: 15.5, fontWeight: '800', textAlign: 'center' }}>
-                    {(gameCard.kind === 'roulette' ? '🎲 ' : '❓ ') + gameCard.text}
+                    {gameCard.text}
                   </Text>
                 </View>
               </View>
@@ -2115,7 +2121,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
           <View pointerEvents="none" style={{ position: 'absolute', top: '7%', left: 0, right: 0, alignItems: 'center' }}>
             <View style={{ backgroundColor: 'rgba(8,6,20,0.55)', borderRadius: 26, paddingHorizontal: 22, paddingVertical: 18, maxWidth: '90%', minWidth: '62%' }}>
               <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', textAlign: 'center', marginBottom: reelIsSingle(reelGame) ? 6 : 14, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 }}>
-                {reelGame.emoji + '  ' + reelGame.title}
+                {noEmoji(reelGame.title)}
               </Text>
               {reelGame.rows.map((row, i) => {
                 const cell = reelCell(row, i, reelSpin);
@@ -2223,7 +2229,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
             it is. */}
         {shrink != null ? (
           <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(8,4,18,0.88)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 }}>
-            <Text style={{ fontSize: 40 }}>🗜️</Text>
+            <Ionicons name="contract-outline" size={40} color="#FFF" />
             <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 10, textAlign: 'center' }}>
               {t('cap_shrinking')}
             </Text>
@@ -2360,7 +2366,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                           borderWidth: 2, borderColor: on ? C.gold : 'rgba(255,255,255,0.3)',
                           alignItems: 'center', justifyContent: 'center',
                         }}>
-                          <Text style={{ fontSize: on ? 26 : 22 }}>{l.emoji}</Text>
+                          <LensThumb id={l.id} size={on ? 40 : 34} />
                         </View>
                       </View>
                     </Pressable>
@@ -2430,7 +2436,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                         <View style={{ width: recording ? 34 : 62, height: recording ? 34 : 62, borderRadius: recording ? 9 : 31, backgroundColor: recording ? C.coral : '#FFF' }} />
                         {locked ? (
                           <View style={{ position: 'absolute', top: -12, alignSelf: 'center', backgroundColor: C.coral, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
-                            <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>🔒</Text>
+                            <Ionicons name="lock-closed" size={10} color="#FFF" />
                           </View>
                         ) : null}
                       </View>
@@ -2462,7 +2468,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                   <Pressable onPress={() => { tapLight(); pickVideoFile(); }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }}>
                       <Ionicons name="cloud-upload-outline" size={18} color="#FFF" />
-                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', marginLeft: 8 }}>{t('upload_video')} 📁</Text>
+                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', marginLeft: 8 }}>{t('upload_video')}</Text>
                     </View>
                   </Pressable>
                   <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 8 }}>{t('cap_longform')}</Text>
@@ -2475,7 +2481,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                   {/* where it goes, said quietly: a red pill here looked like a
                       button and was not one, and fought the shutter */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
-                    <Text style={{ fontSize: 13 }}>🔥</Text>
+                    <Ionicons name="flame-outline" size={14} color="#FFF" />
                     <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '800', marginLeft: 6 }}>
                       {t('moment_one')}{sendToName ? ' → ' + sendToName : ''}
                     </Text>
@@ -2531,7 +2537,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                     <Pressable key={f.id} onPress={() => { tapLight(); sfxPop(); setFilterId(f.id); }}>
                       <View style={{ alignItems: 'center', marginRight: 10, width: 58 }}>
                         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: on ? 2 : 1, borderColor: on ? C.gold : 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 20 }}>{f.emoji}</Text>
+                          <LinearGradient colors={LOOK_TINT[f.id] || ['#3A3A3A', '#9A9A9A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 34, height: 34, borderRadius: 17 }} />
                         </View>
                         <Text style={{ color: on ? C.gold : '#FFF', fontSize: 10, fontWeight: on ? '900' : '800', marginTop: 4 }} numberOfLines={1}>{f.label}</Text>
                       </View>
@@ -2542,12 +2548,12 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
 
               {/* effects + game filters — spin the roulette, dare a question */}
               <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
-                {[{ k: 'roulette', label: 'Roulette', emoji: '🎲' }, { k: 'question', label: 'Dare Q', emoji: '❓' }].map((g) => {
+                {[{ k: 'roulette', label: 'Roulette', icon: 'dice-outline' }, { k: 'question', label: 'Dare Q', icon: 'help-circle-outline' }].map((g) => {
                   const on = gameCard && gameCard.kind === g.k;
                   return (
                     <Pressable key={g.k} onPress={() => rollGame(g.k)}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.gold : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? C.gold : 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
-                        <Text style={{ fontSize: 14 }}>{g.emoji}</Text>
+                        <Ionicons name={g.icon} size={15} color={on ? '#241146' : '#FFF'} />
                         <Text style={{ color: on ? '#241146' : '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>{on ? 'Re-spin' : g.label}</Text>
                       </View>
                     </Pressable>
@@ -2558,7 +2564,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                   return (
                     <Pressable key={e.id} onPress={() => pickEffect(e.id)}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? '#FFF' : 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
-                        <Text style={{ fontSize: 14 }}>{e.emoji}</Text>
+                        <Ionicons name={FX_ICON[e.id] || 'sparkles-outline'} size={15} color={on ? C.text : '#FFF'} />
                         <Text style={{ color: on ? C.text : '#FFF', fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>{e.label}</Text>
                       </View>
                     </Pressable>
@@ -2670,7 +2676,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
               {sound ? (
                 <View style={{ alignSelf: 'flex-start', marginBottom: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
-                    <Text style={{ fontSize: 13 }}>{sound.emoji}</Text>
+                    <Ionicons name="musical-notes" size={13} color="#FFF" />
                     <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', marginLeft: 6 }}>♫ {sound.title} · {sound.artist}</Text>
                   </View>
                   {sound.attribution ? (
@@ -2820,7 +2826,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
               {shot && shot.kind === 'video' && !sound && !sendMode ? (
                 <Pressable onPress={() => { tapLight(); setSoundReuse((v) => !v); }} style={{ marginBottom: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10 }}>
-                    <Text style={{ fontSize: 15 }}>🎙️</Text>
+                    <Ionicons name="mic-outline" size={16} color="#FFF" />
                     <View style={{ flex: 1, minWidth: 0, marginStart: 9 }}>
                       <Text numberOfLines={1} style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800' }}>{t('sound_allow')}</Text>
                       <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.62)', fontSize: 10.5, marginTop: 1 }}>{t('sound_allow_hint')}</Text>

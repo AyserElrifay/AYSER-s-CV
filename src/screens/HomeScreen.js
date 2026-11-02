@@ -34,6 +34,7 @@ import { goToTab, showOnMap } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
 
 import { NextUp } from '../components/NextUp';
+import { HighlightsHero } from '../components/HighlightsHero';
 import { setVideoQueue } from '../lib/videoQueue';
 import { lazyOverlay } from '../lib/lazyScreen';
 // the two things at the top of Home, fetched after the feed: your next step, and today's question
@@ -43,7 +44,7 @@ const DailyMoment = lazyOverlay(() => import('../components/DailyMoment').then((
 import { readGate, addSeconds, markSeenAll, budgetSeconds, onGate, readPlan, writePlan } from '../lib/feedGate';
 import { myMembership } from '../services/membership';
 import { myMomentsLevel, chatUnread, markChatsSeen } from '../services/loop';
-import { FeedClock, FeedReopen } from '../components/FeedClock';
+import { FeedClock, FeedReopen, FeedBar } from '../components/FeedClock';
 import { myVolunteering, myUnrated } from '../services/green';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
@@ -642,8 +643,11 @@ export const HomeScreen = () => {
                 The Daily Moment moved into Reflection, the plans rail into Together. */}
             {user ? <NextStep onHas={setHasStep} /> : null}
             {!hasStep ? (
-              <NextUp user={user} onStart={() => goToTab('TOGETHER')}
-                onOpen={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }} />
+              <>
+                <HighlightsHero />
+                <NextUp compact user={user} onStart={() => goToTab('TOGETHER')}
+                  onOpen={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }} />
+              </>
             ) : null}
 
             {/* Moments · Reflection — two words, not a black bar: after
@@ -661,6 +665,8 @@ export const HomeScreen = () => {
               <View style={{ flex: 1 }} />
               {user && homeTab === 'moments' && !feedClosed ? <View style={{ paddingBottom: 8 }}><FeedClock budget={budget} running={focused} /></View> : null}
             </View>
+            {/* Ayser: "البتاع البربل ده بيتحرك كل ما الوقت بيجي يقفل" — the day's time, a purple line running down */}
+            {user && homeTab === 'moments' && !feedClosed ? <FeedBar budget={budget} running={focused} /> : null}
 
             
 
@@ -669,7 +675,7 @@ export const HomeScreen = () => {
             {homeTab === 'moments' && widgets.length ? <HomeWidgets ids={widgets} /> : null}
 
             {/* the camera opens from the day's prompt, in Moments and in Reflection */}
-            {user ? <PhotoPrompt onShare={snap} /> : null}
+            {user && homeTab === 'reflect' ? <PhotoPrompt onShare={snap} /> : null}
 
             {/* the day's prompt answers, 48 hours each — the only thing on Home that runs out */}
             {homeTab === 'moments' && !feedClosed ? <LiveStrip items={live} lang={lang} /> : null}
@@ -680,7 +686,7 @@ export const HomeScreen = () => {
             {/* the day's window is over: a kind line, and the way out */}
             {homeTab === 'moments' && feedClosed ? (
               <View style={{ alignItems: 'center', borderRadius: 24, paddingVertical: 30, paddingHorizontal: 22, marginTop: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-                <Text style={{ fontSize: 34 }}>🌿</Text>
+                <Ionicons name="leaf-outline" size={30} color={C.text} />
                 <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('fg_time_title')}</Text>
                 <Text style={{ color: C.dim, fontSize: 14.5, lineHeight: 21, textAlign: 'center', marginTop: 6 }}>{t('fg_time_body')}</Text>
                 <Pressable onPress={() => { tapLight(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ marginTop: 16, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }}>
@@ -769,9 +775,9 @@ export const HomeScreen = () => {
             </View>
           ) : SUPABASE_READY ? (
             <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30 }}>
-              <Text style={{ fontSize: 34 }}>{loadError ? '📡' : '✨'}</Text>
+              <Ionicons name={loadError ? 'cloud-offline-outline' : 'camera-outline'} size={30} color={C.dim} />
               <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', marginTop: 10, textAlign: 'center' }}>
-                {loadError ? t('couldnt_load_moments') : t('no_moments_yet')}
+                {loadError ? t('couldnt_load_moments') : String(t('no_moments_yet')).replace(/\s*[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\uFE0F?/gu, '')}
               </Text>
               <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
                 {loadError

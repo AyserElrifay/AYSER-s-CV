@@ -115,7 +115,7 @@ const Slides = ({ pics }) => {
   );
 };
 
-export const NextUp = ({ user, onOpen, onStart }) => {
+export const NextUp = ({ user, onOpen, onStart, compact }) => {
   const { t, lang } = useLang();
   const [all, setAll] = useState(() => pick(keptGatherings(null)));
   const [at, setAt] = useState(0);
@@ -169,11 +169,45 @@ export const NextUp = ({ user, onOpen, onStart }) => {
 
   const streak = weeks > 0 ? (
     <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800', marginTop: 10 }}>
-      {'🔥 ' + t(weeks === 1 ? 'nu_weeks_1' : 'nu_weeks').replace('{n}', String(weeks))}
+      {t(weeks === 1 ? 'nu_weeks_1' : 'nu_weeks').replace('{n}', String(weeks))}
     </Text>
   ) : null;
 
   if (!ready) return null;
+  /* ── UNDER THE HIGHLIGHTS: one slim line ── Ayser, November 2026: the
+     real evenings play above (src/components/HighlightsHero.js); the next
+     plan is one quiet row with one button — no borrowed video behind a
+     title it does not belong to */
+  if (compact) {
+    if (!g) return null;
+    const nn = Number(g.going) || 0;
+    return (
+      <Pressable testID="next-up-line" onPress={() => { tapLight(); onOpen(g); }} accessibilityRole="button" accessibilityLabel={titleFor(g.title, lang)} style={{ marginTop: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: C.purple, fontSize: 11, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.1 }}>{t('nu_kicker').toUpperCase()}</Text>
+            <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', marginTop: 2 }} numberOfLines={1}>{titleFor(g.title, lang)}</Text>
+            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{[leftLine(g, t) || whenLine(g, lang, t), g.place_name || g.city].filter(Boolean).join(' · ')}</Text>
+          </View>
+          {g.im_going ? (
+            <Pressable onPress={bringFriend} accessibilityRole="button" hitSlop={6} style={{ marginStart: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }}>
+                <Ionicons name={asked ? 'checkmark' : 'person-add-outline'} size={15} color={C.bg} />
+                <Text style={{ color: C.bg, fontSize: 13, fontWeight: '900', marginStart: 6 }}>{t(asked ? 'nu_asked' : 'nu_bring')}</Text>
+              </View>
+            </Pressable>
+          ) : (
+            <Pressable onPress={user ? join : () => onOpen(g)} disabled={busy} accessibilityRole="button" hitSlop={6} style={{ marginStart: 10 }}>
+              <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, opacity: busy ? 0.6 : 1 }}>
+                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('nu_im_going')}</Text>
+              </View>
+            </Pressable>
+          )}
+        </View>
+        {nn > 0 && !g.im_going ? <Text style={{ color: C.faint, fontSize: 12, marginTop: 6, marginStart: 4 }}>{t('gm_join_them').replace('{n}', String(nn))}</Text> : null}
+      </Pressable>
+    );
+  }
   /* ── NOTHING NEAR YOU ── never a closed door. Ayser: "ما نقفلش الباب
      في وش الناس". Photos of people out together, turning slowly; one
      button to start the first one here; and, when there is one, the

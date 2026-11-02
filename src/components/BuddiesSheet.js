@@ -95,7 +95,14 @@ const Chat = ({ other, threadId, lang, onBack }) => {
     let alive = true;
     (async () => {
       let t = threadId;
-      if (!t && other) { const r = await buddyThread(other.id); t = r && r.ok ? r.thread_id : null; }
+      if (!t && other) {
+        const r = await buddyThread(other.id);
+        t = r && r.ok ? r.thread_id : null;
+        // say why instead of an empty chat (Ayser: "مش عارف افتح شات مع صحابي")
+        if (!t && alive) setErr(r && r.reason === 'blocked'
+          ? (lang === 'ar' ? 'الشات ده مقفول.' : 'This chat is closed.')
+          : (lang === 'ar' ? 'الشات بيفتح مع صحابك (بعد ما يقبلوا طلب الصداقة) أو اللي قعدت معاهم على ترابيزة.' : 'Chat opens with your friends (once they accept your request) or people you sat with at a table.'));
+      }
       if (!alive || !t) return;
       setTid(t);
       dmState(t).then((x) => alive && setSt(x && x.ok ? x : null));

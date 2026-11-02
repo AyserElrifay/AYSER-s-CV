@@ -26853,6 +26853,68 @@ revoke execute on function public.owner_set_setting(text, jsonb) from public, an
 grant execute on function public.owner_set_setting(text, jsonb) to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  FRIENDS CAN CHAT
+--  Ayser, November 2026: "مش عارف افتح شات مع صحابي". Chat was open only
+--  to Table Buddies (a table's QR together). Mates — a friend request
+--  that the other person accepted — are friends both of them chose, so
+--  they are Connections too: they show in Connections and can write to
+--  each other, free or Plus. Strangers still cannot write first; blocks
+--  still win. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.are_mates(x uuid, y uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select x is not null and y is not null and exists (
+    select 1 from public.mates m where m.status = 'accepted'
+       and ((m.requester_id = x and m.addressee_id = y) or (m.requester_id = y and m.addressee_id = x)));
+$$;
+revoke all on function public.are_mates(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.are_buddies(x uuid, y uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select x is not null and y is not null and (
+    exists (select 1 from public.buddies where a = least(x, y) and b = greatest(x, y))
+    or public.are_mates(x, y));
+$$;
+revoke all on function public.are_buddies(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.dm_can_send(t uuid, u uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare o uuid := public.dm_other(t, u);
+begin
+  if o is null or public.blocked_between(u, o) then return false; end if;
+  if public.are_mates(u, o) then return true; end if;           -- friends you both chose
+  if public.are_buddies(u, o) then
+    if public.is_premium(u) then return true; end if;
+    return exists (select 1 from public.messages m where m.dm_thread_id = t and m.user_id = o);
+  end if;
+  if not exists (select 1 from public.dm_openers op where op.thread_id = t and op.daily_answer is not null) then return false; end if;
+  if not public.is_verified(u) then return false; end if;
+  return public.in_founding(u) or public.is_premium(u);
+end $$;
+revoke all on function public.dm_can_send(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.my_buddies()
+returns jsonb language sql stable security definer set search_path = public as $$
+  with mine as (
+    select other, min(since) since from (
+      select case when b.a = auth.uid() then b.b else b.a end other, b.since from public.buddies b
+       where auth.uid() in (b.a, b.b)
+      union all
+      select case when m.requester_id = auth.uid() then m.addressee_id else m.requester_id end, m.created_at from public.mates m
+       where m.status = 'accepted' and auth.uid() in (m.requester_id, m.addressee_id)) u
+    group by other)
+  select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'handle', p.handle, 'avatar_url', p.avatar_url, 'since', m.since,
+           'last', (select jsonb_build_object('body', left(x.body, 80), 'at', x.created_at, 'mine', x.user_id = auth.uid())
+                      from public.messages x join public.dm_participants a on a.thread_id = x.dm_thread_id and a.user_id = auth.uid()
+                      join public.dm_participants c on c.thread_id = x.dm_thread_id and c.user_id = p.id
+                     order by x.created_at desc limit 1)) order by m.since desc), '[]'::jsonb)
+    from mine m join public.profiles p on p.id = m.other
+   where not public.blocked_between(auth.uid(), p.id);
+$$;
+revoke execute on function public.my_buddies() from public, anon;
+grant execute on function public.my_buddies() to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

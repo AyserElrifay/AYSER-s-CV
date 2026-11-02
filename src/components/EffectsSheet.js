@@ -16,7 +16,7 @@ import { SheetHandle } from './SheetHandle';
    the one you are wearing ringed in gold. No search: nobody types the
    name of a beard. */
 
-const Dot = ({ label, glyph, tint, on, onPress }) => (
+const Dot = ({ label, glyph, icon, lens, tint, on, onPress }) => (
   <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: on }} style={{ width: 72, alignItems: 'center', outlineStyle: 'none' }}>
     <View style={{
       width: 58, height: 58, borderRadius: 29, overflow: 'hidden',
@@ -25,7 +25,7 @@ const Dot = ({ label, glyph, tint, on, onPress }) => (
       backgroundColor: 'rgba(255,255,255,0.10)',
     }}>
       {tint ? <LinearGradient colors={tint} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} /> : null}
-      <Text style={{ fontSize: 26 }}>{glyph}</Text>
+      {lens ? <LensThumb id={lens} size={46} /> : icon ? <Ionicons name={icon} size={24} color="#FFFFFF" /> : glyph ? <Text style={{ fontSize: 22, color: '#FFFFFF', fontWeight: '800' }}>{glyph}</Text> : null}
     </View>
     <Text numberOfLines={1} style={{ color: on ? C.gold : 'rgba(255,255,255,0.7)', fontSize: 10.5, fontWeight: on ? '900' : '600', marginTop: 5, maxWidth: 68 }}>{label}</Text>
   </Pressable>
@@ -41,7 +41,7 @@ const Row = ({ title, children }) => (
 );
 
 /* each look shows its own colour, not the same purple for all */
-const LOOK_TINT = {
+export const LOOK_TINT = {
   vivid: ['#FF5F6D', '#FFC371'], warm: ['#F7971E', '#FFD200'], cool: ['#2193B0', '#6DD5ED'],
   retro: ['#C79081', '#DFA579'], bw: ['#1F1F1F', '#9A9A9A'], dream: ['#C471F5', '#FA71CD'],
   noir: ['#000000', '#3A3A3A'], sun: ['#F9D423', '#FF8C42'], golden: ['#F2994A', '#F2C94C'],
@@ -50,6 +50,35 @@ const LOOK_TINT = {
   moody: ['#2C3E50', '#4CA1AF'], night: ['#0F2027', '#2C5364'], ice: ['#C9E8F7', '#7FB8DA'],
   faded: ['#BDB6A8', '#E7E1D5'], punch: ['#FF0844', '#FFB199'], sepia: ['#704214', '#C8A27A'],
   invert: ['#00F5D4', '#7B2FF7'],
+};
+
+/* line icons for the overlays and the games — no emoji anywhere in the camera */
+export const FX_ICON = {
+  none: 'ellipse-outline', pixel: 'grid-outline', arcade: 'game-controller-outline', cartoon: 'brush-outline',
+  leak: 'sunny-outline', vignette: 'aperture-outline', grain: 'film-outline', hearts: 'heart-outline',
+  confetti: 'sparkles-outline', snow: 'snow-outline', stars: 'star-outline',
+};
+export const GAME_ICON = {
+  love: 'heart-outline', era: 'sparkles-outline', villain: 'skull-outline', famous: 'videocam-outline',
+  stats: 'stats-chart-outline', truth: 'flash-outline', aura: 'color-palette-outline', trip: 'airplane-outline',
+};
+/* a face lens shows its own drawing (the same art the camera puts on you) */
+export const LensThumb = ({ id, size = 40 }) => {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const cv = ref.current; if (!cv || !cv.getContext) return;
+    let alive = true;
+    import('./lensArt').then(({ drawLens, LENS_BY_ID }) => {
+      if (!alive) return;
+      const k = 2, w = size * k, ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, w, w);
+      const l = LENS_BY_ID[id];
+      try { drawLens(ctx, w, w, { id, x: 0.5, y: l && l.kind === 'wear' ? 0.42 : 0.5, s: 0.62 }, 0); } catch (e) {}
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [id, size]);
+  if (typeof document === 'undefined') return <Ionicons name="happy-outline" size={size * 0.55} color="#FFFFFF" />;
+  return React.createElement('canvas', { ref, width: size * 2, height: size * 2, style: { width: size, height: size, display: 'block' } });
 };
 
 export const EffectsSheet = ({
@@ -90,7 +119,7 @@ export const EffectsSheet = ({
         <ScrollView style={{ maxHeight: 460 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 6 }}>
           {lenses.length ? (
             <Row title={tNow('fx_faces')}>
-              {lenses.map((l) => <Dot key={l.id} label={l.label} glyph={l.emoji} on={lensId === l.id} onPress={() => go(onPickLens, l)} />)}
+              {lenses.map((l) => <Dot key={l.id} label={l.label} lens={l.id} on={lensId === l.id} onPress={() => go(onPickLens, l)} />)}
             </Row>
           ) : null}
           {filters.length ? (
@@ -100,12 +129,12 @@ export const EffectsSheet = ({
           ) : null}
           {effects.length ? (
             <Row title={tNow('fx_fun')}>
-              {effects.filter((e) => e.id !== 'none').map((e) => <Dot key={e.id} label={e.label} glyph={e.emoji} on={effectId === e.id} onPress={() => go(onPickEffect, e)} />)}
+              {effects.filter((e) => e.id !== 'none').map((e) => <Dot key={e.id} label={e.label} icon={FX_ICON[e.id] || 'sparkles-outline'} on={effectId === e.id} onPress={() => go(onPickEffect, e)} />)}
             </Row>
           ) : null}
           {games.length ? (
             <Row title={tNow('fx_games')}>
-              {games.map((g) => <Dot key={g.id} label={g.title} glyph={g.emoji || '🎮'} on={gameId === g.id} onPress={() => go(onPickGame, g)} />)}
+              {games.map((g) => <Dot key={g.id} label={g.title} icon={GAME_ICON[g.id] || 'game-controller-outline'} on={gameId === g.id} onPress={() => go(onPickGame, g)} />)}
             </Row>
           ) : null}
         </ScrollView>
