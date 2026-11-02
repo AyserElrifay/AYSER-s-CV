@@ -19,6 +19,8 @@ import { FlagBadge } from './TableFlag';
 import { lazyOverlay } from '../lib/lazyScreen';
 const CallScreen = lazyOverlay(() => import('./CallScreen').then((m) => ({ default: m.CallScreen })));
 import { TableIcebreakers } from './ScaleKit';
+import { SeatBadge, seatLabel, SeatPeek, SparksDeck } from './SeatCard';
+import { tableSeats } from '../services/card';
 
 /* ─── THE EVENT PAGE ──────────────────────────────────────────────────
    Ayser: "No endless chatting — subscribe, book a seat, and meet in real
@@ -227,9 +229,12 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
   const [tel, setTel] = useState(null);            // the host's own line: phone and exact pin
   const [mapUrl, setMapUrl] = useState(null);
   const [lineSaved, setLineSaved] = useState(false);
+  const [seats, setSeats] = useState(null);        // who sits where, blurred until the QR (RUN_ME.sql table_seats)
+  const [peek, setPeek] = useState(null);
 
   const load = () => {
     eventExtras(kind, id).then((x) => setEx(x && x.ok ? x : null));
+    tableSeats(kind, id).then((x) => { if (x && x.ok && Array.isArray(x.seats)) setSeats(x.seats); });
     eventArrivals(kind, id).then((x) => { if (Array.isArray(x)) { setHere(x); if (user && x.some((p) => p.id === user.id)) setPinged(true); } });
     return eventRoom(kind, id).then((x) => {
       setR(x || { ok: false });
@@ -336,6 +341,7 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
           </View>
         ) : null}
         {walkie && r && r.ok && r.arrival && r.arrival.open ? <View style={{ marginHorizontal: 16 }}><Walkie lang={lang} id={r.id} onOut={() => setWalkie(false)} /></View> : null}
+        {peek ? <SeatPeek kind={kind} id={id} uid={peek} lang={lang} onClose={() => setPeek(null)} /> : null}
         {calling && r && r.host ? <CallScreen peer={{ id: r.host.id, name: r.host.name, avatar: r.host.avatar }} video={false} onClose={() => setCalling(false)} /> : null}
         {beacon && r && r.ok ? <TableBeacon kind={kind} id={id} cat={r.category} no={r.table_no} onClose={() => setBeacon(false)} /> : null}
         {r == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 40 }} /> : !r.ok ? (
@@ -496,12 +502,22 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
                 ) : null}
                 {chatState === 'capsule' ? <Text style={{ color: C.purple, fontSize: 14, marginTop: 6 }}>{w2(lang, 3)}</Text> : null}
                 {chatState === 'over' ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{ex && ex.phase === 'archived' ? w2(lang, 4) : w(lang, 'chatOver')}</Text> : null}
-                {msgs.map((m) => (
-                  <View key={m.id} style={{ marginTop: 8, alignSelf: m.user_id === user.id ? 'flex-end' : 'flex-start', maxWidth: '84%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: m.user_id === user.id ? C.purple : C.glass, borderWidth: m.user_id === user.id ? 0 : 1, borderColor: C.line }}>
-                    {m.user_id !== user.id && m.user ? <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '700' }}>{m.user.name}</Text> : null}
-                    <Text style={{ color: m.user_id === user.id ? '#FFF' : C.text, fontSize: 14.5 }}>{m.body}</Text>
-                  </View>
-                ))}
+                {/* Ayser, November 2026: "Seat #04 • Coffee & Art", a line-drawn badge and a blurred face
+                    until you have both scanned the table's QR; the organizer is always shown. Tap to peek. */}
+                {msgs.map((m) => {
+                  const mine = m.user_id === user.id;
+                  const seat = !mine && seats ? seats.find((s) => s.uid === m.user_id) : null;
+                  const label = seat ? seatLabel(seat, lang) : m.user ? m.user.name : '';
+                  return (
+                    <View key={m.id} style={{ marginTop: 8, flexDirection: 'row', alignItems: 'flex-end', alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
+                      {seat ? <View style={{ marginEnd: 6 }}><SeatBadge seat={seat} lang={lang} onPress={() => { tapLight(); setPeek(m.user_id); }} /></View> : null}
+                      <View style={{ flexShrink: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: mine ? C.purple : C.glass, borderWidth: mine ? 0 : 1, borderColor: C.line }}>
+                        {!mine && label ? <Text testID="msg-alias" onPress={seat ? () => { tapLight(); setPeek(m.user_id); } : undefined} style={{ color: C.faint, fontSize: 11.5, fontWeight: '700' }}>{label}</Text> : null}
+                        <Text style={{ color: mine ? '#FFF' : C.text, fontSize: 14.5 }}>{m.body}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
                 {chatState === 'open' || chatState === 'capsule' ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
                     <TextInput value={draft} onChangeText={setDraft} placeholder={chatState === 'capsule' ? w2(lang, 6) : w(lang, 'say')} placeholderTextColor={C.faint} maxLength={chatState === 'capsule' ? 280 : 500} onSubmitEditing={send}
@@ -515,6 +531,8 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
                 ) : null}
               </View>
             ) : null}
+            {/* Friday Sparks: after the table, for the people who scanned in (RUN_ME.sql table_sparks_deck) */}
+            {r && r.ok && !r.online && r.closes_at && new Date(r.now || Date.now()) >= new Date(r.closes_at) ? <SparksDeck kind={kind} id={id} lang={lang} /> : null}
             {msg ? <Text style={{ color: C.coral, fontSize: 13, marginTop: 10, textAlign: 'center' }}>{msg}</Text> : null}
           </ScrollView>
         )}

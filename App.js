@@ -138,6 +138,17 @@ const SafetyGate = () => {
   }, []);
   return open ? <SafetyCheck onClose={() => setOpen(false)} /> : null;
 };
+/* ── THE 3-PHOTO CARD ── any screen asks with askCard() (services/card) */
+const ProfileCardSheet = lazyOverlay(() => import('./src/components/ProfileCardSheet').then((m) => ({ default: m.ProfileCardSheet })));
+const CardGate = () => {
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    const on = () => setOpen(true);
+    try { window.addEventListener('mm-need-card', on); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-need-card', on); } catch (e) {} };
+  }, []);
+  return open ? <ProfileCardSheet onClose={() => setOpen(false)} /> : null;
+};
 const StampGate = () => {
   const [code, setCode] = React.useState(() => takeStamp());
   return code ? <StampFlow code={code} onClose={() => setCode(null)} /> : null;
@@ -293,6 +304,7 @@ const Root = () => {
       <SafetyHold />
       <MemberGate />
       <SafetyGate />
+      <CardGate />
       <StampGate />
     </View>
   );

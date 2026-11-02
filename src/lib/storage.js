@@ -67,8 +67,13 @@ async function asBlob(uriOrBlob) {
   return res.blob();
 }
 
+/* a name nobody can guess: a photo kept behind a blur (a seat's card,
+   RUN_ME.sql seat_card) must not be found by trying timestamps */
+const unguessable = () => {
+  try { const a = new Uint8Array(9); crypto.getRandomValues(a); return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join(''); } catch (e) { return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); }
+};
 async function uploadToR2(userId, uri, ext, contentType) {
-  const key = userId + '/' + Date.now() + '.' + ext;
+  const key = userId + '/' + Date.now() + '-' + unguessable() + '.' + ext;
   // Ask the server for a presigned PUT url (secret keys stay server-side).
   const { data, error } = await supabase.functions.invoke('r2-presign', {
     body: { key, contentType },
@@ -269,7 +274,7 @@ async function uploadToSupabase(userId, uri, ext, contentType, opts) {
 
   let last = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const path = userId + '/' + Date.now() + '-' + attempt + '.' + ext;
+    const path = userId + '/' + Date.now() + '-' + unguessable() + '-' + attempt + '.' + ext;
     try {
       if (canWatch && token && body.size > RESUMABLE_ABOVE) {
         // too big for one request — send it in 6MB pieces

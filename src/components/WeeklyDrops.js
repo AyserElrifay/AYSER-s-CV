@@ -8,6 +8,7 @@ import { useLang } from '../context/LanguageContext';
 import { mv } from '../constants/mvpWords';
 import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter } from '../services/mvp';
 import { askUpgrade, askSafety } from '../services/membership';
+import { askCard } from '../services/card';
 import { isSaving } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
 import { joinMesh } from '../lib/talkMesh';
@@ -332,6 +333,7 @@ const DropCard = ({ d, lang, onChanged }) => {
     const why = r && r.reason;
     if (why === 'level') { setNote(mv(lang, 'needLevel', { l: r.need })); setWhy(true); return; }
     if (why === 'verify') { askSafety(); return; }
+    if (why === 'card') { askCard(); return; }
     if (why === 'plus') { askUpgrade('member'); return; }
     setNote(why === 'quota' ? mv(lang, 'quotaOut') : why === 'active' ? mv(lang, 'active') : why === 'queued' ? tbw(lang, 'queued') : null);
     if (why === 'full' || why === 'queued') onChanged();

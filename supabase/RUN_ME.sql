@@ -25724,6 +25724,332 @@ revoke all on function public.tidy_up() from public, anon, authenticated;
 
 notify pgrst, 'reload schema';
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  THE 3-PHOTO CARD · SEATS STAY BLURRED UNTIL THE TABLE'S QR · TABLE SPARKS
+--  Ayser, November 2026. Before an offline seat, everybody makes a card:
+--  three photos (the first is their face) and two short prompts. In a
+--  table chat the people at the table are "Seat #04 • Coffee & Art" with a
+--  line-drawn badge, and their card is three blurred photos — the server
+--  hands out only tiny blurred copies — until BOTH of you have scanned the
+--  table's QR on the spot (event_checkins). The organizer is always shown.
+--  After the table, for three hours, the people who were really there can
+--  send each other up to three secret Sparks; two Sparks that meet make a
+--  Mutual Spark and a chat (the same mutual_sparks as the Midnight Table).
+-- ═══════════════════════════════════════════════════════════════════════
+
+-- one ledger of XP, one row per reason, so nothing is paid twice
+create table if not exists public.xp_ledger (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  reason  text not null,
+  points  int  not null check (points > 0),
+  at      timestamptz not null default now(),
+  primary key (user_id, reason)
+);
+alter table public.xp_ledger enable row level security;
+drop policy if exists "see own xp ledger" on public.xp_ledger;
+create policy "see own xp ledger" on public.xp_ledger for select using (auth.uid() = user_id);
+revoke insert, update, delete on public.xp_ledger from anon, authenticated;
+
+create or replace function public.xp_give(u uuid, p_reason text, p_points int)
+returns boolean language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.xp_ledger (user_id, reason, points) values (u, p_reason, p_points) on conflict do nothing;
+  return found;
+end $$;
+revoke all on function public.xp_give(uuid, text, int) from public, anon, authenticated;
+
+create table if not exists public.profile_cards (
+  user_id    uuid primary key references public.profiles(id) on delete cascade,
+  photos     text[] not null default '{}',     -- three, in order: face, then two of your life
+  blurs      text[] not null default '{}',     -- a tiny blurred copy of each, the only thing a stranger gets
+  prompts    jsonb  not null default '[]',     -- two: [{ "q": "...", "a": "..." }]
+  face_ok    boolean not null default false,   -- photo 1 matched against the Safety Pass selfie (not built yet: stays false)
+  completed_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+alter table public.profile_cards enable row level security;
+drop policy if exists "my own card" on public.profile_cards;
+create policy "my own card" on public.profile_cards for select using (auth.uid() = user_id);
+revoke insert, update, delete on public.profile_cards from anon, authenticated;   -- through profile_card_save only
+
+create or replace function public.card_ready(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profile_cards c where c.user_id = u
+                  and coalesce(array_length(c.photos, 1), 0) >= 3 and jsonb_array_length(c.prompts) >= 2);
+$$;
+revoke all on function public.card_ready(uuid) from public, anon, authenticated;
+
+-- an address is accepted only from the owner's own folder in our storage
+create or replace function public.own_upload(u uuid, p_url text)
+returns boolean language sql immutable as $$
+  select p_url is not null and length(p_url) <= 600 and p_url like 'https://%' and p_url like '%/' || u::text || '/%'
+     and p_url !~ '[\s"''<>]';
+$$;
+
+create or replace function public.profile_card_save(p_photos text[], p_blurs text[], p_prompts jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); i int; first boolean; x jsonb;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if coalesce(array_length(p_photos, 1), 0) <> 3 or coalesce(array_length(p_blurs, 1), 0) <> 3 then
+    return jsonb_build_object('ok', false, 'reason', 'three');
+  end if;
+  for i in 1..3 loop
+    if not public.own_upload(me, p_photos[i]) or not public.own_upload(me, p_blurs[i]) then
+      return jsonb_build_object('ok', false, 'reason', 'bad_url');
+    end if;
+  end loop;
+  if jsonb_typeof(p_prompts) <> 'array' or jsonb_array_length(p_prompts) <> 2 then
+    return jsonb_build_object('ok', false, 'reason', 'prompts');
+  end if;
+  for x in select * from jsonb_array_elements(p_prompts) loop
+    if length(coalesce(x->>'q', '')) not between 1 and 80 or length(btrim(coalesce(x->>'a', ''))) not between 1 and 140 then
+      return jsonb_build_object('ok', false, 'reason', 'prompts');
+    end if;
+  end loop;
+  first := not public.card_ready(me);
+  insert into public.profile_cards (user_id, photos, blurs, prompts, completed_at, updated_at)
+  values (me, p_photos, p_blurs,
+          (select jsonb_agg(jsonb_build_object('q', e->>'q', 'a', btrim(e->>'a'))) from jsonb_array_elements(p_prompts) e),
+          now(), now())
+  on conflict (user_id) do update set photos = excluded.photos, blurs = excluded.blurs, prompts = excluded.prompts,
+     face_ok = case when public.profile_cards.photos[1] is distinct from excluded.photos[1] then false else public.profile_cards.face_ok end,
+     completed_at = coalesce(public.profile_cards.completed_at, now()), updated_at = now();
+  return jsonb_build_object('ok', true, 'xp', case when first and public.xp_give(me, 'profile_card', 30) then 30 else 0 end);
+end $$;
+revoke execute on function public.profile_card_save(text[], text[], jsonb) from public, anon;
+grant execute on function public.profile_card_save(text[], text[], jsonb) to authenticated;
+
+create or replace function public.my_card()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('ok', auth.uid() is not null, 'ready', public.card_ready(auth.uid()),
+    'card', (select jsonb_build_object('photos', c.photos, 'blurs', c.blurs, 'prompts', c.prompts, 'face_ok', c.face_ok)
+               from public.profile_cards c where c.user_id = auth.uid()));
+$$;
+revoke execute on function public.my_card() from public, anon;
+grant execute on function public.my_card() to authenticated;
+
+-- who sits at a table, in the order they took their seat; the host is seat 0
+create or replace function public.seat_list(p_kind text, p_id uuid)
+returns table (user_id uuid, seat int, is_host boolean)
+language sql stable security definer set search_path = public as $$
+  with hosts as (
+    select public.table_host(p_id) as u where p_kind = 'offer'
+    union select g.host_id from public.green_gatherings g where p_kind = 'gathering' and g.id = p_id
+  ), people as (
+    select b.user_id as u, min(b.created_at) as at from public.bookings b
+     where p_kind = 'offer' and b.offer_id = p_id and b.status in ('reserved','paid','attended') group by b.user_id
+    union all
+    select j.user_id, j.joined_at from public.green_joins j where p_kind = 'gathering' and j.gathering_id = p_id
+  )
+  select h.u, 0, true from hosts h where h.u is not null
+  union all
+  select p.u, (row_number() over (order by p.at, p.u))::int, false from people p where p.u not in (select u from hosts where u is not null);
+$$;
+revoke all on function public.seat_list(text, uuid) from public, anon, authenticated;
+
+-- may `me` see `u` at this table: the host always; otherwise both checked in by the QR
+create or replace function public.seat_open(p_kind text, p_id uuid, me uuid, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u = me
+      or exists (select 1 from public.seat_list(p_kind, p_id) s where s.user_id = u and s.is_host)
+      or exists (select 1 from public.seat_list(p_kind, p_id) s where s.user_id = me and s.is_host)
+      or (public.event_in(p_kind, p_id, me) and public.event_in(p_kind, p_id, u));
+$$;
+revoke all on function public.seat_open(text, uuid, uuid, uuid) from public, anon, authenticated;
+
+-- everybody at the table, as the chat may show them
+create or replace function public.table_seats(p_kind text, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null or not exists (select 1 from public.seat_list(p_kind, p_id) s where s.user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in');
+  end if;
+  return jsonb_build_object('ok', true, 'me_in', public.event_in(p_kind, p_id, me), 'seats',
+    (select coalesce(jsonb_agg(jsonb_build_object(
+        'uid', s.user_id, 'seat', s.seat, 'host', s.is_host,
+        'interests', left(coalesce(p.hobbies, ''), 80),
+        'checked_in', public.event_in(p_kind, p_id, s.user_id),
+        'open', public.seat_open(p_kind, p_id, me, s.user_id),
+        'name', case when public.seat_open(p_kind, p_id, me, s.user_id) then p.name end,
+        'avatar_url', case when public.seat_open(p_kind, p_id, me, s.user_id) then p.avatar_url end,
+        'blur', (select c.blurs[1] from public.profile_cards c where c.user_id = s.user_id)) order by s.seat), '[]'::jsonb)
+       from public.seat_list(p_kind, p_id) s join public.profiles p on p.id = s.user_id
+      where not public.blocked_between(me, s.user_id)));
+end $$;
+revoke execute on function public.table_seats(text, uuid) from public, anon;
+grant execute on function public.table_seats(text, uuid) to authenticated;
+
+-- one person's card, as I may see it now
+create or replace function public.seat_card(p_kind text, p_id uuid, p_user uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); s record; c public.profile_cards%rowtype; o boolean; p public.profiles%rowtype;
+begin
+  if me is null or not exists (select 1 from public.seat_list(p_kind, p_id) x where x.user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in');
+  end if;
+  select * into s from public.seat_list(p_kind, p_id) x where x.user_id = p_user;
+  if not found or public.blocked_between(me, p_user) then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  select * into c from public.profile_cards where user_id = p_user;
+  select * into p from public.profiles where id = p_user;
+  o := public.seat_open(p_kind, p_id, me, p_user);
+  return jsonb_build_object('ok', true, 'seat', s.seat, 'host', s.is_host, 'open', o,
+    'me_in', public.event_in(p_kind, p_id, me), 'checked_in', public.event_in(p_kind, p_id, p_user),
+    'interests', left(coalesce(p.hobbies, ''), 80),
+    'name', case when o then p.name end, 'avatar_url', case when o then p.avatar_url end,
+    'photos', case when o then to_jsonb(c.photos) else to_jsonb(c.blurs) end,
+    'prompts', case when o then c.prompts end,
+    'face_ok', coalesce(c.face_ok, false));
+end $$;
+revoke execute on function public.seat_card(text, uuid, uuid) from public, anon;
+grant execute on function public.seat_card(text, uuid, uuid) to authenticated;
+
+-- ── TABLE SPARKS ── three hours after the table ends, for the people who were there
+create table if not exists public.table_sparks (
+  kind     text not null check (kind in ('offer','gathering')),
+  event_id uuid not null,
+  from_id  uuid not null references public.profiles(id) on delete cascade,
+  to_id    uuid not null references public.profiles(id) on delete cascade,
+  at       timestamptz not null default now(),
+  primary key (kind, event_id, from_id, to_id),
+  check (from_id <> to_id)
+);
+alter table public.table_sparks enable row level security;   -- through the functions below only
+revoke all on public.table_sparks from anon, authenticated;
+
+create or replace function public.sparks_window(p_kind text, p_id uuid)
+returns table (opens timestamptz, closes timestamptz)
+language sql stable security definer set search_path = public as $$
+  select m.ends_at, m.ends_at + interval '3 hours' from public.event_meta(p_kind, p_id) m;
+$$;
+revoke all on function public.sparks_window(text, uuid) from public, anon, authenticated;
+
+create or replace function public.table_sparks_deck(p_kind text, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); w record;
+begin
+  if me is null or not public.event_in(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into w from public.sparks_window(p_kind, p_id);
+  return jsonb_build_object('ok', true, 'opens_at', w.opens, 'closes_at', w.closes, 'now', now(),
+    'open', now() between w.opens and w.closes,
+    'left', greatest(0, 3 - (select count(*) from public.table_sparks t where t.kind = p_kind and t.event_id = p_id and t.from_id = me)),
+    'people', (select coalesce(jsonb_agg(jsonb_build_object(
+        'uid', p.id, 'name', p.name, 'avatar_url', p.avatar_url, 'seat', s.seat, 'host', s.is_host,
+        'interests', left(coalesce(p.hobbies, ''), 80),
+        'photos', to_jsonb(c.photos), 'prompts', c.prompts,
+        'sent', exists (select 1 from public.table_sparks t where t.kind = p_kind and t.event_id = p_id and t.from_id = me and t.to_id = p.id),
+        'mutual', public.are_sparks(me, p.id)) order by s.seat), '[]'::jsonb)
+      from public.seat_list(p_kind, p_id) s
+      join public.profiles p on p.id = s.user_id
+      left join public.profile_cards c on c.user_id = p.id
+     where s.user_id <> me and public.event_in(p_kind, p_id, s.user_id) and not public.blocked_between(me, s.user_id)));
+end $$;
+revoke execute on function public.table_sparks_deck(text, uuid) from public, anon;
+grant execute on function public.table_sparks_deck(text, uuid) to authenticated;
+
+create or replace function public.table_spark(p_kind text, p_id uuid, p_to uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); w record; t uuid; mutual boolean := false;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not public.event_in(p_kind, p_id, me) or not public.event_in(p_kind, p_id, p_to) or p_to = me
+     or public.blocked_between(me, p_to) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in');
+  end if;
+  select * into w from public.sparks_window(p_kind, p_id);
+  if now() < w.opens then return jsonb_build_object('ok', false, 'reason', 'not_yet', 'opens_at', w.opens); end if;
+  if now() > w.closes then return jsonb_build_object('ok', false, 'reason', 'over'); end if;
+  if exists (select 1 from public.table_sparks where kind = p_kind and event_id = p_id and from_id = me and to_id = p_to) then
+    return jsonb_build_object('ok', true, 'mutual', public.are_sparks(me, p_to));
+  end if;
+  if (select count(*) from public.table_sparks where kind = p_kind and event_id = p_id and from_id = me) >= 3 then
+    return jsonb_build_object('ok', false, 'reason', 'three');
+  end if;
+  insert into public.table_sparks (kind, event_id, from_id, to_id) values (p_kind, p_id, me, p_to);
+  if exists (select 1 from public.table_sparks where kind = p_kind and event_id = p_id and from_id = p_to and to_id = me)
+     and not public.are_sparks(me, p_to) then
+    insert into public.mutual_sparks (a, b) values (least(me, p_to), greatest(me, p_to)) on conflict do nothing;
+    select p1.thread_id into t from public.dm_participants p1 join public.dm_participants p2 on p2.thread_id = p1.thread_id
+     where p1.user_id = me and p2.user_id = p_to limit 1;
+    if t is null then
+      insert into public.dm_threads default values returning id into t;
+      insert into public.dm_participants (thread_id, user_id, accepted) values (t, me, true), (t, p_to, true);
+    end if;
+    perform public.notify(p_to, me, 'spark', null, null);
+    perform public.notify(me, p_to, 'spark', null, null);
+    mutual := true;
+  end if;
+  return jsonb_build_object('ok', true, 'mutual', mutual, 'thread_id', t);
+end $$;
+revoke execute on function public.table_spark(text, uuid, uuid) from public, anon;
+grant execute on function public.table_spark(text, uuid, uuid) to authenticated;
+
+-- an offline seat needs the card first
+create or replace function public.drop_claim(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); lead public.offers%rowtype; o public.offers%rowtype; q jsonb; tries int := 0; impact boolean; prem boolean; lvl int;
+        target uuid; g record;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into lead from public.offers where id = (select coalesce(parent_id, id) from public.offers where id = p_id) and is_drop and status = 'live' for update;
+  if not found or lead.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if exists (select 1 from public.bookings b join public.offers t on t.id = b.offer_id
+              where (t.id = lead.id or t.parent_id = lead.id) and b.user_id = me and b.status in ('reserved','paid','attended')) then
+    return jsonb_build_object('ok', true, 'already', true, 'quota', public.quota_of(me));
+  end if;
+  if not public.is_verified(me) then return jsonb_build_object('ok', false, 'reason', 'verify'); end if;
+  -- the 3-photo card comes before an offline seat (THE 3-PHOTO CARD, below)
+  if not public.card_ready(me) then return jsonb_build_object('ok', false, 'reason', 'card'); end if;
+  impact := lead.drop_category = 'impact';
+  prem := public.member_tier(me) <> 'FREE';
+  if not impact and not prem then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+
+  -- a trip: members apply, by level, and the team selects
+  if lead.drop_category = 'roam' then
+    lvl := (public.moments_level_of(me)->>'level')::int;
+    if lead.min_level is not null and lvl < lead.min_level then
+      return jsonb_build_object('ok', false, 'reason', 'level', 'need', lead.min_level, 'level', lvl);
+    end if;
+    insert into public.trip_applications (offer_id, user_id, level) values (lead.id, me, lvl)
+    on conflict (offer_id, user_id) do update set status = 'pending', level = excluded.level, at = now(), decided_at = null
+      where public.trip_applications.status in ('withdrawn');
+    return jsonb_build_object('ok', true, 'applied', true);
+  end if;
+
+  -- one spotlight at a time: a queued Drop takes names, not seats
+  if public.drop_state(lead.id) = 'queued' then return jsonb_build_object('ok', false, 'reason', 'queued'); end if;
+
+  -- the first table with a free seat; a new table when every one is full
+  select * into g from public.drop_group(lead.id);
+  target := g.open_table;
+  if target is null then target := public.drop_spawn_table(lead.id); end if;
+  if target is null then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  select * into o from public.offers where id = target for update;
+
+  q := public.quota_of(me);
+  if not impact then
+    if (q->>'drops_used')::int >= (q->>'drops_cap')::int then return jsonb_build_object('ok', false, 'reason', 'quota', 'quota', q); end if;
+    if q->>'active_cap' is not null and (q->>'active')::int >= (q->>'active_cap')::int then return jsonb_build_object('ok', false, 'reason', 'active', 'quota', q); end if;
+  end if;
+  loop
+    begin
+      insert into public.bookings (code, offer_id, user_id, qty, unit_price, plus_applied, total, currency, pay_mode, status, commission_pct, moments_share, partner_share)
+      values (public.booking_code(), o.id, me, 1, 0, prem, 0, coalesce(o.currency, 'EGP'), 'reserve', 'paid', 0, 0, 0);
+      exit;
+    exception when unique_violation then tries := tries + 1; if tries > 5 then raise; end if;
+    end;
+  end loop;
+  delete from public.drop_waitlist where offer_id in (lead.id, o.id) and user_id = me;
+  -- this seat filled the last table: open the next one now, at the same place
+  if (select open_table from public.drop_group(lead.id)) is null then perform public.drop_spawn_table(lead.id); end if;
+  -- and if the Drop just reached 80%, the next queued one opens: tell the people waiting for it
+  perform public.drop_open_tell();
+  return jsonb_build_object('ok', true, 'offer', o.id, 'table_no', o.table_no, 'taken', public.offer_seats_taken(o.id), 'seats', o.seats, 'quota', public.quota_of(me));
+end $$;
+revoke execute on function public.drop_claim(uuid) from public, anon;
+grant execute on function public.drop_claim(uuid) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
