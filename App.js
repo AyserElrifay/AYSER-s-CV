@@ -276,6 +276,12 @@ const Root = () => {
      screen has drawn — arriving on top of a half-painted feed makes it
      feel like an ad rather than a hand. */
   const [tour, setTour] = React.useState(false);
+  // "How Moments works" from Space's menu opens the same five steps again
+  React.useEffect(() => {
+    const open = () => setTour(true);
+    try { window.addEventListener('mm-open-tour', open); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-open-tour', open); } catch (e) {} };
+  }, []);
   React.useEffect(() => {
     // not on top of a trip or partner link: one thing at a time
     if (!isAuthenticated || tourSeen() || pendingTrip() || pendingPartner()) return undefined;

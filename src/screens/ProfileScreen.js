@@ -1128,6 +1128,7 @@ export const ProfileScreen = () => {
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 18 }}>
 
             <MenuRow icon="create-outline" label={t('edit_space')} onPress={() => setEditOpen(true)} />
+            <MenuRow icon="help-circle-outline" label={lang === 'ar' ? 'مومنتس بيشتغل إزاي' : 'How Moments works'} onPress={() => { setMenu(false); try { window.dispatchEvent(new CustomEvent('mm-open-tour')); } catch (e) {} }} />
             {user ? <MenuRow icon="today-outline" label={t('sp_today')} onPress={() => { setMenu(false); setDumpOpen(true); }} /> : null}
             <MenuRow icon="happy-outline" label={t('your_avatar')} onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
             <MenuRow icon="sparkles-outline" label="Moments+" onPress={() => { setMenu(false); setPlusOpen(true); }} />

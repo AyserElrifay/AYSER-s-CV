@@ -21,7 +21,7 @@ const OWN_EXIT = {
   'src/components/CallScreen.js': /hangUp|hang_up|call-end|endCall|leave\(\)/,
   'src/components/GestureTour.js': /tour_skip/,
   /* the three first-time steps: Skip on every slide, and the last button leaves */
-  'src/components/FirstTour.js': /else \{ tapSuccess\(\); done\(\)[\s\S]*\{W\[3\]\}/,
+  'src/components/FirstTour.js': /else \{ tapSuccess\(\); done\(\)[\s\S]*\{W\[N\]\}/,
   'src/components/IncomingCallGate.js': /onPress=\{decline\}/,
   'src/components/WhatsNew.js': /onPress=\{close\}/,
   /* the members' gateway: Sign out when it is the gate, Not now when it is a sheet */

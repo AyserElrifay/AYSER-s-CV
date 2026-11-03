@@ -9,18 +9,14 @@ import { tapLight, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { markTourSeen } from './GestureTour';
 
-/* ─── THREE STEPS, THE FIRST TIME INSIDE ──────────────────────────────
-   Ayser, October 2026: the loop, in three slides like Instagram stories,
-   each on a short looping video of a real day:
-     1 · Snap & connect — the day's photo prompt and the Daily Question,
-         before the feed's clock runs out
-     2 · Do & earn — My day tasks and real check-ins add feed time;
-         Moments+ adds more every day
-     3 · Level up for the world — English Circles, Cairo outings and
-         local volunteering, towards Erasmus+ and travel abroad
-   A bar at the top fills while each plays; a tap on the right goes on,
-   on the left goes back; Skip is always there. Seen once. Its words live
-   here so they load only with it. */
+/* ─── HOW MOMENTS WORKS, IN FIVE STEPS ────────────────────────────────
+   Ayser, November 2026: "أبلكيشن يعلّم الناس إزاي يحجزوا خروجة من الأول".
+   The real way an evening goes, like Instagram stories, each on a short
+   looping clip: find a weekend table, claim the seat, the chat opens four
+   hours before, arrive and scan the table's QR, keep the night. Shown once
+   after the first sign-in, and again any time from Space's menu ("How
+   Moments works"). Tap right to go on, left to go back; Skip is always
+   there. Its words live here so they load only with it. */
 
 export const FIRST_TOUR = 'mm_first_tour_v1';
 export function firstTourSeen() { try { return localStorage.getItem(FIRST_TOUR) === '1'; } catch (e) { return true; } }
@@ -28,20 +24,25 @@ const markSeen = () => { try { localStorage.setItem(FIRST_TOUR, '1'); } catch (e
 
 const L = {
   en: [
-    ['1. Snap & Connect', 'Share the day’s photo prompt (the sky, your food, your day) and answer the Daily Question before your feed timer runs out.'],
-    ['2. Do & Earn', 'Finish tasks in My day or check in at a real outing to add minutes to your feed. Moments+ gives you more time every day.'],
-    ['3. Level Up for the World', 'Join English Circles, Cairo outings and local volunteering to level up, and get ready for Erasmus+ youth exchanges and travel abroad.'],
-    'Skip', 'Next', 'Let’s go',
+    ['1. Find your weekend table', 'Open Together. Tables run Thursday to Saturday — ten seats each, set up by the Moments team. Pick one you like.'],
+    ['2. Claim your seat', 'Make your profile card once (three photos, two short answers), then tap Claim Seat. The exact place opens 12 hours before.'],
+    ['3. The chat opens 4 hours before', 'See who is coming — their seat and what they are into, faces blurred until you meet. Say hi or send a voice note.'],
+    ['4. Arrive and scan the table QR', 'Moments guides you the last few hundred metres. At the table, tap Scan QR on Space: faces open and Guess Who starts.'],
+    ['5. Keep the night', 'Rate the evening, your page in the Moments Book fills itself, and every table you go to takes you up a level.'],
+    'Skip', 'Next', 'Find a table',
   ],
   ar: [
-    ['١. صوّر واتعرّف', 'شارك صورة النهارده (السما، أكلك، يومك) وجاوب على سؤال اليوم قبل ما وقت الفيد يخلص.'],
-    ['٢. اعمل واكسب', 'خلّص مهامك في يومي أو سجّل حضورك في خروجة حقيقية وهيتضافلك دقايق في الفيد. ومومنتس+ بيديك وقت أكتر كل يوم.'],
-    ['٣. اطلع مستوى للعالم', 'انضم لدواير الإنجليزي وخروجات القاهرة وأيام التطوّع عشان تطلع مستوى، وتجهّز نفسك لتبادل شباب Erasmus+ والسفر برّه.'],
-    'تخطي', 'التالي', 'يلا بينا',
+    ['١. لاقي ترابيزة الويكند', 'افتح Together. الترابيزات من الخميس للسبت — ١٠ كراسي في كل واحدة، والفريق هو اللي بيجهّزها. اختار اللي تعجبك.'],
+    ['٢. احجز كرسيك', 'اعمل كارتك مرة واحدة (٣ صور وإجابتين قصيرين)، وبعدين دوس «احجز كرسي». المكان بالظبط بيظهر قبلها بـ ١٢ ساعة.'],
+    ['٣. الشات بيفتح قبلها بـ ٤ ساعات', 'شوف مين جاي — رقم كرسيه وبيحب إيه، والوشوش متغبّشة لحد ما تتقابلوا. قول أهلاً أو ابعت فويس.'],
+    ['٤. وصلت؟ امسح QR الترابيزة', 'مومنتس بيوصّلك آخر كام متر. على الترابيزة دوس «امسح QR» من Space: الوشوش بتبان ولعبة خمّن مين بتبدأ.'],
+    ['٥. السهرة تفضل معاك', 'قيّم السهرة، صفحتك في كتاب مومنتس بتتملى لوحدها، وكل ترابيزة بتروحها بتطلّعك مستوى.'],
+    'تخطي', 'التالي', 'يلا نلاقي ترابيزة',
   ],
 };
-// a real day: coffee and a photo, an evening out, a trip together
-const CLIPS = ['act-coffee-v1', 'welcome-hang', 'desert-trip'];
+// a real evening: a café table, people meeting, music, the walk there, a night to keep
+const CLIPS = ['act-coffee-v1', 'welcome-hang', 'act-music-v1', 'act-walk-v1', 'painting-night'];
+const N = CLIPS.length;
 const SLIDE_MS = 6500;
 
 export const FirstTour = ({ onClose }) => {
@@ -55,10 +56,10 @@ export const FirstTour = ({ onClose }) => {
   useEffect(() => {
     bar.setValue(0);
     const a = Animated.timing(bar, { toValue: 1, duration: SLIDE_MS, easing: Easing.linear, useNativeDriver: false });
-    a.start(({ finished }) => { if (finished) setI((x) => (x < 2 ? x + 1 : x)); });
+    a.start(({ finished }) => { if (finished) setI((x) => (x < N - 1 ? x + 1 : x)); });
     return () => a.stop();
   }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
-  const next = () => { tapLight(); if (i < 2) setI(i + 1); else { tapSuccess(); done(); goToTab('HOME'); } };
+  const next = () => { tapLight(); if (i < N - 1) setI(i + 1); else { tapSuccess(); done(); goToTab('TOGETHER'); } };
   const back = () => { tapLight(); if (i > 0) setI(i - 1); };
   const [title, sub] = W[i];
   return (
@@ -76,14 +77,14 @@ export const FirstTour = ({ onClose }) => {
         </View>
         <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 14 }} pointerEvents="box-none">
           <View style={{ flexDirection: 'row' }} pointerEvents="none">
-            {[0, 1, 2].map((k) => (
+            {CLIPS.map((c, k) => (
               <View key={k} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 3, overflow: 'hidden' }}>
                 <Animated.View style={{ height: 3, backgroundColor: '#FFFFFF', width: k < i ? '100%' : k > i ? '0%' : bar.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }} />
               </View>
             ))}
           </View>
           <Pressable onPress={() => { tapLight(); done(); }} accessibilityRole="button" hitSlop={12} style={{ alignSelf: 'flex-end', marginTop: 14 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '600' }}>{W[3]}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '600' }}>{W[N]}</Text>
           </Pressable>
         </View>
         <View style={{ position: 'absolute', left: 24, right: 24, bottom: insets.bottom + 30 }} pointerEvents="box-none">
@@ -91,7 +92,7 @@ export const FirstTour = ({ onClose }) => {
           <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 17, lineHeight: 25, marginTop: 10 }}>{sub}</Text>
           <Pressable onPress={next} accessibilityRole="button" style={{ marginTop: 26 }}>
             <View style={{ borderRadius: 999, paddingVertical: 16, alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-              <Text style={{ color: '#000000', fontSize: 16.5, fontWeight: '700' }}>{i < 2 ? W[4] : W[5]}</Text>
+              <Text style={{ color: '#000000', fontSize: 16.5, fontWeight: '700' }}>{i < N - 1 ? W[N + 1] : W[N + 2]}</Text>
             </View>
           </Pressable>
         </View>
