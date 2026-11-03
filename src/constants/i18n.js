@@ -2232,7 +2232,7 @@ export const STRINGS = {
     fg_task_plan: "Say I'm going to a plan",
     sk_opera: "Red velvet, gold balconies, the lights going down. Come together.",
     ws_badge: "Workshop",
-    bk_kind_workshop: "🎓 Workshops",
+    bk_kind_workshop: "Workshops",
     ws_writing: "Writing",
     ws_poetry: "Poetry",
     ws_dance: "Dance",

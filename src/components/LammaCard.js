@@ -10,11 +10,22 @@ import { tapLight } from '../utils/feedback';
 const TableGames = lazyOverlay(() => import('./lamma/TableGames').then((m) => ({ default: m.TableGames })));
 
 const W = {
-  en: { t: 'Lamma — Table Icebreakers', s: 'One room code for the whole table: The Spy, Arousty & 5s Bomb, Table Sparks and Campfire Karaoke.' },
-  ar: { t: 'لمّة — ألعاب الترابيزة', s: 'كود أوضة واحد للترابيزة كلها: المندَسّ، عروستي وقنبلة الـ٥ ثواني، مين فينا، وغنّوا سوا.' },
+  en: { t: 'Lamma — Table Icebreakers', s: 'One room code for the whole table: The Spy, Arousty & 5s Bomb, Spill or Spark and Campfire Karaoke.' },
+  ar: { t: 'لمّة — ألعاب الترابيزة', s: 'كود أوضة واحد للترابيزة كلها: المندَسّ، عروستي وقنبلة الـ٥ ثواني، قول ولا Spark، وغنّوا سوا.' },
 };
 
 /* ─── THE DOOR TO LAMMA ── on Together and on Space (Ayser, October 2026) */
+/* the row in Together's "More" list (the same door, one line) */
+export const LammaRow = ({ children }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      {children(() => { tapLight(); setOpen(true); })}
+      {open ? <TableGames onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+};
+
 export const LammaCard = ({ style }) => {
   const { lang } = useLang();
   const w = W[lang === 'ar' ? 'ar' : 'en'];

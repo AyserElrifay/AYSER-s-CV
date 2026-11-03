@@ -67,7 +67,7 @@ export const GreenHero = ({ title, line, top }) => (
     <Image source={{ uri: publicMedia('welcome-trees.jpg') }} style={{ position: 'absolute', width: '100%', height: '100%' }} accessibilityIgnoresInvertColors />
     <LinearGradient colors={['rgba(0,0,0,0.25)', 'rgba(8,40,28,0.85)']} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
     <View style={{ position: 'absolute', left: 18, right: 18, bottom: 18 }}>
-      <Text style={{ color: '#FFF', fontSize: 30, fontWeight: '900', letterSpacing: -0.5 }}>{'🌿 ' + title}</Text>
+      <Text style={{ color: '#FFF', fontSize: 30, fontWeight: '900', letterSpacing: -0.5 }}>{title}</Text>
       <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: 15, lineHeight: 21, marginTop: 6, fontWeight: '600' }}>{line}</Text>
     </View>
   </View>

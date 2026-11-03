@@ -8,6 +8,8 @@ import { levelOf } from '../lib/xp';
 import { lookOf, titleFor } from '../lib/activityPins';
 import { fetchShowedUp, creatorRecord } from '../services/green';
 import { tapLight } from '../utils/feedback';
+import { myMomentsLevel } from '../services/loop';
+import { tw as trackWord } from '../constants/trackWords';
 
 /* ─── THE LOCAL PASS ──────────────────────────────────────────────────
    Ayser: "هل في أوبشن تاني ما تبقاش شبه انستجرام". A profile here is not
@@ -39,7 +41,12 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
     if (p.id) creatorRecord(p.id).then((r) => { if (alive) setCreator(!!(r && r.is_creator)); });
     return () => { alive = false; };
   }, [p.id]);
-  const tone = STAMP[lv.index] || STAMP[0];
+  /* Ayser, November 2026 — one level in the app: on your own pass the stamp
+     is the same level as the bar under it (the Global Track, from real
+     check-ins), never a second XP name */
+  const [track, setTrack] = useState(null);
+  useEffect(() => { if (own) myMomentsLevel().then((x) => { if (x && x.ok) setTrack(x.level || 1); }); }, [own]);
+  const tone = STAMP[track ? Math.min(STAMP.length - 1, track - 1) : lv.index] || STAMP[0];
   const place = p.city || p.cover_place || null;
   const langs = split(p.speaks_language);
   const loves = split(p.hobbies);
@@ -89,9 +96,19 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
         style={{ position: 'absolute', top: 40, right: 14, outlineStyle: 'none' }}>
       <View pointerEvents="none" style={{ width: 88, height: 88, borderRadius: 44, borderWidth: 2.5, borderColor: tone, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-12deg' }], opacity: 0.9 }}>
         <View style={{ position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderRadius: 40, borderWidth: 1, borderColor: tone }} />
-        <Text style={{ color: tone, fontSize: t('xp_lvl_' + lv.key).length > 7 ? 8.5 : 10.5, fontWeight: '900', letterSpacing: 0.4, maxWidth: 70, textAlign: 'center' }} numberOfLines={1}>{t('xp_lvl_' + lv.key).toUpperCase()}</Text>
-        <Text style={{ color: tone, fontSize: 16, fontWeight: '900', marginTop: 1, fontVariant: ['tabular-nums'] }}>{lv.xp.toLocaleString()}</Text>
-        <Text style={{ color: tone, fontSize: 9.5, fontWeight: '900', letterSpacing: 1.2 }}>XP</Text>
+        {track ? (
+          <>
+            <Text style={{ color: tone, fontSize: 9.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.2 }}>{lang === 'ar' ? 'مستوى' : 'LEVEL'}</Text>
+            <Text style={{ color: tone, fontSize: 24, fontWeight: '900', marginTop: -1, fontVariant: ['tabular-nums'] }}>{lang === 'ar' ? '٠١٢٣٤٥'[track] || track : track}</Text>
+            <Text style={{ color: tone, fontSize: 8.5, fontWeight: '900', letterSpacing: 0.4, maxWidth: 70, textAlign: 'center' }} numberOfLines={1}>{String(trackWord(lang, 'gt_l' + track) || '').toUpperCase()}</Text>
+          </>
+        ) : (
+          <>
+            <Text style={{ color: tone, fontSize: t('xp_lvl_' + lv.key).length > 7 ? 8.5 : 10.5, fontWeight: '900', letterSpacing: 0.4, maxWidth: 70, textAlign: 'center' }} numberOfLines={1}>{t('xp_lvl_' + lv.key).toUpperCase()}</Text>
+            <Text style={{ color: tone, fontSize: 16, fontWeight: '900', marginTop: 1, fontVariant: ['tabular-nums'] }}>{lv.xp.toLocaleString()}</Text>
+            <Text style={{ color: tone, fontSize: 9.5, fontWeight: '900', letterSpacing: 1.2 }}>XP</Text>
+          </>
+        )}
       </View>
       </Pressable>
 

@@ -446,7 +446,7 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
               <ActivityIndicator color={GREEN} style={{ marginVertical: 24 }} />
             ) : rows.length === 0 ? (
               <View style={{ borderWidth: 1, borderColor: C.line, borderStyle: 'dashed', borderRadius: 18, padding: 20, marginBottom: 18, alignItems: 'center' }}>
-                <Text style={{ fontSize: 30, marginBottom: 6 }}>🌱</Text>
+                <Ionicons name="leaf-outline" size={28} color={GREEN} style={{ marginBottom: 6 }} />
                 <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', textAlign: 'center' }}>
                   {why === 'offline' ? t('lamma_conn_hint') : t('green_week_empty')}
                 </Text>
