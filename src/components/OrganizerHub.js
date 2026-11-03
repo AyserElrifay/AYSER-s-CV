@@ -11,7 +11,8 @@ import {
   pingHost, eventHostHere, rateEvent, myEventRating,
 } from '../services/hub';
 
-import { HostQr } from './StampKit';   // this file is only ever loaded lazily
+import { HostQr } from './StampKit';
+import { hubRequested, hubTaken } from '../lib/hubLink';   // this file is only ever loaded lazily
 
 /* ─── THE ORGANIZER HUB ───────────────────────────────────────────────
    Ayser, November 2026: the people who run a table or a trip run it from
@@ -336,7 +337,8 @@ export const RateEvent = ({ kind, id, lang }) => {
 export const HubEntry = () => {
   const { lang } = useLang();
   const [n, setN] = useState(null);
-  const [open, setOpen] = useState(false);
+  // …/?hub=1 (src/lib/hubLink.js) opens it straight away
+  const [open, setOpen] = useState(() => { const r = hubRequested(); if (r) hubTaken(); return r; });
   useEffect(() => {
     const f = () => myHosting().then((x) => setN(x && x.ok ? (x.events || []) : []));
     f();

@@ -257,17 +257,6 @@ export const SettingsScreen = ({ onClose }) => {
                 );
               })}
             </View>
-            {/* Liquid Glass — a new look to try, off unless turned on (src/lib/liquid.js) */}
-            {Platform.OS === 'web' ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('lq_title')}</Text>
-                  <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, lineHeight: 16 }}>{t('lq_sub')}</Text>
-                </View>
-                <Switch value={!!liquid} onValueChange={(v) => { tapSelection(); setLiquid(v); }} accessibilityLabel={t('lq_title')}
-                  trackColor={{ false: C.glassHi, true: C.purple }} thumbColor="#FFF" ios_backgroundColor={C.glassHi} />
-              </View>
-            ) : null}
             {/* Smart Arrival Radar — on unless turned off (src/lib/radar.js) */}
             <RadarRow lang={lang} />
           </View>

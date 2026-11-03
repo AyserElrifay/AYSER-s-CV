@@ -46,6 +46,8 @@ import { WhatsNew } from './src/components/WhatsNew';
 import { isOwner } from './src/services/music';
 import { myStudio } from './src/services/team';
 import { studioRequested, stripStudioParam, studioTab } from './src/utils/studioLink';
+import { hubRequested } from './src/lib/hubLink';
+import { goToTab as goToTabLink } from './src/lib/mapBus';
 import { initPwa } from './src/lib/pwa';
 import { Boundary } from './src/components/Boundary';
 import { InstallPrompt } from './src/components/InstallPrompt';
@@ -141,6 +143,17 @@ const SafetyGate = () => {
 };
 /* ── THE 3-PHOTO CARD ── any screen asks with askCard() (services/card) */
 const ProfileCardSheet = lazyOverlay(() => import('./src/components/ProfileCardSheet').then((m) => ({ default: m.ProfileCardSheet })));
+/* …/?hub=1: once signed in, go to Space, where the Organizer Hub opens (src/lib/hubLink.js) */
+const HubLinkGate = () => {
+  const { user } = useAuth() || {};
+  React.useEffect(() => {
+    if (!user || !hubRequested()) return undefined;
+    const h = setTimeout(() => goToTabLink('SPACE'), 900);
+    return () => clearTimeout(h);
+  }, [user]);
+  return null;
+};
+
 const CardGate = () => {
   const [open, setOpen] = React.useState(false);
   React.useEffect(() => {
@@ -306,6 +319,7 @@ const Root = () => {
       <MemberGate />
       <SafetyGate />
       <CardGate />
+      <HubLinkGate />
       {/* Smart Arrival Radar: 300 m, the heartbeat, Arrival Mode (src/components/ArrivalRadar.js) */}
       <RadarWatcher />
       <StampGate />

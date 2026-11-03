@@ -13,8 +13,11 @@ import { Platform } from 'react-native';
    card is recognised by its own glass colour, which only Liquid uses. */
 
 const KEY = 'moments.liquid';
+/* Ayser, November 2026: "Remove liquid glass … make it as the last version".
+   It is off for everyone, and a phone that had tried it forgets it. */
 export const liquidStored = () => {
-  try { return Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage.getItem(KEY) === '1'; } catch (e) { return false; }
+  try { if (Platform.OS === 'web' && typeof window !== 'undefined') window.localStorage.removeItem(KEY); } catch (e) {}
+  return false;
 };
 export const keepLiquid = (on) => {
   try { if (on) window.localStorage.setItem(KEY, '1'); else window.localStorage.removeItem(KEY); } catch (e) {}
