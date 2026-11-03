@@ -22,6 +22,8 @@ export const myQuota = () => rpc('my_quota');
 export const circleNow = (lang) => rpc('circle_now', { p_lang: lang || 'en' });
 export const circleVote = (poll, slot) => rpc('circle_vote', { p_poll: poll, p_slot: slot });
 export const circleEnter = (poll) => rpc('circle_enter', { p_poll: poll });
+// the team only (circle_can_shuffle): a private test room now, to hear that the voice works
+export const circleTestEnter = (poll) => rpc('circle_test_enter', { p_poll: poll });
 export const circleTopicTurn = (poll) => rpc('circle_topic', { p_poll: poll });
 export const circleShuffle = (poll) => rpc('circle_shuffle', { p_poll: poll });
 

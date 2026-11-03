@@ -6,7 +6,7 @@ import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { mv } from '../constants/mvpWords';
-import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter, circleTopicTurn, circleShuffle } from '../services/mvp';
+import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter, circleTestEnter, circleTopicTurn, circleShuffle } from '../services/mvp';
 import { circleTopic } from '../constants/circleTopics';
 import { askUpgrade, askSafety } from '../services/membership';
 import { askCard } from '../services/card';
@@ -170,8 +170,8 @@ const CircleRoom = ({ room, lang, onClose }) => {
   const left = Date.parse(room.ends_at) - (Date.now() + skew.current);
   const over = left <= 0;
   useEffect(() => {
-    const t = setInterval(() => circleEnter(room.id).then((r) => r && r.ok && setPeople(r.people || [])), 10000);
-    return () => { clearInterval(t); if (mesh.current) { mesh.current.close(); mesh.current = null; } };
+    const t = room.test ? null : setInterval(() => circleEnter(room.id).then((r) => r && r.ok && setPeople(r.people || [])), 10000);
+    return () => { if (t) clearInterval(t); if (mesh.current) { mesh.current.close(); mesh.current = null; } };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (over && mesh.current) { mesh.current.close(); mesh.current = null; setVoice(false); tapMedium(); } }, [over]);
   const talk = async () => {
@@ -194,6 +194,7 @@ const CircleRoom = ({ room, lang, onClose }) => {
           </View>
         ) : (
           <View style={{ flex: 1, alignItems: 'center' }}>
+            {room.test ? <Small style={{ marginBottom: 10 }}>{lang === 'ar' ? 'أوضة تجربة · للفريق بس' : 'TEST ROOM · TEAM ONLY'}</Small> : null}
             <TopicCard id={room.id} lang={lang} />
             <Text style={[{ color: C.text, fontSize: 48, fontWeight: '300', letterSpacing: 2, marginTop: 22 }, NUM]}>{clock(left, lang)}</Text>
             <Small style={{ marginTop: 10 }}>{mv(lang, 'cLeft30')}</Small>
@@ -247,6 +248,7 @@ const OnlineLine = ({ lang }) => (
 
 export const CircleCard = ({ onShowDrops }) => {
   const { lang } = useLang();
+  const [team, setTeam] = useState(false);   // the server says (circle_topic → can_shuffle), not the phone
   const [c, setC] = useState(null);
   const [room, setRoom] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -256,6 +258,7 @@ export const CircleCard = ({ onShowDrops }) => {
   const load = () => circleNow('en').then((x) => { if (x && x.ok) { skew.current = Date.parse(x.now) - Date.now(); setC(x); } });
   useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, []);
   const tick = useTick(1000);
+  useEffect(() => { if (c && c.id) circleTopicTurn(c.id).then((x) => setTeam(!!(x && x.can_shuffle))).catch(() => {}); }, [c && c.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // the clock ran past a turn (voting closed, the circle opened or ended): ask again
   const next = c ? (c.state === 'voting' ? c.closes_at : c.state === 'countdown' ? c.opens_at : c.state === 'open' ? c.ends_at : null) : null;
   const asked = useRef(null);
@@ -269,6 +272,12 @@ export const CircleCard = ({ onShowDrops }) => {
     tapLight();
     setC((x) => ({ ...x, my_vote: i, options: x.options.map((o, k) => ({ ...o, votes: o.votes + (k === i ? 1 : 0) - (k === x.my_vote ? 1 : 0) })) }));
     await circleVote(c.id, i); load();
+  };
+  const testRoom = async () => {
+    tapMedium();
+    const r = await circleTestEnter(c.id);
+    if (r && r.ok) setRoom({ ...r, id: c.id });
+    else setNote(lang === 'ar' ? 'دي للفريق بس.' : 'This is for the team only.');
   };
   const enter = async () => {
     tapMedium(); setBusy(true); setNote(null);
@@ -334,6 +343,13 @@ export const CircleCard = ({ onShowDrops }) => {
       ) : (
         <Text style={{ color: C.dim, fontSize: 14.5 }}>{mv(lang, 'cEnded')}</Text>
       )}
+      {/* the team can hear the room before the real time (RUN_ME.sql · A TEST CIRCLE) */}
+      {team && c.state !== 'open' ? (
+        <Pressable testID="circle-test" onPress={testRoom} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 12 }}>
+          <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '600', textDecorationLine: 'underline' }}>{lang === 'ar' ? 'الفريق: جرّب الأوضة دلوقتي' : 'Team: try the room now'}</Text>
+        </Pressable>
+      ) : null}
+      {note && c.state !== 'open' ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6 }}>{note}</Text> : null}
       {room ? <CircleRoom room={room} lang={lang} onClose={(toDrops) => { setRoom(null); load(); if (toDrops && onShowDrops) onShowDrops(); }} /> : null}
     </Card>
   );

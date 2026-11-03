@@ -27775,6 +27775,36 @@ end $$;
 revoke execute on function public.squad_pin_cancel(uuid) from public, anon;
 grant execute on function public.squad_pin_cancel(uuid) to authenticated;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  A TEST CIRCLE, FOR THE TEAM ONLY
+--  Ayser, November 2026: "أقدر أ join إزاي" — the real Circle opens only at
+--  the voted time. The team can open a private test room now, to hear that
+--  the voice works: topic circle:test-<poll>, thirty minutes, team members
+--  only (circle_can_shuffle). Nobody else can enter it or read it.
+-- ═══════════════════════════════════════════════════════════════════════
+create or replace function public.circle_here(p_topic text, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select (p_topic like 'test-%' and public.circle_can_shuffle(u))
+    or exists (select 1 from public.circle_joins j join public.circle_polls p on p.id = j.poll_id
+                where j.user_id = u and p.id::text = p_topic
+                  and now() < public.circle_winner(p) + interval '31 minutes');
+$$;
+revoke all on function public.circle_here(text, uuid) from public, anon;
+grant execute on function public.circle_here(text, uuid) to authenticated;
+
+create or replace function public.circle_test_enter(p_poll uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if not public.circle_can_shuffle(me) then return jsonb_build_object('ok', false, 'reason', 'not_team'); end if;
+  return jsonb_build_object('ok', true, 'test', true, 'topic', 'circle:test-' || p_poll, 'now', now(),
+    'ends_at', now() + interval '30 minutes',
+    'people', (select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url)), '[]'::jsonb)
+                 from public.profiles p where p.id = me));
+end $$;
+revoke execute on function public.circle_test_enter(uuid) from public, anon;
+grant execute on function public.circle_test_enter(uuid) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
