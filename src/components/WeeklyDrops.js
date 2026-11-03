@@ -426,7 +426,7 @@ const DropCard = ({ d, lang, onChanged }) => {
       <LoopVideo uri={dropClip(d)} />
       {/* the kind, crisp and small, top-left: [ CULTURE ] */}
       <Text style={{ color: C.text, fontSize: 11, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{'[ ' + catWord(lang, cat).toUpperCase() + ' ]'}</Text>
-      {vibe ? <Small style={{ marginTop: 8 }}>{vibe.toUpperCase()}</Small> : null}
+      {vibe && vibe.toUpperCase() !== catWord(lang, cat).toUpperCase() ? <Small style={{ marginTop: 8 }}>{vibe.toUpperCase()}</Small> : null}
       <Text style={{ color: C.text, fontSize: 24, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.5, marginTop: 8 }}>{place}</Text>
       <Text style={{ color: C.text, fontSize: 15, marginTop: 4 }}>{when(d.starts_at, lang)}</Text>
       {/* a trip (Ayser: the velvet rope, not a discount): one price, and who it is for */}
@@ -598,12 +598,17 @@ const WeekendBanner = ({ lang }) => {
   );
 };
 
-export const DropsSection = ({ max = 3, only = null }) => {
+export const DropsSection = ({ max = 3, only = null, onCount }) => {
   const { lang } = useLang();
   const [list, setList] = useState(null);
   const [cat, setCat] = useState(only || 'all');
   const load = () => dropsList().then((x) => setList(Array.isArray(x) ? x : []));
   useEffect(() => { load(); }, []);
+  // the page around one kind (Green Minds) needs to know if there is anything, so it never says "nothing yet" over a real day
+  useEffect(() => {
+    if (!onCount || !list) return;
+    onCount(list.filter((d) => !only || (d.category || 'tables') === only).length);
+  }, [list]); // eslint-disable-line react-hooks/exhaustive-deps
   // no Drops this week: only the weekend countdown (Sunday–Wednesday), never a line saying "nothing"
   if (!list || !list.length) return only ? null : <View style={{ marginTop: 22 }}><WeekendBanner lang={lang} /></View>;
   // the open Drops first (yours, then the spotlight), then the ones waiting their turn
@@ -617,9 +622,9 @@ export const DropsSection = ({ max = 3, only = null }) => {
   const later = all.filter((d) => !shown.includes(d)).slice(0, 8);
   if (only && !shown.length) return null;   // one kind asked for, none this week: nothing, never an empty card
   return (
-    <View style={{ marginTop: 22 }}>
+    <View style={{ marginTop: only ? 0 : 22, marginBottom: only ? 14 : 0 }}>
       {only ? null : <WeekendBanner lang={lang} />}
-      <Small>{only ? catWord(lang, only).toUpperCase() : mv(lang, 'drops').toUpperCase()}</Small>
+      {only ? null : <Small>{mv(lang, 'drops').toUpperCase()}</Small>}
       {/* the four pillars: All · Tables · Culture · Impact · Roam */}
       {only ? null : <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 10 }}>
         {['all'].concat(CATS).map((k) => {

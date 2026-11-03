@@ -12,7 +12,7 @@ import { goToTab } from '../../lib/mapBus';
 import { isOwner } from '../../services/music';
 import { sendFeedback } from '../../services/feedback';
 import { lazyOverlay } from '../../lib/lazyScreen';
-const ImpactDrops = lazyOverlay(() => import('../WeeklyDrops').then((m) => ({ default: () => <m.DropsSection max={4} only="impact" /> })));
+const ImpactDrops = lazyOverlay(() => import('../WeeklyDrops').then((m) => ({ default: (p) => <m.DropsSection max={4} only="impact" {...p} /> })));
 import { SUPABASE_READY } from '../../lib/supabase';
 import { explain } from '../../lib/explain';
 import {
@@ -31,9 +31,9 @@ import { StartForm } from './StartForm';
 import { titleFor } from '../../lib/activityPins';
 import { isGreen, GREEN_KINDS } from '../../lib/greenKinds';
 import { activityOf } from '../../lib/activityMatch';
-import { GreenHero, PlanCard, IdeaCard } from './GreenCards';
+import { GreenHero, PlanCard, IdeaCard, cream } from './GreenCards';
 
-/* ─── أخضر · GREEN MINDS ──────────────────────────────────────────────
+/* ─── أخضر · C.gold MINDS ──────────────────────────────────────────────
    A corner of Moments for the things that are better done outside and
    with other people: clean-ups, reflection circles, art and culture,
    and the Erasmus-shaped projects that run over a term.
@@ -93,8 +93,8 @@ const PLACES = [
    short list above can still be the one somebody starts something in */
 const flagOf = (code) => String.fromCodePoint(...String(code).toUpperCase().split('').map((c) => 0x1F1E6 + c.charCodeAt(0) - 65));
 
-const GREEN = '#1F7A5A';
-const GREEN_SOFT = 'rgba(31,122,90,0.10)';
+/* gold on cream (Ayser, November 2026); a getter so it follows dark mode */
+
 
 /* a clean-up kind with a title that says football is a football plan */
 const BY_ACTIVITY = { football: 'sport', padel: 'sport', climb: 'sport', swim: 'sport', match: 'sport', walk: 'walk', coffee: 'coffee', eat: 'eat', movie: 'movie', opera: 'culture', music: 'culture', sketch: 'art', crochet: 'art', photo: 'art', read: 'focus', talk: 'circle' };
@@ -236,6 +236,7 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
   const [why, setWhy] = useState(null);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);            // the new-gathering sheet
+  const [impactN, setImpactN] = useState(0);         // the team's Impact Drops this week
   const [day, setDay] = useState(null);              // a day picked from the strip, or all week
   const [open, setOpen] = useState(null);            // the card showing its description
   const [more, setMore] = useState(openOn || null);  // 'ideas' | 'how' | null
@@ -419,7 +420,7 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <View style={{ flex: 1, backgroundColor: cream() }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
 
           {/* a picture, the name, and one line that makes you want to come */}
@@ -442,11 +443,13 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
                 and everything else is one tap away underneath. */}
 
             <Text style={{ color: C.text, fontSize: 20, fontWeight: '900', marginBottom: 10 }}>{t('gm_week')}</Text>
+            {/* the team's Impact Drops first: real, curated volunteering days */}
+            <ImpactDrops onCount={setImpactN} />
             {rows === null ? (
-              <ActivityIndicator color={GREEN} style={{ marginVertical: 24 }} />
-            ) : rows.length === 0 ? (
+              <ActivityIndicator color={C.gold} style={{ marginVertical: 24 }} />
+            ) : rows.length === 0 && impactN > 0 ? null : rows.length === 0 ? (
               <View style={{ borderWidth: 1, borderColor: C.line, borderStyle: 'dashed', borderRadius: 18, padding: 20, marginBottom: 18, alignItems: 'center' }}>
-                <Ionicons name="leaf-outline" size={28} color={GREEN} style={{ marginBottom: 6 }} />
+                <Ionicons name="leaf-outline" size={28} color={C.gold} style={{ marginBottom: 6 }} />
                 <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', textAlign: 'center' }}>
                   {why === 'offline' ? t('lamma_conn_hint') : t('green_week_empty')}
                 </Text>
@@ -454,6 +457,7 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
             ) : (
               <>
                 {/* the days that have something on, and All */}
+                {days.length > 1 ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 12 }}>
                   <Chip on={day === null} onPress={() => { tapLight(); setDay(null); }}>{t('green_all_week')}</Chip>
                   {days.map((d) => (
@@ -462,6 +466,7 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
                     </Chip>
                   ))}
                 </ScrollView>
+                ) : null}
 
                 {days.filter((d) => day === null || d.key === day).map((d) => (
                   <View key={d.key} style={{ marginBottom: 6 }}>
@@ -477,7 +482,7 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
                           onManage={() => { tapLight(); setManage(g); setConfirmOff(false); }}>
                           {open === g.id ? <PastPhotos g={g} t={t} onReport={(u) => setReportingPhoto({ id: g.id + ' ' + u, label: titleFor(g.title, lang) })} /> : null}
                           {sent && sent.id === g.id ? (
-                            <Text style={{ color: GREEN, fontSize: 12, fontWeight: '800', marginTop: 8 }}>{t('green_sent_to')} {sent.n}</Text>
+                            <Text style={{ color: C.gold, fontSize: 12, fontWeight: '800', marginTop: 8 }}>{t('green_sent_to')} {sent.n}</Text>
                           ) : null}
                         </PlanCard>
                       );
@@ -487,48 +492,51 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
               </>
             )}
 
-            {/* ── THIS WEEK'S IMPACT DROPS ── (Ayser, October 2026: real, curated
-                Cairo volunteering days, never an idea to start yourself) */}
-            <ImpactDrops />
 
             {/* ── START ONE, OR PICK AN IDEA ── the team only (Studio) */}
             {isOwner(user) ? (<>
             <Pressable onPress={() => { tapMedium(); startFrom(null); }} accessibilityRole="button" style={{ marginTop: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: GREEN, borderRadius: 999, paddingVertical: 15 }}>
-                <Ionicons name="add" size={20} color="#FFF" />
-                <Text style={{ color: '#FFF', fontSize: 15.5, fontWeight: '900', marginStart: 6 }}>{t('green_start_own')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.gold, borderRadius: 999, paddingVertical: 13 }}>
+                <Ionicons name="add" size={19} color={C.gold} />
+                <Text style={{ color: C.gold, fontSize: 15, fontWeight: '900', marginStart: 6 }}>{t('green_start_own')}</Text>
               </View>
             </Pressable>
 
+            {/* the ideas: folded into one line until asked for (Ayser: "زحمة") */}
             {shownSparks.length ? (
-              <View style={{ marginTop: 24 }}>
-                <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('green_ideas')}</Text>
-                <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 2, marginBottom: 12 }}>{t('green_ideas_sub')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
-                  {shownSparks.map((s, i) => (
-                    <IdeaCard key={s.id} s={s} t={t} move={moving && i < 2} title={sparkText(s, lang, 'title')} about={sparkText(s, lang, 'about')} onStart={() => { tapLight(); startFrom(s); }} />
-                  ))}
-                </ScrollView>
+              <View style={{ marginTop: 14 }}>
+                <Pressable testID="green-ideas" onPress={() => { tapLight(); setMore(more === 'ideas' ? null : 'ideas'); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', flex: 1 }}>{t('green_ideas')}</Text>
+                  <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', marginEnd: 4 }}>{String(Math.min(5, shownSparks.length))}</Text>
+                  <Ionicons name={more === 'ideas' ? 'chevron-up' : 'chevron-down'} size={16} color={C.dim} />
+                </Pressable>
+                {more === 'ideas' ? (
+                  <View style={{ marginTop: 6, borderRadius: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, overflow: 'hidden' }}>
+                    {shownSparks.slice(0, 5).map((s, i) => (
+                      <IdeaCard key={s.id} s={s} t={t} lang={lang} first={i === 0} title={sparkText(s, lang, 'title')} about={sparkText(s, lang, 'about')} onStart={() => { tapLight(); startFrom(s); }} />
+                    ))}
+                  </View>
+                ) : null}
               </View>
             ) : null}
             </>) : null}
 
             <Pressable onPress={() => { tapLight(); setMore(more === 'how' ? null : 'how'); }} accessibilityRole="button" style={{ marginTop: 22, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
-              <MaterialCommunityIcons name="hand-heart-outline" size={18} color={GREEN} />
-              <Text style={{ color: GREEN, fontSize: 14, fontWeight: '900', marginStart: 7 }}>{t('green_how') + (more === 'how' ? ' ▾' : ' ›')}</Text>
+              <MaterialCommunityIcons name="hand-heart-outline" size={18} color={C.gold} />
+              <Text style={{ color: C.gold, fontSize: 14, fontWeight: '900', marginStart: 7 }}>{t('green_how') + (more === 'how' ? ' ▾' : ' ›')}</Text>
             </Pressable>
 
             {more === 'how' ? (
-              <View style={{ backgroundColor: GREEN_SOFT, borderWidth: 1, borderColor: 'rgba(31,122,90,0.35)', borderRadius: 18, padding: 15, marginBottom: 14 }}>
+              <View style={{ backgroundColor: C.goldSoft, borderWidth: 1, borderColor: C.goldSoft, borderRadius: 18, padding: 15, marginBottom: 14 }}>
                 {['green_care_1', 'green_care_2', 'green_care_3', 'green_care_4'].map((k) => (
                   <View key={k} style={{ flexDirection: 'row', marginBottom: 6 }}>
-                    <Text style={{ color: GREEN, fontSize: 13, fontWeight: '900', marginEnd: 8 }}>·</Text>
+                    <Text style={{ color: C.gold, fontSize: 13, fontWeight: '900', marginEnd: 8 }}>·</Text>
                     <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', lineHeight: 20, flex: 1, minWidth: 0 }}>{t(k)}</Text>
                   </View>
                 ))}
                 {onPlay ? (
                   <Pressable onPress={() => { tapLight(); onPlay(GREEN_PACK); }} style={{ marginTop: 6 }}>
-                    <Text style={{ color: GREEN, fontSize: 13, fontWeight: '900' }}>{t('green_quiz')} ›</Text>
+                    <Text style={{ color: C.gold, fontSize: 13, fontWeight: '900' }}>{t('green_quiz')} ›</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -545,7 +553,7 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
                 <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', marginBottom: 6 }} numberOfLines={1}>{titleFor(manage.title, lang)}</Text>
                 {manage.announced_at ? (
                   <View style={{ paddingVertical: 14, flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="checkmark-circle" size={19} color={GREEN} />
+                    <Ionicons name="checkmark-circle" size={19} color={C.gold} />
                     <Text style={{ color: C.dim, fontSize: 16, fontWeight: '600', marginStart: 12 }}>{t('green_invited')}</Text>
                   </View>
                 ) : (

@@ -11,7 +11,7 @@ import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings, myUnrated, rateGathering, listSparks, greenImpact } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings, myUnrated, rateGathering, listSparks } from '../services/green';
 import { COUNTRY_LIST } from '../constants/countries';
 import { remember, recall } from '../lib/offline';
 import { uploadPlanPhoto } from '../lib/storage';
@@ -157,30 +157,23 @@ const Tile = ({ icon, label, onPress }) => (
    counted yet → the card says so plainly and asks you to start one. */
 const GreenDoor = ({ t, onPress }) => {
   const { lang } = useLang();
-  const [n, setN] = useState(null);
-  useEffect(() => { greenImpact().then((r) => { if (r && typeof r.held === 'number') setN(r); }); }, []);
-  const stat = (v, k) => (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900' }}>{String(v)}</Text>
-      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '700', marginTop: 1, textAlign: 'center' }} numberOfLines={1}>{t(k)}</Text>
-    </View>
-  );
+  /* Ayser, November 2026: gold on cream, like the invite card — and a
+     picture of people volunteering so it reads as what it is */
+  const cream = C.text === '#17131F' ? '#F6EFE3' : C.glass;
   return (
-    <Pressable onPress={() => { tapLight(); onPress(); }} accessibilityRole="button" style={{ marginBottom: 10 }}>
-      <LinearGradient colors={['#047857', '#10B981']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 20, padding: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Ionicons name="leaf-outline" size={24} color="#FFF" />
-          <View style={{ flex: 1, marginStart: 10 }}>
-            <Text style={{ color: '#FFF', fontSize: 16.5, fontWeight: '900' }}>{t('green_title')}</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12.5, marginTop: 2 }} numberOfLines={2}>{t('gm_hero')}</Text>
+    <Pressable testID="green-door" onPress={() => { tapLight(); onPress(); }} accessibilityRole="button" style={{ marginBottom: 10 }}>
+      <View style={{ borderRadius: 20, overflow: 'hidden', backgroundColor: cream, borderWidth: 1, borderColor: C.goldSoft, flexDirection: 'row', alignItems: 'center' }}>
+        <Image source={{ uri: publicMedia('act-volunteer-2.jpg') }} style={{ width: 96, height: 104 }} resizeMode="cover" accessibilityIgnoresInvertColors />
+        <View style={{ flex: 1, paddingHorizontal: 14, paddingVertical: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="hand-left-outline" size={15} color={C.gold} />
+            <Text style={{ color: C.gold, fontSize: 11.5, fontWeight: '900', letterSpacing: 0.6, marginStart: 5 }}>{lang === 'ar' ? 'تطوّع' : 'VOLUNTEER'}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#FFF" />
+          <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900', marginTop: 3 }}>{t('green_title')}</Text>
+          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={2}>{lang === 'ar' ? 'ساعة تطوّع مع ناس كويسة — انضم ليوم الأثر الجاي' : 'An hour of volunteering with good people — join the next Impact Day'}</Text>
         </View>
-        {/* Ayser, November 2026: no small counts on the door — one quiet invitation */}
-        <View style={{ alignSelf: 'flex-start', marginTop: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 12, paddingVertical: 6 }}>
-          <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800' }}>{lang === 'ar' ? '✦ انضم ليوم الأثر الجاي' : '✦ Join the next Impact Day'}</Text>
-        </View>
-      </LinearGradient>
+        <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color={C.gold} style={{ marginEnd: 12 }} />
+      </View>
     </Pressable>
   );
 };
