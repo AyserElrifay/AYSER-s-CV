@@ -34,7 +34,6 @@ import { goToTab, showOnMap } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
 
 import { NextUp } from '../components/NextUp';
-import { HighlightsHero } from '../components/HighlightsHero';
 import { setVideoQueue } from '../lib/videoQueue';
 import { lazyOverlay } from '../lib/lazyScreen';
 // the two things at the top of Home, fetched after the feed: your next step, and today's question
@@ -651,7 +650,7 @@ export const HomeScreen = () => {
             {user ? <NextStep onHas={setHasStep} /> : null}
             {!hasStep ? (
               <>
-                <HighlightsHero />
+                {/* the highlight videos moved to Together, where they invite people to the tables */}
                 <NextUp compact user={user} onStart={() => goToTab('TOGETHER')}
                   onOpen={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }} />
               </>

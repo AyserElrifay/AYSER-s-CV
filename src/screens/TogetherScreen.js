@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, TextInput, Image, Platform, Linking } from 'react-native';
+import { HighlightsHero } from '../components/HighlightsHero';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -727,6 +728,8 @@ export const TogetherScreen = () => {
             Impact days, Roam — then the English Circle, then the Global Track */}
         {/* the level is one line at the top; the card opens in a sheet (GlobalTrack pill) */}
         {uid ? <GlobalTrack pill /> : null}
+        {/* Ayser, November 2026: the real evenings, moving, right above the tables you can join */}
+        <View style={{ marginTop: 12 }}><HighlightsHero height={230} /></View>
         {uid ? <DropsSection max={6} /> : null}
         {uid ? <CircleCard /> : null}
         <View style={{ height: 18 }} />
