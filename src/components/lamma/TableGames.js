@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing } from 'react-native';
 import { View, Text, Pressable, ScrollView, Modal, TextInput, Vibration } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -6,12 +7,13 @@ import { supabase, SUPABASE_READY } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LanguageContext';
 import { getProfile } from '../../services/profiles';
-import { tapLight, tapMedium, tapSuccess } from '../../utils/feedback';
+import { tapLight, tapMedium, tapSuccess, tapCelebrate } from '../../utils/feedback';
 import { sfxPop } from '../../utils/sfx';
 import { YtKaraoke, ytId } from './YtKaraoke';
 import { appSettings } from '../../services/offers';
 import { useSheetBack } from '../../hooks/useSheetBack';
-import { SPY_PACKS, TABOO, BOMB, WHO, HOT, SONGS, parseCustom, pick } from './tableContent';
+import { SPY_PACKS, TABOO, BOMB, SONGS, parseCustom, pick } from './tableContent';
+import { GEARS, VOTES } from './sparkDecks';
 
 /* ─── LAMMA · THE TABLE GAMES ─────────────────────────────────────────
    Ayser, October 2026: four heads-up games for the people around one
@@ -35,7 +37,8 @@ const W = {
     spy: 'Spy at the Table', spyS: 'One of you does not know the word.',
     taboo: 'Arousty', tabooS: 'Describe it without the 4 forbidden words.',
     bomb: 'Table Bomb', bombS: 'One phone · 5 seconds · name three · pass it.',
-    sparks: 'Table Sparks', sparksS: 'Who at this table… and hot takes.',
+    sparks: 'Spill or Spark', sparksS: 'The truth out loud — or take the Spark.',
+    spot: 'Spotlight on', spill: 'Spill the truth', pass: 'Pass & take the Spark', spillNow: 'Answer out loud to the table.', sparkTitle: 'THE SPARK', truthTitle: 'THE TRUTH', blind: 'BLIND TABLE VOTE', secs: '{n}s', topVote: 'The table says', noVotes: 'Nobody voted this time.', yourTurn: 'Your turn',
     karaoke: 'Campfire & Karaoke', karaokeS: 'The same lyrics on every phone, chords for the guitar.',
     start: 'Start a room', join: 'Join', codePh: '6-digit code', code: 'Room code', players: 'At the table',
     waiting: 'Waiting for the host to start…', go: 'Start', next: 'Next', leave: 'Leave',
@@ -59,7 +62,7 @@ const W = {
     tabooBomb: 'Arousty & 5s Bomb', karaokeC: 'Campfire Karaoke',
     rSpy: ['Everyone sees the word — except the spy.', 'Take turns: one word each about it.', 'Vote. Catch the spy, or the spy guesses the word.'],
     rTaboo: ['Describe the word without the 4 forbidden ones.', 'Slip, and the table buzzes “Caught You!”.', 'Bomb: name three in 5 seconds, then pass the phone.'],
-    rSparks: ['A “who at this table…” question appears.', 'Everyone votes on their own phone.', 'Reveal, laugh, next card.'],
+    rSparks: ['One player is picked: spill the truth out loud, or pass and take the Spark.', 'The host picks the gear: Icebreaker, Unfiltered or Late Night.', 'Every 4th turn the whole table votes in secret — 15 seconds.'],
     rKaraoke: ['The host picks a song.', 'The lyrics move on every phone together.', 'The guitarist switches on the chords.'],
   },
   ar: {
@@ -67,7 +70,8 @@ const W = {
     spy: 'المندَسّ', spyS: 'واحد فيكم مش عارف الكلمة.',
     taboo: 'عروستي', tabooS: 'اوصفها من غير الـ٤ كلمات الممنوعة.',
     bomb: 'قنبلة الترابيزة', bombS: 'موبايل واحد · ٥ ثواني · قول تلاتة · وعدّيه.',
-    sparks: 'مين فينا / مع ولا ضد', sparksS: 'مين فينا… وآراء تقسم الترابيزة.',
+    sparks: 'قول ولا Spark', sparksS: 'قول الحقيقة بصوت عالي — أو خد الـ Spark.',
+    spot: 'الدور على', spill: 'قول الحقيقة', pass: 'عدّي وخد الـ Spark', spillNow: 'جاوب بصوت عالي للترابيزة.', sparkTitle: 'الـ SPARK', truthTitle: 'الحقيقة', blind: 'تصويت سرّي', secs: '{n} ث', topVote: 'الترابيزة اختارت', noVotes: 'محدش صوّت المرة دي.', yourTurn: 'دورك',
     karaoke: 'غنّوا سوا', karaokeS: 'نفس الكلام على كل موبايل، والكوردات للجيتار.',
     start: 'ابدأ أوضة', join: 'ادخل', codePh: 'كود من ٦ أرقام', code: 'كود الأوضة', players: 'على الترابيزة',
     waiting: 'مستنيين المنظّم يبدأ…', go: 'ابدأ', next: 'اللي بعده', leave: 'اخرج',
@@ -91,7 +95,7 @@ const W = {
     tabooBomb: 'عروستي وقنبلة الـ٥ ثواني', karaokeC: 'غنّوا سوا',
     rSpy: ['الكل بيشوف الكلمة — إلا المندس.', 'بالدور: كل واحد يقول كلمة عنها.', 'صوّتوا. امسكوا المندس، أو هو يخمّن الكلمة.'],
     rTaboo: ['اوصف الكلمة من غير الـ٤ الممنوعين.', 'لو غلطت، الترابيزة تقول «مسكتك!».', 'القنبلة: قول تلاتة في ٥ ثواني وعدّي الموبايل.'],
-    rSparks: ['يطلع سؤال «مين فينا…».', 'كل واحد يصوّت من موبايله.', 'اكشفوا، اضحكوا، واللي بعده.'],
+    rSparks: ['واحد بيتختار: يقول الحقيقة بصوت عالي، أو يعدّي وياخد الـ Spark.', 'المنظّم يختار الجو: خفيف، صريح، أو عميق.', 'كل رابع دور الترابيزة كلها تصوّت في السر — ١٥ ثانية.'],
     rKaraoke: ['المنظّم يختار أغنية.', 'الكلام بيتحرك على كل الموبايلات مع بعض.', 'اللي بيعزف يشغّل الكوردات.'],
   },
 };
@@ -163,6 +167,36 @@ const Lyrics = ({ song, elapsed, chords }) => {
           </View>
         );
       })}
+    </View>
+  );
+};
+
+/* ── SPILL OR SPARK: the next turn ── a player in the spotlight (never the
+   same twice in a row), or, every fourth turn, the blind table vote */
+const rnd = (n) => Math.floor(Math.random() * n);
+const sparkTurn = (s, players) => {
+  const ps = (players && players.length ? players : []).filter((p) => p && p.id);
+  const turn = (Number(s.turn) || 0) + 1;
+  const deck = GEARS[s.gear] || GEARS.ice;
+  if (turn % 4 === 3 && ps.length >= 2) {
+    return { mode: 'sparks', gear: s.gear, turn, kind: 'vote', idx: rnd(VOTES.length), votes: {}, names: ps, phase: 'q', ends: Date.now() + 15000 };
+  }
+  const pool = ps.length > 1 ? ps.filter((p) => p.id !== s.target) : ps;
+  const target = pool.length ? pool[rnd(pool.length)].id : null;
+  return { mode: 'sparks', gear: s.gear, turn, kind: 'spot', target, names: ps, truth: rnd(deck.truths.length), dare: rnd(deck.dares.length), side: null, phase: 'q' };
+};
+
+/* the card turns over to the Spark */
+const FlipCard = ({ flipped, front, back }) => {
+  const a = useRef(new Animated.Value(flipped ? 1 : 0)).current;
+  useEffect(() => { Animated.timing(a, { toValue: flipped ? 1 : 0, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(); }, [flipped]); // eslint-disable-line react-hooks/exhaustive-deps
+  const f = a.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
+  const b = a.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] });
+  const face = { borderRadius: 26, padding: 22, minHeight: 200, justifyContent: 'center', backfaceVisibility: 'hidden' };
+  return (
+    <View style={{ marginTop: 14 }}>
+      <Animated.View style={[face, { backgroundColor: '#FCE8E8', borderWidth: 1, borderColor: '#F1CACA', transform: [{ perspective: 900 }, { rotateY: f }] }]}>{front}</Animated.View>
+      <Animated.View style={[face, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#18181B', transform: [{ perspective: 900 }, { rotateY: b }] }]}>{back}</Animated.View>
     </View>
   );
 };
@@ -242,12 +276,16 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
   const onAct = (a) => {
     const s = stRef.current;
     if (!s) return;
-    if (a.t === 'vote' && (s.phase === 'vote' || s.phase === 'q')) {
+    if (a.t === 'vote' && (s.phase === 'vote' || s.phase === 'q') && (s.mode !== 'sparks' || s.kind === 'vote')) {
       broadcast({ ...s, votes: { ...(s.votes || {}), [a.from]: a.v } }, lastCards.current);
     } else if (a.t === 'buzz' && s.mode === 'taboo' && s.phase === 'play') {
       if (ch.current) ch.current.send({ type: 'broadcast', event: 'buzz', payload: {} }).catch(() => {});
       setFlash(true); setTimeout(() => setFlash(false), 1400);
       tabooNext(s, -1);
+    } else if ((a.t === 'spill' || a.t === 'pass') && s.mode === 'sparks' && s.kind === 'spot' && !s.side && (a.from === s.target || a.from === me)) {
+      broadcast({ ...s, side: a.t === 'spill' ? 'truth' : 'dare' });
+    } else if (a.t === 'gear' && s.mode === 'sparks' && a.from === me && GEARS[a.v]) {
+      broadcast(sparkTurn({ ...s, gear: a.v, turn: s.turn - 1 }, playersRef.current));
     } else if ((a.t === 'got' || a.t === 'skip') && s.mode === 'taboo' && s.phase === 'play' && a.from === s.describer) {
       tabooNext(s, a.t === 'got' ? 1 : 0);
     }
@@ -275,7 +313,7 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
       broadcast({ mode, phase: 'play', teams, order, turn: 0, turnN: 0, describer: order[0], card: Math.floor(Math.random() * TABOO.length), score: [0, 0], ends: Date.now() + 60000 });
     } else if (mode === 'sparks') {
       lastCards.current = null;
-      broadcast({ mode, phase: 'q', kind: 'who', idx: Math.floor(Math.random() * WHO.length), votes: {}, names: ps });
+      broadcast(sparkTurn({ mode, gear: 'ice', turn: -1 }, ps));
     } else if (mode === 'karaoke') {
       lastCards.current = null;
       broadcast({ mode, phase: 'pick', chords: opts.chords });
@@ -297,13 +335,21 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
       const describer = team.length ? team[Math.floor(turnN / 2) % team.length] : s.order[0];
       broadcast({ ...s, phase: 'play', turn, turnN, describer, card: (s.card + 1) % TABOO.length, ends: Date.now() + 60000 });
     } else if (s.mode === 'sparks') {
-      if (s.phase === 'q') broadcast({ ...s, phase: 'reveal' });
-      else {
-        const kind = s.kind === 'who' ? 'hot' : 'who';
-        broadcast({ ...s, phase: 'q', kind, idx: Math.floor(Math.random() * (kind === 'who' ? WHO.length : HOT.length)), votes: {}, names: playersRef.current });
-      }
+      if (s.kind === 'vote' && s.phase === 'q') broadcast({ ...s, phase: 'reveal' });
+      else broadcast(sparkTurn(s, playersRef.current));
     }
   };
+
+  // Spill or Spark: the blind vote reveals itself after 15 seconds, or once everybody voted
+  useEffect(() => {
+    if (!host || !st || st.mode !== 'sparks' || st.kind !== 'vote' || st.phase !== 'q') return;
+    const all = (st.names || []).length && Object.keys(st.votes || {}).length >= (st.names || []).length;
+    if (all || now >= (st.ends || 0)) broadcast({ ...st, phase: 'reveal' });
+  }, [now, st]); // eslint-disable-line react-hooks/exhaustive-deps
+  const celebrated = useRef(null);
+  useEffect(() => {
+    if (st && st.mode === 'sparks' && st.kind === 'vote' && st.phase === 'reveal' && celebrated.current !== st.turn) { celebrated.current = st.turn; tapCelebrate(); }
+  }, [st]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // taboo: the 60 seconds run out on the host's clock
   useEffect(() => {
@@ -571,32 +617,101 @@ export const TableGames = ({ onClose, initialCode = '' }) => {
             </>
           ) : mode === 'sparks' ? (
             (() => {
-              const who = st.kind === 'who';
-              const q = who ? WHO[st.idx] : HOT[st.idx];
-              const choices = who ? (st.names || players).map((p) => [p.id, p.name || '—']) : [['agree', w(lang, 'agree')], ['disagree', w(lang, 'disagree')]];
-              const tally = {}; Object.values(st.votes || {}).forEach((v) => { tally[v] = (tally[v] || 0) + 1; });
-              const total = Object.keys(st.votes || {}).length || 1;
-              return (
-                <>
-                  <Text style={{ color: GOLD, fontSize: 13, fontWeight: '900', letterSpacing: 1.4, marginTop: 18 }}>{((who ? w(lang, 'whoTitle') : w(lang, 'hotTitle'))).toUpperCase()}</Text>
-                  <Text style={{ color: INK, fontSize: 25, fontWeight: '800', lineHeight: 33, marginTop: 10 }}>{(who ? w(lang, 'whoTitle') + ' ' : '') + pick(lang, q)}</Text>
-                  {choices.map(([id, label]) => {
-                    const on = st.votes && st.votes[me] === id;
-                    const pct = Math.round(((tally[id] || 0) / total) * 100);
+              const gear = GEARS[st.gear] || GEARS.ice;
+              const nameOfId = (id) => ((st.names || players).find((p) => p.id === id) || {}).name || '—';
+              const gearRow = (
+                <View style={{ flexDirection: 'row', marginTop: 16 }}>
+                  {Object.keys(GEARS).map((k) => {
+                    const on = st.gear === k;
                     return (
-                      <Pressable key={id} disabled={st.phase !== 'q'} onPress={() => { tapLight(); act({ t: 'vote', v: id }); }} style={{ marginTop: 10 }}>
-                        <View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(24,24,27,0.08)' }}>
-                          {st.phase === 'reveal' ? <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: pct + '%', backgroundColor: '#EFEBF9' }} /> : null}
-                          <View style={{ flexDirection: 'row', padding: 14, backgroundColor: on && st.phase === 'q' ? INK : 'transparent' }}>
-                            <Text style={{ flex: 1, color: on && st.phase === 'q' ? CREAM : INK, fontSize: 16, fontWeight: '700' }}>{label}</Text>
-                            {st.phase === 'reveal' ? <Text style={{ color: INK, fontSize: 15, fontWeight: '900' }}>{pct + '%'}</Text> : null}
-                          </View>
+                      <Pressable key={k} testID={'gear-' + k} disabled={!host} onPress={() => { tapLight(); act({ t: 'gear', v: k }); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ flex: 1, marginEnd: k === 'late' ? 0 : 6 }}>
+                        <View style={{ borderRadius: 999, paddingVertical: 9, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', backgroundColor: on ? INK : 'transparent', borderWidth: 1, borderColor: on ? INK : 'rgba(24,24,27,0.18)', opacity: !host && !on ? 0.55 : 1 }}>
+                          <Ionicons name={GEARS[k].icon} size={14} color={on ? CREAM : INK} />
+                          <Text style={{ color: on ? CREAM : INK, fontSize: 12.5, fontWeight: '800', marginStart: 5 }} numberOfLines={1}>{lang === 'ar' ? GEARS[k].ar : GEARS[k].en}</Text>
                         </View>
                       </Pressable>
                     );
                   })}
-                  <Text style={{ color: 'rgba(24,24,27,0.6)', fontSize: 13, marginTop: 12 }}>{w(lang, 'votes', { n: Object.keys(st.votes || {}).length })}</Text>
-                  {host ? <Btn label={st.phase === 'q' ? w(lang, 'reveal') : w(lang, 'next')} onPress={hostNext} style={{ marginTop: 22 }} /> : null}
+                </View>
+              );
+              if (st.kind === 'vote') {
+                const q = VOTES[st.idx] || VOTES[0];
+                const left = Math.max(0, Math.ceil(((st.ends || 0) - now) / 1000));
+                const tally = {}; Object.values(st.votes || {}).forEach((v) => { tally[v] = (tally[v] || 0) + 1; });
+                const top = Object.keys(tally).sort((x, y) => tally[y] - tally[x])[0];
+                return (
+                  <>
+                    {gearRow}
+                    <View testID="spark-vote" style={{ marginTop: 16, borderRadius: 26, padding: 20, backgroundColor: '#FCE8E8', borderWidth: 1, borderColor: '#F1CACA' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="eye-off-outline" size={15} color="#7A4A4A" />
+                        <Text style={{ flex: 1, color: '#7A4A4A', fontSize: 12, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.4, marginStart: 6 }}>{w(lang, 'blind')}</Text>
+                        {st.phase === 'q' ? <Text style={{ color: INK, fontSize: 15, fontWeight: '900' }}>{w(lang, 'secs', { n: left })}</Text> : null}
+                      </View>
+                      <Text style={{ color: INK, fontSize: 22, fontWeight: '800', lineHeight: 30, marginTop: 10 }}>{pick(lang, q)}</Text>
+                    </View>
+                    {st.phase === 'q' ? (st.names || players).map((p) => {
+                      const on = st.votes && st.votes[me] === p.id;
+                      return (
+                        <Pressable key={p.id} testID="spark-vote-option" onPress={() => { tapLight(); act({ t: 'vote', v: p.id }); }} style={{ marginTop: 8 }}>
+                          <View style={{ borderRadius: 14, padding: 14, backgroundColor: on ? INK : 'rgba(24,24,27,0.05)' }}>
+                            <Text style={{ color: on ? CREAM : INK, fontSize: 16, fontWeight: '700' }}>{p.name || '—'}</Text>
+                          </View>
+                        </Pressable>
+                      );
+                    }) : (
+                      <View testID="spark-top" style={{ alignItems: 'center', marginTop: 22 }}>
+                        <Text style={{ color: 'rgba(24,24,27,0.6)', fontSize: 13, fontWeight: '800' }}>{w(lang, 'topVote')}</Text>
+                        <Text style={{ color: INK, fontSize: 34, fontWeight: '900', marginTop: 6, textAlign: 'center' }}>{top ? nameOfId(top) : w(lang, 'noVotes')}</Text>
+                        {top ? <Text style={{ color: 'rgba(24,24,27,0.6)', fontSize: 13, marginTop: 4 }}>{w(lang, 'votes', { n: tally[top] })}</Text> : null}
+                      </View>
+                    )}
+                    {st.phase === 'q' ? <Text style={{ color: 'rgba(24,24,27,0.6)', fontSize: 13, marginTop: 12 }}>{w(lang, 'votes', { n: Object.keys(st.votes || {}).length })}</Text> : null}
+                    {host ? <Btn label={st.phase === 'q' ? w(lang, 'reveal') : w(lang, 'next')} onPress={hostNext} style={{ marginTop: 22 }} /> : null}
+                  </>
+                );
+              }
+              const mineTurn = st.target === me;
+              const truth = gear.truths[st.truth] || gear.truths[0];
+              const dare = gear.dares[st.dare] || gear.dares[0];
+              return (
+                <>
+                  {gearRow}
+                  <View testID="spark-spot" style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18 }}>
+                    <Ionicons name="locate-outline" size={18} color={INK} />
+                    <Text style={{ color: INK, fontSize: 17, fontWeight: '800', marginStart: 6 }}>{mineTurn ? w(lang, 'yourTurn') : w(lang, 'spot') + ': ' + nameOfId(st.target)}</Text>
+                  </View>
+                  <FlipCard flipped={st.side === 'dare'}
+                    front={(
+                      <>
+                        <Text style={{ color: '#7A4A4A', fontSize: 12, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{w(lang, 'truthTitle')}</Text>
+                        <Text testID="spark-truth" style={{ color: INK, fontSize: 22, fontWeight: '700', lineHeight: 30, marginTop: 10 }}>{pick(lang, truth)}</Text>
+                        {st.side === 'truth' ? <Text style={{ color: '#7A4A4A', fontSize: 14, fontWeight: '700', marginTop: 12 }}>{w(lang, 'spillNow')}</Text> : null}
+                      </>
+                    )}
+                    back={(
+                      <>
+                        <Text style={{ color: '#F1CACA', fontSize: 12, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{w(lang, 'sparkTitle')}</Text>
+                        <Text testID="spark-dare" style={{ color: CREAM, fontSize: 21, fontWeight: '700', lineHeight: 29, marginTop: 10 }}>{pick(lang, dare)}</Text>
+                      </>
+                    )} />
+                  {!st.side && (mineTurn || host) ? (
+                    <View style={{ flexDirection: 'row', marginTop: 14 }}>
+                      <Pressable testID="spark-spill" onPress={() => { tapSuccess(); act({ t: 'spill' }); }} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
+                        <View style={{ borderRadius: 18, paddingVertical: 15, alignItems: 'center', backgroundColor: '#FCE8E8', borderWidth: 1, borderColor: '#F1CACA' }}>
+                          <Ionicons name="chatbubble-ellipses-outline" size={18} color={INK} />
+                          <Text style={{ color: INK, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{w(lang, 'spill')}</Text>
+                        </View>
+                      </Pressable>
+                      <Pressable testID="spark-pass" onPress={() => { tapMedium(); act({ t: 'pass' }); }} accessibilityRole="button" style={{ flex: 1 }}>
+                        <View style={{ borderRadius: 18, paddingVertical: 15, alignItems: 'center', backgroundColor: '#EFEBF9', borderWidth: 1, borderColor: '#D8CFF0' }}>
+                          <Ionicons name="flash-outline" size={18} color={INK} />
+                          <Text style={{ color: INK, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{w(lang, 'pass')}</Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                  {host ? <Btn label={w(lang, 'next')} onPress={hostNext} style={{ marginTop: 18 }} /> : null}
                 </>
               );
             })()
