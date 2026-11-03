@@ -6,7 +6,8 @@ import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { mv } from '../constants/mvpWords';
-import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter } from '../services/mvp';
+import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter, circleTopicTurn, circleShuffle } from '../services/mvp';
+import { circleTopic } from '../constants/circleTopics';
 import { askUpgrade, askSafety } from '../services/membership';
 import { askCard } from '../services/card';
 import { isSaving } from '../lib/dataSaver';
@@ -110,6 +111,51 @@ export const QuotaLine = ({ q: given, style }) => {
   );
 };
 
+/* ── TODAY'S TOPIC (Ayser, November 2026) ── one question for the whole
+   circle; the team can shuffle it, and every phone follows within seconds */
+const TOPIC_W = { en: ["TODAY'S TOPIC", 'Shuffle topic', 'Today: '], ar: ['توبيك النهارده', 'اقتراح توبيك تاني', 'النهارده: '] };
+const TopicCard = ({ id, lang, compact }) => {
+  const [t, setT] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const L = TOPIC_W[lang === 'ar' ? 'ar' : 'en'];
+  useEffect(() => {
+    let alive = true;
+    const get = () => circleTopicTurn(id).then((x) => { if (alive && x) setT(x); });
+    get();
+    const h = compact ? null : setInterval(get, 12000);
+    return () => { alive = false; if (h) clearInterval(h); };
+  }, [id, compact]);
+  const q = circleTopic(id, t ? t.turn : 0, lang);
+  if (compact) {
+    return (
+      <Text testID="circle-topic-line" style={{ color: C.text, fontSize: 13.5, lineHeight: 19, marginTop: 8 }} numberOfLines={2}>
+        <Text style={{ fontWeight: '800' }}>{'✦ ' + L[2]}</Text>{q}
+      </Text>
+    );
+  }
+  const shuffle = async () => {
+    if (busy) return;
+    tapLight(); setBusy(true);
+    const r = await circleShuffle(id);
+    setBusy(false);
+    if (r && r.ok) { tapSuccess(); setT((x) => ({ ...(x || {}), turn: r.turn })); }
+  };
+  return (
+    <View testID="circle-topic" style={{ alignSelf: 'stretch', marginTop: 14, borderRadius: 24, padding: 20, backgroundColor: '#EFEBF9', borderWidth: 1, borderColor: '#D8CFF0' }}>
+      <Text style={{ color: '#5B4B8A', fontSize: 11.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{'✦ ' + L[0]}</Text>
+      <Text style={{ color: '#18181B', fontSize: 22, fontWeight: '700', lineHeight: 30, marginTop: 8, fontFamily: Platform.OS === 'web' ? 'Georgia, serif' : undefined }}>{q}</Text>
+      {t && t.can_shuffle ? (
+        <Pressable testID="circle-shuffle" onPress={shuffle} disabled={busy} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: '#18181B' }}>
+            <Ionicons name="shuffle" size={15} color="#FAF8F5" />
+            <Text style={{ color: '#FAF8F5', fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L[1]}</Text>
+          </View>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+};
+
 /* ── the 30-minute room ── */
 const CircleRoom = ({ room, lang, onClose }) => {
   const insets = useSafeAreaInsets();
@@ -148,7 +194,8 @@ const CircleRoom = ({ room, lang, onClose }) => {
           </View>
         ) : (
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[{ color: C.text, fontSize: 56, fontWeight: '300', letterSpacing: 2, marginTop: 30 }, NUM]}>{clock(left, lang)}</Text>
+            <TopicCard id={room.id} lang={lang} />
+            <Text style={[{ color: C.text, fontSize: 48, fontWeight: '300', letterSpacing: 2, marginTop: 22 }, NUM]}>{clock(left, lang)}</Text>
             <Small style={{ marginTop: 10 }}>{mv(lang, 'cLeft30')}</Small>
             <Text style={[{ color: C.dim, fontSize: 15, marginTop: 28 }, NUM]}>{mv(lang, 'cPeople', { n: people.length })}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 14 }}>
@@ -225,6 +272,7 @@ export const CircleCard = ({ onShowDrops }) => {
 
   return (
     <Card style={{ padding: 16 }}>
+      {c.state !== 'ended' ? <View style={{ marginTop: -8, marginBottom: 10 }}><TopicCard id={c.id} lang={lang} compact /></View> : null}
       {c.state === 'voting' && (c.my_vote == null || editing) ? (
         <>
           <Small>{mv(lang, 'cName').toUpperCase()}</Small>

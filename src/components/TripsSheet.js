@@ -130,14 +130,14 @@ const EVENT_PAGE = { en: 'Event page · where to meet', ar: 'صفحة الخرو
 const CapsuleSheet = lazyOverlay(() => import('./CapsuleSheet').then((m) => ({ default: m.CapsuleSheet })));
 const TeacherApplySheet = lazyOverlay(() => import('./TeacherApplySheet').then((m) => ({ default: m.TeacherApplySheet })));
 const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
-const PlusCard = ({ plus, t, lang }) => {
+const PlusCard = ({ plus, t, lang, line }) => {
   const [open, setOpen] = useState(false);
   if (plus && !plus.plus && plus.price) {
     return (
       <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={{ marginBottom: 14 }}>
         <View style={{ backgroundColor: '#1A1A1A', borderRadius: 20, padding: 16 }}>
           <Text style={{ color: C.gold, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.4 }}>✦ MOMENTS PLUS</Text>
-          <Text style={{ color: '#F9F9F6', fontSize: 16, fontWeight: '900', marginTop: 4 }}>{t('px_trips_card')}</Text>
+          <Text style={{ color: '#F9F9F6', fontSize: 16, fontWeight: '900', marginTop: 4, lineHeight: 22 }}>{line || t('px_trips_card')}</Text>
           <Text style={{ color: C.gold, fontSize: 13.5, fontWeight: '900', marginTop: 8 }}>{t('px_get') + ' ›'}</Text>
         </View>
         {open ? <PlusSheet why="trips" onClose={() => setOpen(false)} /> : null}
@@ -154,6 +154,45 @@ const PlusCard = ({ plus, t, lang }) => {
       <Text style={{ color: '#F9F9F6', fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>{t('px_gift_sign')}</Text>
       <Text style={{ color: C.gold, fontSize: 12.5, fontWeight: '800', lineHeight: 18, marginTop: 10 }}>{'🎁 ' + t('px_pay_soon_line')}</Text>
     </View>
+  );
+};
+
+/* ─── THE WORKSHOPS SCREEN (Ayser, November 2026) ── creative filters
+   instead of countries, and a waitlist button instead of a small count */
+const WS_PLUS = {
+  en: 'Unlock your full Moments Book, more Weekend Tables & special member rates on Trips and Workshops.',
+  ar: 'افتح كتاب مومنتس كله، ترابيزات ويكند أكتر، وأسعار أعضاء على الرحلات والورش.',
+};
+const WS_FILTERS = [
+  { k: 'all', en: 'All', ar: 'الكل' },
+  { k: 'music', icon: 'musical-notes-outline', en: 'Music & Jam', ar: 'مزيكا وجام', topics: ['music', 'singing'], words: /music|jam|song|guitar|sing|مزيك|اغان|أغان|جيتار|غنا/i },
+  { k: 'art', icon: 'brush-outline', en: 'Art & Sketch', ar: 'رسم وفن', topics: ['art'], words: /art|sketch|draw|paint|رسم|فن/i },
+  { k: 'film', icon: 'film-outline', en: 'Film & Books', ar: 'أفلام وكتب', topics: [], words: /film|movie|cinema|book|read|فيلم|أفلام|افلام|سينما|كتاب|كتب|قراءة/i },
+  { k: 'story', icon: 'create-outline', en: 'Storytelling', ar: 'حكي وكتابة', topics: ['writing', 'poetry'], words: /story|stories|writ|poem|poetry|حكا|حكي|كتابة|شعر/i },
+];
+const inCraft = (o, k) => {
+  const f = WS_FILTERS.find((x) => x.k === k);
+  if (!f || !f.topics) return true;
+  return f.topics.indexOf(o.topic) >= 0 || f.words.test(String(o.title || '') + ' ' + String(o.title_ar || ''));
+};
+const WaitPill = ({ o, lang, user, onNeedSignIn }) => {
+  const [on, setOn] = useState(!!o.i_want);
+  const [busy, setBusy] = useState(false);
+  const tap = async () => {
+    if (busy) return;
+    if (!user) { onNeedSignIn && onNeedSignIn(); return; }
+    tapSelection(); setBusy(true);
+    const r = await offerWant(o.id, !on);
+    setBusy(false);
+    if (r && r.ok) { setOn(!!r.i_want); if (r.i_want) tapSuccess(); }
+  };
+  return (
+    <Pressable testID="ws-wait" onPress={tap} accessibilityRole="switch" accessibilityState={{ checked: on }} hitSlop={6}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: on ? C.text : 'transparent', borderWidth: 1, borderColor: C.text }}>
+        <Ionicons name={on ? 'sparkles' : 'notifications-outline'} size={13} color={on ? C.bg : C.text} />
+        <Text style={{ color: on ? C.bg : C.text, fontSize: 12.5, fontWeight: '800', marginStart: 5 }}>{on ? (lang === 'ar' ? 'في قايمة الانتظار' : 'On the Waitlist') : (lang === 'ar' ? 'نبّهني لما تفتح' : 'Notify me when open')}</Text>
+      </View>
+    </Pressable>
   );
 };
 
@@ -467,6 +506,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
   const [plus, setPlus] = useState(null);
   const [open, setOpen] = useState(null);
   const [region, setRegion] = useState(null);
+  const [craft, setCraft] = useState('all');   // the workshops' own filter
   /* opened from a shared link or a notification: straight to that trip */
   const [focusId, setFocusId] = useState(focus || null);
   useEffect(() => {
@@ -482,7 +522,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
   }, [country, user]);
   useEffect(() => { load(); }, [load]);
 
-  const shown = useMemo(() => (offers || []).filter((o) => (kind ? isKind(o, kind) : o.kind !== 'gift' && o.track !== 'workshop') && (!region || o.country === region)), [offers, kind, region]);
+  const shown = useMemo(() => (offers || []).filter((o) => (kind ? isKind(o, kind) : o.kind !== 'gift' && o.track !== 'workshop') && (!region || o.country === region) && (only !== 'workshop' || inCraft(o, craft))), [offers, kind, region, craft, only]);
   /* Ayser: "ليه أوروبا كده، فين الدول" — every country that has a trip,
      by its own flag and name; Egypt first, then the most trips first */
   const regionsHere = useMemo(() => {
@@ -567,8 +607,18 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
                     <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13.5, fontWeight: '600', marginTop: 3 }}>{t('bk_buddies_sub')}</Text>
                   </View>
                 </View>}
-                <PlusCard plus={plus} t={t} lang={lang} />
-                {regionsHere.length > 1 ? (
+                <PlusCard plus={plus} t={t} lang={lang} line={only === 'workshop' ? WS_PLUS[lang === 'ar' ? 'ar' : 'en'] : null} />
+                {only === 'workshop' ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 10 }}>
+                    {WS_FILTERS.map((f) => (
+                      <Pressable key={f.k} testID={'ws-filter-' + f.k} onPress={() => { tapSelection(); setCraft(f.k); }} accessibilityRole="tab" accessibilityState={{ selected: craft === f.k }}
+                        style={{ marginEnd: 8, flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: craft === f.k ? C.text : C.line, backgroundColor: craft === f.k ? C.text : 'transparent', paddingHorizontal: 14, paddingVertical: 7 }}>
+                        {f.icon ? <Ionicons name={f.icon} size={14} color={craft === f.k ? C.bg : C.text} style={{ marginEnd: 6 }} /> : null}
+                        <Text style={{ color: craft === f.k ? C.bg : C.text, fontSize: 13.5, fontWeight: '800' }}>{f[lang === 'ar' ? 'ar' : 'en']}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                ) : regionsHere.length > 1 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 10 }}>
                     {[null].concat(regionsHere).map((r) => (
                       <Pressable key={r || 'all'} onPress={() => { tapSelection(); setRegion(r); }} accessibilityRole="tab" accessibilityState={{ selected: region === r }}
@@ -621,7 +671,8 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
                               <View style={{ flex: 1 }}>{o.status === 'soon' ? <Soon t={t} /> : <Price o={o} t={t} lang={lang} />}</View>
                               {o.duration_hours ? <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800', marginEnd: 10 }}>{'⏱ ' + hoursLabel(o.duration_hours, t)}</Text> : null}
-                              {o.status === 'soon' && Number(o.wants) > 0 ? <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{t(Number(o.wants) === 1 ? 'bk_wants_1' : 'bk_wants_n').replace('{n}', String(o.wants))}</Text> : null}
+                              {o.status === 'soon' && o.track === 'workshop' ? <WaitPill o={o} lang={lang} user={user} onNeedSignIn={onNeedSignIn} />
+                                : o.status === 'soon' && Number(o.wants) > 0 ? <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{t(Number(o.wants) === 1 ? 'bk_wants_1' : 'bk_wants_n').replace('{n}', String(o.wants))}</Text> : null}
                               {o.seats_left != null ? <Text style={{ color: o.seats_left ? C.dim : '#E11D48', fontSize: 12.5, fontWeight: '800' }}>{o.seats_left ? t('bk_seats_left').replace('{n}', String(o.seats_left)) : t('bk_full')}</Text> : null}
                             </View>
                           </View>

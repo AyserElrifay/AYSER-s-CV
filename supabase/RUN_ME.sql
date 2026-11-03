@@ -27568,6 +27568,44 @@ returns int language sql security definer set search_path = public as $$ select 
 revoke all on function public.send_daily_lines() from public, anon, authenticated;
 delete from public.notifications where kind in ('daily_line', 'app_problem');
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  THE CIRCLE'S TOPIC · one question for the whole room, and a shuffle
+--  Ayser, November 2026: every English Circle opens on "Today's topic".
+--  The questions live in the app (src/constants/circleTopics.js); the
+--  server keeps only the turn, so a shuffle reaches every phone in the
+--  room. Only the owner and the team may shuffle.
+-- ═══════════════════════════════════════════════════════════════════════
+alter table public.circle_polls add column if not exists topic_turn int not null default 0;
+
+create or replace function public.circle_can_shuffle(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (
+    exists (select 1 from auth.users x where x.id = u and (lower(x.email) = 'ayseryourlifecoach@gmail.com'
+            or lower(x.email) in (select lower(o.email) from public.app_owners o)))
+    or exists (select 1 from public.team_members t where t.user_id = u and t.disabled_at is null));
+$$;
+revoke all on function public.circle_can_shuffle(uuid) from public, anon, authenticated;
+
+create or replace function public.circle_topic(p_poll uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('turn', coalesce((select topic_turn from public.circle_polls where id = p_poll), 0),
+                            'can_shuffle', public.circle_can_shuffle(auth.uid()));
+$$;
+revoke execute on function public.circle_topic(uuid) from public, anon;
+grant execute on function public.circle_topic(uuid) to authenticated;
+
+create or replace function public.circle_shuffle(p_poll uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t int;
+begin
+  if not public.circle_can_shuffle(auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_team'); end if;
+  update public.circle_polls set topic_turn = topic_turn + 1 where id = p_poll returning topic_turn into t;
+  if t is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  return jsonb_build_object('ok', true, 'turn', t);
+end $$;
+revoke execute on function public.circle_shuffle(uuid) from public, anon;
+grant execute on function public.circle_shuffle(uuid) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
