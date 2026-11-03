@@ -8,8 +8,11 @@ import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
 /* ─── VOICE NOTES, 15 SECONDS ─────────────────────────────────────────
    Ayser, November 2026: hold the mic, talk, let go — like a walkie-talkie,
-   in Table Chats and in Connections. Recorded small on the phone (Opus at
-   24 kbps, about 45 KB for 15 seconds), stored through our R2 adapter
+   in Table Chats and in Connections. Recorded clearly (Ayser: "الريكورد
+   صوته وحش" — it was 24 kbps, which on an iPhone's AAC sounds like a bad
+   phone line): Opus at 64 kbps, AAC at 96 kbps, mono, 48 kHz, the phone's
+   own gain control on and no echo cancelling (that is for calls, and it
+   dulls a voice note) — about 120–180 KB for 15 seconds. Stored through our R2 adapter
    (Supabase if R2 is off), sent as a message of kind 'voice' (RUN_ME.sql
    messages_voice_guard). Notes play one after the other. Nothing opens
    another app. */
@@ -21,11 +24,14 @@ const W = {
 const vw = (lang, k) => W[lang === 'ar' ? 'ar' : 'en'][k];
 const pickType = () => {
   try {
-    if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return ['audio/webm;codecs=opus', 'audio/webm', 'webm'];
-    if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/mp4')) return ['audio/mp4', 'audio/mp4', 'm4a'];
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return ['audio/webm;codecs=opus', 'audio/webm', 'webm', 64000];
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/mp4;codecs=mp4a.40.2')) return ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'm4a', 96000];
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported('audio/mp4')) return ['audio/mp4', 'audio/mp4', 'm4a', 96000];
   } catch (e) {}
-  return ['', 'audio/webm', 'webm'];
+  return ['', 'audio/webm', 'webm', 64000];
 };
+/* what the phone actually recorded, not what we hoped for */
+const fileOf = (mime) => (/mp4|aac|m4a/i.test(mime || '') ? ['audio/mp4', 'm4a'] : /ogg/i.test(mime || '') ? ['audio/ogg', 'ogg'] : ['audio/webm', 'webm']);
 
 export async function sendVoice({ squadId, dmThreadId, userId, url, seconds }) {
   const { data, error } = await supabase.from('messages')
@@ -57,7 +63,7 @@ export const VoiceButton = ({ lang, userId, squadId, dmThreadId, onSent, onError
     const seconds = Math.min(VOICE_MAX, Math.max(1, Math.round((Date.now() - r.started) / 1000)));
     if (!send || Date.now() - r.started < 600) { setSecs(0); return; }   // a tap, not a note
     try {
-      const [, type, ext] = pickType();
+      const [type, ext] = fileOf(r.mr.mimeType || pickType()[0]);
       const blob = new Blob(r.chunks, { type });
       const url = await uploadMediaSmart(userId, blob, ext, type);
       const row = await sendVoice({ squadId, dmThreadId, userId, url, seconds });
@@ -69,9 +75,11 @@ export const VoiceButton = ({ lang, userId, squadId, dmThreadId, onSent, onError
     if (disabled || recRef.current) return;
     setNote(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-      const [mime] = pickType();
-      const mr = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 24000 } : { audioBitsPerSecond: 24000 });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, sampleRate: 48000, echoCancellation: false, noiseSuppression: true, autoGainControl: true } });
+      const [mime, , , bps] = pickType();
+      let mr;
+      try { mr = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: bps } : { audioBitsPerSecond: bps }); }
+      catch (e) { mr = new MediaRecorder(stream); }   // a phone that refuses the settings still records
       const r = { mr, stream, chunks: [], started: Date.now() };
       mr.ondataavailable = (e) => { if (e.data && e.data.size) r.chunks.push(e.data); };
       mr.start(250);
