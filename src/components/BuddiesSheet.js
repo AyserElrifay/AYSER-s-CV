@@ -26,6 +26,7 @@ import { VoiceButton, VoicePlayer, voiceSeconds } from './VoiceNote';
 import { MomentBond } from './MomentBond';
 import { tcw as tbw, countdown, flagOf, tableNo } from '../constants/tableCore';
 import { lazyOverlay } from '../lib/lazyScreen';
+const CallScreen = lazyOverlay(() => import('./CallScreen').then((m) => ({ default: m.CallScreen })));
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
 
 /* ─── MOMENTS BUDDIES ─────────────────────────────────────────────────
@@ -129,11 +130,13 @@ const Chat = ({ other, threadId, lang, onBack }) => {
     } catch (e) { setDraft(body); setErr(w(lang, 'err')); }
     dmState(tid).then((x) => x && x.ok && setSt(x));
   };
-  const openPing = async () => { tapLight(); setPing((await myNextEvents()) || []); };
+  // the invite list opens and closes on the same button; it never takes over the chat
+  const openPing = async () => { tapLight(); if (ping) { setPing(null); return; } setPing((await myNextEvents()) || []); };
+  const [call, setCall] = useState(null);   // 'audio' | 'video' — friends call each other (RUN_ME.sql call_ring: people who share a chat)
   const doPing = async (e) => {
     tapMedium();
     const r = await buddyPing(person.id, e.kind, e.id);
-    if (r && r.ok) { tapSuccess(); setPinged((p) => ({ ...p, [e.id]: true })); } else setErr(w(lang, 'err'));
+    if (r && r.ok) { tapSuccess(); setPinged((p) => ({ ...p, [e.id]: true })); setTimeout(() => setPing(null), 900); } else setErr(w(lang, 'err'));
   };
 
   const person = (st && st.other) || other || {};
@@ -151,11 +154,20 @@ const Chat = ({ other, threadId, lang, onBack }) => {
           <Text style={{ color: C.text, fontSize: 16, fontWeight: '600', flexShrink: 1 }} numberOfLines={1}>{person.name}</Text>
           {st && st.other_premium ? <Mark /> : null}
         </View>
+        {/* Ayser, November 2026: friends talk like friends — a call, a video call, and an invite to a table, three quiet icons */}
+        {tid ? (
+          <>
+            <Pressable testID="chat-call" onPress={() => { tapMedium(); setCall('audio'); }} accessibilityRole="button" accessibilityLabel={lang === 'ar' ? 'مكالمة' : 'Call'} hitSlop={8} style={{ marginStart: 6 }}>
+              <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}><Ionicons name="call-outline" size={18} color={C.text} /></View>
+            </Pressable>
+            <Pressable testID="chat-video" onPress={() => { tapMedium(); setCall('video'); }} accessibilityRole="button" accessibilityLabel={lang === 'ar' ? 'مكالمة فيديو' : 'Video call'} hitSlop={8} style={{ marginStart: 8 }}>
+              <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}><Ionicons name="videocam-outline" size={19} color={C.text} /></View>
+            </Pressable>
+          </>
+        ) : null}
         {st && st.buddy ? (
-          <Pressable onPress={openPing} accessibilityRole="button">
-            <View style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: C.purple }}>
-              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>{w(lang, 'ping')}</Text>
-            </View>
+          <Pressable testID="chat-invite" onPress={openPing} accessibilityRole="button" accessibilityLabel={w(lang, 'ping')} hitSlop={8} style={{ marginStart: 8 }}>
+            <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: ping ? C.text : C.purple }}><Ionicons name={ping ? 'close' : 'calendar-outline'} size={18} color={ping ? C.bg : '#FFF'} /></View>
           </Pressable>
         ) : null}
       </View>
@@ -171,12 +183,12 @@ const Chat = ({ other, threadId, lang, onBack }) => {
       ) : null}
 
       {ping ? (
-        <View style={{ padding: 16, borderBottomWidth: 1, borderColor: C.line, backgroundColor: C.purpleSoft }}>
-          <Text style={{ color: C.text, fontSize: 14, fontWeight: '600' }}>{w(lang, 'pingTo', { n: person.name || '' })}</Text>
+        <View testID="chat-invite-list" style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12, borderBottomWidth: 1, borderColor: C.line }}>
+          <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '600' }}>{w(lang, 'pingTo', { n: person.name || '' })}</Text>
           {!ping.length ? <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 6 }}>{w(lang, 'pingNone')}</Text> : null}
-          {ping.map((e) => (
-            <Pressable key={e.kind + e.id} onPress={() => (pinged[e.id] ? null : doPing(e))} accessibilityRole="button" style={{ marginTop: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, padding: 12 }}>
+          {ping.slice(0, 3).map((e) => (
+            <Pressable key={e.kind + e.id} onPress={() => (pinged[e.id] ? null : doPing(e))} accessibilityRole="button" style={{ marginTop: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 12, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 9 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '600' }} numberOfLines={1}>{lang === 'ar' && e.title_ar ? e.title_ar : titleFor(e.title, lang)}</Text>
                   <Text style={[{ color: C.dim, fontSize: 12.5, marginTop: 2 }, NUM]}>{new Date(e.starts_at).toLocaleString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Text>
@@ -188,6 +200,7 @@ const Chat = ({ other, threadId, lang, onBack }) => {
         </View>
       ) : null}
 
+      {call ? <CallScreen peer={{ id: person.id, name: person.name, avatar: person.avatar_url }} video={call === 'video'} onClose={() => setCall(null)} /> : null}
       <ScrollView ref={scroll} onContentSizeChange={() => scroll.current && scroll.current.scrollToEnd({ animated: false })} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16 }}>
         {opLine ? <Text style={{ color: C.dim, fontSize: 12.5, textAlign: 'center', marginBottom: 10 }}>{opLine}</Text> : null}
         {msgs.map((m, i) => {
