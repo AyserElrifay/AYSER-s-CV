@@ -63,7 +63,7 @@ export const MapPanel = ({
   })).current;
 
   const shown = open ? plans : plans.slice(0, 1);
-  const count = plans.length === 1 ? t('map_in_area_one') : t('map_in_area').replace('{n}', String(plans.length));
+  const count = plans.length === 1 ? t('map_in_area_one') : t('map_in_area').replace('{n}', lang === 'ar' ? plans.length.toLocaleString('ar-EG') : String(plans.length));
 
   const renderPlan = (g, k) => {
     const mine = user && g.host_id === user.id;

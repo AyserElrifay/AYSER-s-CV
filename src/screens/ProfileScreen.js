@@ -886,7 +886,7 @@ export const ProfileScreen = () => {
               ))
             ) : (
               <View style={{ width: '100%', alignItems: 'center', paddingVertical: 40 }}>
-                <Text style={{ fontSize: 26 }}>✨</Text>
+                <Ionicons name="sparkles-outline" size={24} color={C.faint} />
                 <Text style={{ color: C.faint, fontSize: 13, marginTop: 8 }}>{t('no_moments_share_first')}</Text>
               </View>
             )}

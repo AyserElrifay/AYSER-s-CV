@@ -52,7 +52,7 @@ console.log('\nin this area means on the screen');
 /* the count now lives in the panel under the map (MapPanel.js), and is
    counted from the very list the map hands it */
 const panel = code('src/components/MapPanel.js');
-is('the count is the list on the screen', /plans=\{inView\}/.test(map) && /t\('map_in_area'\)\.replace\('\{n\}', String\(plans\.length\)\)/.test(panel), true);
+is('the count is the list on the screen', /plans=\{inView\}/.test(map) && /t\('map_in_area'\)\.replace\('\{n\}', (?:lang === 'ar' \? plans\.length\.toLocaleString\('ar-EG'\) : )?String\(plans\.length\)\)/.test(panel), true);
 is('and the list is what is inside the map\'s edges', /g\.lat <= view\.n && g\.lat >= view\.s && g\.lng <= view\.e && g\.lng >= view\.w/.test(map), true);
 is('with your location known, the dive lands on your neighbourhood', /const near = locateRef\.current && c\.latitude != null \? 13 : 7;/.test(fs.readFileSync('src/components/LeafletMap.js', 'utf8')), true);
 

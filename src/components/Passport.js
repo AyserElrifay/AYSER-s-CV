@@ -47,7 +47,10 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
   const [track, setTrack] = useState(null);
   useEffect(() => { if (own) myMomentsLevel().then((x) => { if (x && x.ok) setTrack(x.level || 1); }); }, [own]);
   const tone = STAMP[track ? Math.min(STAMP.length - 1, track - 1) : lv.index] || STAMP[0];
-  const place = p.city || p.cover_place || null;
+  /* the city in the reader's language for the places Moments runs in; anything else as typed */
+  const CITY_AR = { cairo: 'القاهرة', giza: 'الجيزة', alexandria: 'الإسكندرية', dahab: 'دهب', 'new cairo': 'القاهرة الجديدة', tallinn: 'تالين', budapest: 'بودابست', berlin: 'برلين', 'timișoara': 'تيميشوارا', timisoara: 'تيميشوارا' };
+  const rawPlace = p.city || p.cover_place || null;
+  const place = rawPlace && lang === 'ar' ? (CITY_AR[String(rawPlace).trim().toLowerCase()] || rawPlace) : rawPlace;
   const langs = split(p.speaks_language);
   const loves = split(p.hobbies);
   const visited = Array.isArray(p.visited_countries) ? p.visited_countries.filter((c) => /^[A-Z]{2}$/i.test(c)) : [];

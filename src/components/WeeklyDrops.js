@@ -612,7 +612,8 @@ const WeekendBanner = ({ lang }) => {
   if (!(ms > 0)) return null;
   const d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5), m = Math.floor((ms % 36e5) / 6e4);
   const AR = (x) => (lang === 'ar' ? String(x).replace(/\d/g, (c) => '٠١٢٣٤٥٦٧٨٩'[c]) : String(x));
-  const left = lang === 'ar' ? AR(d) + 'ي ' + AR(h) + 'س ' + AR(m) + 'د' : d + 'd ' + h + 'h ' + m + 'm';
+  /* Arabic: words, never one letter after a digit — "١ي" read as "اي" (Ayser, November 2026) */
+  const left = lang === 'ar' ? [d ? AR(d) + ' يوم' : null, AR(h) + ' ساعة', AR(m) + ' دقيقة'].filter(Boolean).join('  ') : d + 'd ' + h + 'h ' + m + 'm';
   return (
     <View testID="weekend-banner" style={{ borderRadius: 18, backgroundColor: '#17131F', padding: 14, marginBottom: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
