@@ -700,6 +700,8 @@ export const TogetherScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
+      {/* nothing scrolls under the phone's clock (the same strip as Space) */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: C.bg, zIndex: 10 }} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -751,7 +753,7 @@ export const TogetherScreen = () => {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 6 }}>
               <Pill on={day === null} label={t('green_all_week')} onPress={() => { tapLight(); setDay(null); }} />
               {days.map((d) => (
-                <Pill key={d.key} on={day === d.key} label={dayLabel(d) + '  ' + d.items.length} onPress={() => { tapLight(); setDay(d.key); }} />
+                <Pill key={d.key} on={day === d.key} label={dayLabel(d)} onPress={() => { tapLight(); setDay(d.key); }} />
               ))}
             </ScrollView>
 
