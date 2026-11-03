@@ -20,6 +20,7 @@ import { lazyOverlay } from '../lib/lazyScreen';
 import { showOnMap } from '../lib/mapBus';
 const CallScreen = lazyOverlay(() => import('./CallScreen').then((m) => ({ default: m.CallScreen })));
 import { TableIcebreakers } from './ScaleKit';
+import { SeatStrip, GuessWho } from './TableTeasers';
 import { SeatBadge, seatLabel, SeatPeek, SparksDeck } from './SeatCard';
 import { tableSeats, askCard } from '../services/card';
 import { VoiceButton, VoicePlayer, voiceSeconds } from './VoiceNote';
@@ -237,11 +238,12 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
   const [lineSaved, setLineSaved] = useState(false);
   const [seats, setSeats] = useState(null);        // who sits where, blurred until the QR (RUN_ME.sql table_seats)
   const [peek, setPeek] = useState(null);
+  const [meIn, setMeIn] = useState(false);       // I scanned the table's QR: Guess Who opens
   const [playing, setPlaying] = useState(null);   // the voice note playing now; the next one follows
 
   const load = () => {
     eventExtras(kind, id).then((x) => setEx(x && x.ok ? x : null));
-    tableSeats(kind, id).then((x) => { if (x && x.ok && Array.isArray(x.seats)) setSeats(x.seats); });
+    tableSeats(kind, id).then((x) => { if (x && x.ok && Array.isArray(x.seats)) { setSeats(x.seats); setMeIn(!!x.me_in); } });
     eventArrivals(kind, id).then((x) => { if (Array.isArray(x)) { setHere(x); if (user && x.some((p) => p.id === user.id)) setPinged(true); } });
     return eventRoom(kind, id).then((x) => {
       setR(x || { ok: false });
@@ -528,6 +530,9 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
                     </View>
                   </View>
                 ) : null}
+                {/* Ayser, November 2026: who is coming (seat, blurred face, interests), then Guess Who once you are in */}
+                {(chatState === 'open' || chatState === 'soon') && seats ? <SeatStrip seats={seats} me={user && user.id} lang={lang} onPeek={setPeek} /> : null}
+                {meIn && seats && chatState !== 'over' ? <GuessWho kind={kind} id={id} seats={seats} me={user && user.id} lang={lang} /> : null}
                 {chatState === 'capsule' ? <Text style={{ color: C.purple, fontSize: 14, marginTop: 6 }}>{w2(lang, 3)}</Text> : null}
                 {chatState === 'over' ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{ex && ex.phase === 'archived' ? w2(lang, 4) : w(lang, 'chatOver')}</Text> : null}
                 {/* Ayser, November 2026: "Seat #04 • Coffee & Art", a line-drawn badge and a blurred face
