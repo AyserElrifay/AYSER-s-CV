@@ -260,6 +260,9 @@ const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHi
         <View key={k} style={{ position: 'absolute', top: -k * 3, left: k * 5, right: k * 5, height: 10, borderTopLeftRadius: 6, borderTopRightRadius: 6, backgroundColor: k % 2 ? V.edge : V.paper, borderWidth: 1, borderColor: V.edge }} />
       ))}
       <View style={[{ flex: 1, borderRadius: 6, backgroundColor: V.paper, borderWidth: 1, borderColor: V.edge, overflow: 'hidden' }, Platform.OS === 'web' ? { boxShadow: '0 10px 28px rgba(60,40,20,0.18)', backgroundImage: 'radial-gradient(120% 80% at 50% 50%, rgba(255,255,255,0.0) 60%, rgba(120,90,50,0.10) 100%)' } : null]}>
+        {/* a photo is welcome, never required: without one the page is all words, set like a printed book */}
+        {pic ? (
+          <>
         {/* top half: the picture, in a printed frame */}
         <Pressable testID="mb-page" onPress={() => onOpen(pg)} accessibilityRole="button" accessibilityHint={mw(lang, 'flip')} style={{ flex: 1, padding: 16, paddingBottom: 12 }}>
           <View style={{ flex: 1, backgroundColor: V.frame, padding: 8, borderWidth: 1, borderColor: V.edge }}>
@@ -280,17 +283,21 @@ const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHi
         <View style={{ height: 14, justifyContent: 'center' }}>
           <View style={[{ height: 14 }, Platform.OS === 'web' ? { backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, ' + V.crease + ' 50%, rgba(0,0,0,0) 100%)' } : { backgroundColor: V.crease, height: 2 }]} />
         </View>
+          </>
+        ) : null}
         {/* bottom half: the words */}
-        <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14 }}>
+        <View style={{ flex: 1, paddingHorizontal: pic ? 20 : 26, paddingTop: pic ? 8 : 22, paddingBottom: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
             <Text style={{ flex: 1, color: V.dim, fontSize: 11, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{stampLine(lang, d, placeOf(pg))}</Text>
             <Text style={{ color: V.faint, fontSize: 12, fontFamily: SERIF }}>{'— ' + (lang === 'ar' ? AR(n) : n) + ' —'}</Text>
           </View>
-          <ScrollView style={{ flex: 1, marginTop: 6 }} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-            {refl && refl.prompt ? <Text style={{ color: V.dim, fontSize: 13, lineHeight: 18 }}>{refl.prompt}</Text> : null}
-            {refl ? <Text style={[{ color: V.ink, fontSize: 19, lineHeight: 27, marginTop: 4 }, serif]}>{'“' + refl.body + '”'}</Text>
+          <ScrollView style={{ flex: 1, marginTop: 6 }} contentContainerStyle={pic ? null : { flexGrow: 1, justifyContent: 'center', paddingVertical: 20 }} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+            {!pic ? <Text style={{ color: V.gold, fontSize: 18, textAlign: 'center', marginBottom: 18 }}>✦</Text> : null}
+            {refl && refl.prompt ? <Text style={{ color: V.dim, fontSize: pic ? 13 : 14, lineHeight: pic ? 18 : 20, textAlign: pic ? 'auto' : 'center' }}>{refl.prompt}</Text> : null}
+            {refl ? <Text testID="mb-quote" style={[{ color: V.ink, fontSize: pic ? 19 : 27, lineHeight: pic ? 27 : 38, marginTop: pic ? 4 : 14, textAlign: pic ? 'auto' : 'center' }, serif]}>{'“' + refl.body + '”'}</Text>
               : ph && titleOf(ph).title ? <Text style={[{ color: V.ink, fontSize: 18, lineHeight: 26 }, serif]}>{titleOf(ph).title}</Text>
-              : <Text style={[{ color: V.faint, fontSize: 16, lineHeight: 23 }, serif]}>{pg.blank ? mw(lang, 'drawTitle') : mw(lang, 'quietDay')}</Text>}
+              : <Text style={[{ color: V.faint, fontSize: pic ? 16 : 22, lineHeight: pic ? 23 : 32, textAlign: pic ? 'auto' : 'center' }, serif]}>{pg.blank ? mw(lang, 'quietToday') : mw(lang, 'quietDay')}</Text>}
+            {!pic ? <View style={{ alignSelf: 'center', width: 40, height: 1, backgroundColor: V.edge, marginTop: 22 }} /> : null}
             {mom && (mom.body || mom.choice) ? (
               <Text style={{ color: V.dim, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>
                 <Text style={{ color: V.faint, fontWeight: '800', fontSize: 10, letterSpacing: lang === 'ar' ? 0 : 1.2 }}>{mw(lang, 'moment') + '  '}</Text>
@@ -325,7 +332,7 @@ const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHi
             ) : null}
           </ScrollView>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-            {!locked && pic && Platform.OS === 'web' ? (
+            {!locked && Platform.OS === 'web' ? (
               <Pressable testID="mb-add-more" onPress={() => onAdd(pg)} disabled={!!adding} accessibilityRole="button" accessibilityLabel={mw(lang, 'addTo')} hitSlop={6} style={{ marginEnd: 6 }}>
                 <View style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: V.edge, alignItems: 'center', justifyContent: 'center' }}>
                   {adding && adding.indexOf(pg.day) === 0 ? <ActivityIndicator size="small" color={V.ink} /> : <Ionicons name="add" size={17} color={V.ink} />}
