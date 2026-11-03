@@ -431,7 +431,7 @@ export const RateEvent = ({ kind, id, lang }) => {
 };
 
 /* the way in, on Space: shown only to people who run something */
-export const HubEntry = () => {
+export const HubEntry = ({ pill } = {}) => {
   const { lang } = useLang();
   const [n, setN] = useState(null);
   // …/?hub=1 (src/lib/hubLink.js) opens it straight away
@@ -447,6 +447,16 @@ export const HubEntry = () => {
   const pings = n.reduce((s, e) => s + (Number(e.pings) || 0), 0);
   return (
     <>
+      {pill ? (
+        /* Ayser, November 2026: a small pill in Space's top bar, for organizers only */
+        <Pressable testID="hub-entry" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" accessibilityLabel={hw(lang, 'title')} style={{ marginEnd: 4 }}>
+          <View style={{ height: 32, flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 11, backgroundColor: C.text }}>
+            <Ionicons name="flag" size={13} color={C.bg} />
+            <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '800', marginStart: 5 }}>{lang === 'ar' ? 'لوحة المنظّم' : 'Host Hub'}</Text>
+            {pings ? <View style={{ minWidth: 16, height: 16, borderRadius: 8, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', marginStart: 5, paddingHorizontal: 4 }}><Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900' }}>{pings}</Text></View> : null}
+          </View>
+        </Pressable>
+      ) : (
       <Pressable testID="hub-entry" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" style={{ marginHorizontal: 16, marginTop: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, backgroundColor: C.text, padding: 14 }}>
           <Ionicons name="clipboard-outline" size={20} color={C.bg} />
@@ -458,6 +468,7 @@ export const HubEntry = () => {
           <Ionicons name="chevron-forward" size={18} color={C.bg} />
         </View>
       </Pressable>
+      )}
       {open ? <OrganizerHub onClose={() => { setOpen(false); myHosting().then((x) => setN(x && x.ok ? (x.events || []) : [])); }} /> : null}
     </>
   );

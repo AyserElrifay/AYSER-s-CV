@@ -28,10 +28,9 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { C, R, TEXT_BGS } from '../constants/theme';
 import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
-import { ME, MY_MOMENTS, BADGES, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
+import { ME, MY_MOMENTS, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
-import { Passport, ShowedUp } from '../components/Passport';
-import { HostCard } from '../components/HostCard';
+import { Passport } from '../components/Passport';
 
 /* Hobbies — pick what you love; they show on your profile and (later)
    power matching with people into the same things. */
@@ -73,7 +72,6 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
-import { LammaCard } from '../components/LammaCard';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
@@ -84,7 +82,6 @@ const CapsuleSheet = lazyOverlay(() => import('../components/CapsuleSheet').then
 const TeacherApplySheet = lazyOverlay(() => import('../components/TeacherApplySheet').then((m) => ({ default: m.TeacherApplySheet })));
 const LibrarySheet = lazyOverlay(() => import('../components/LibrarySheet').then((m) => ({ default: m.LibrarySheet })));
 const PlusSheet = lazyOverlay(() => import('../components/PlusSheet').then((m) => ({ default: m.PlusSheet })));
-const QuotaLine = lazyOverlay(() => import('../components/WeeklyDrops').then((m) => ({ default: m.QuotaLine })));
 const GlobalTrack = lazyOverlay(() => import('../components/GlobalTrack').then((m) => ({ default: m.GlobalTrack })));
 const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
@@ -668,12 +665,6 @@ export const ProfileScreen = () => {
     ? myMoments.reduce((s, r) => s + (r.vibesCount || 0), 0)
     : (ME.likes != null ? ME.likes : (ME.stars || 0));
 
-  /* Real badges are derived, never invented: verified + how long you've been here. */
-  const realBadges = [
-    me.verified ? { id: 'b-verified', emoji: '✦', label: 'Verified' } : null,
-    // "since Jul 2026" is on the pass itself now
-  ].filter(Boolean);
-  const badges = SUPABASE_READY ? realBadges : BADGES;
 
   const profileTabs = [
     { key: 'grid', icon: 'grid-outline', on: true },
@@ -699,6 +690,8 @@ export const ProfileScreen = () => {
             {me.verified ? <Tick /> : null}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {/* organizers only: a small Host Hub pill (it shows nothing for everybody else) */}
+            {SUPABASE_READY && user ? <HubEntry pill /> : null}
             {/* real 40pt targets: hitSlop does not enlarge a target on the web */}
             <Pressable onPress={() => { tapLight(); setMenu(true); }} accessibilityRole="button" accessibilityLabel={t('menu')}
               style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginEnd: 4 }}>
@@ -768,54 +761,31 @@ export const ProfileScreen = () => {
             mates={SUPABASE_READY ? mates : undefined}
             onMates={() => setMatesOpen(true)}
             onStamp={SUPABASE_READY && user ? () => { tapLight(); setRewardsOpen(true); } : undefined}
-            footer={SUPABASE_READY && user ? (
-              /* Ayser, November 2026: one pass — the level and the table QR live on it */
+            footer={(
+              /* Ayser, November 2026: one pass — the level, then Scan QR · Edit · Share in one row, and the card in one line */
               <View style={{ marginTop: 2 }}>
-                <GlobalTrack pill />
-                <Pressable testID="pass-scan" onPress={() => { tapLight(); setScanOpen(true); }} accessibilityRole="button" style={{ marginTop: 10 }}>
-                  <View style={{ borderRadius: 999, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181B' }}>
-                    <Ionicons name="qr-code-outline" size={18} color="#FAF8F5" />
-                    <Text style={{ color: '#FAF8F5', fontSize: 15, fontWeight: '800', marginStart: 8 }}>{lang === 'ar' ? 'امسح QR الترابيزة' : 'Scan a table QR'}</Text>
-                  </View>
-                </Pressable>
-              </View>
-            ) : null}
-          />
-          {myProfile ? <HostCard profile={myProfile} /> : null}
-          {/* ── ONE ROW ── Ayser: "راجع ترتيب الأبلكيشن، بلاش زحمة". Two rows of
-              five buttons became one of three: edit, share, your day.
-              Rewards open from the XP stamp on the pass (where the points
-              are), and inviting friends lives in Rewards and on Together. */}
-          <View style={{ flexDirection: 'row', marginTop: 14 }}>
-            <GhostButton small label={t('edit')} onPress={() => openEditor()} style={{ flex: 1, marginRight: 8 }} />
-            <GhostButton small label={t('sp_share')} onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
-            {user ? <GhostButton small label={t('sp_today')} onPress={() => { tapLight(); setDumpOpen(true); }} style={{ flex: 1 }} /> : null}
-          </View>
-          {/* what is left of this month's Drops and Circles (members) */}
-          {SUPABASE_READY && user ? <QuotaLine style={{ marginTop: 14 }} /> : null}
-          {SUPABASE_READY && user ? <ShowedUp userId={user.id} own /> : null}
-
-          {/* badges */}
-          {badges.length ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 }}>
-              {badges.map((b) => (
-                <View key={b.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, marginBottom: 8 }}>
-                  <Text style={{ fontSize: 12 }}>{b.emoji}</Text>
-                  <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '700', marginLeft: 5 }}>{b.label}</Text>
+                {SUPABASE_READY && user ? <GlobalTrack pill /> : null}
+                <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                  {SUPABASE_READY && user ? (
+                    <Pressable testID="pass-scan" onPress={() => { tapLight(); setScanOpen(true); }} accessibilityRole="button" style={{ flex: 1.3, marginEnd: 8 }}>
+                      <View style={{ height: 42, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181B' }}>
+                        <Ionicons name="qr-code-outline" size={16} color="#FAF8F5" />
+                        <Text style={{ color: '#FAF8F5', fontSize: 14, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'امسح QR' : 'Scan QR'}</Text>
+                      </View>
+                    </Pressable>
+                  ) : null}
+                  <GhostButton small label={t('edit')} onPress={() => openEditor()} style={{ flex: 1, marginEnd: 8 }} />
+                  <GhostButton small label={t('sp_share')} onPress={doShareProfile} style={{ flex: 1 }} />
                 </View>
-              ))}
-            </View>
-          ) : null}
-
+                {SUPABASE_READY && user ? <ProfileCardEntry line /> : null}
+              </View>
+            )}
+          />
         </View>
 
 
         {/* the Moments Book: one page a day — the photo, the reflection, the tables you checked into */}
-        {SUPABASE_READY && user ? <HubEntry /> : null}
-        {SUPABASE_READY && user ? <ProfileCardEntry /> : null}
         {SUPABASE_READY && user ? <MomentsBookCover /> : null}
-        {/* Lamma, the table games — the same door as on Together */}
-        <LammaCard style={{ marginHorizontal: 16, marginTop: 14 }} />
 
         {/* Ayser, November 2026: the posts are back on the profile, as before */}
         {(<>
@@ -1158,6 +1128,7 @@ export const ProfileScreen = () => {
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 18 }}>
 
             <MenuRow icon="create-outline" label={t('edit_space')} onPress={() => setEditOpen(true)} />
+            {user ? <MenuRow icon="today-outline" label={t('sp_today')} onPress={() => { setMenu(false); setDumpOpen(true); }} /> : null}
             <MenuRow icon="happy-outline" label={t('your_avatar')} onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
             <MenuRow icon="sparkles-outline" label="Moments+" onPress={() => { setMenu(false); setPlusOpen(true); }} />
             {accountType === 'partner' ? <MenuRow icon="business-outline" label={t('vn_menu')} onPress={() => { setMenu(false); setVenueOpen(true); }} /> : null}
