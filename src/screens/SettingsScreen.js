@@ -56,7 +56,7 @@ const HostApplySheet = lazyOverlay(() => import('../components/HostApplySheet').
 const Toggle = ({ on, onToggle }) => (
   <Pressable onPress={onToggle} hitSlop={6}>
     <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: on ? C.purple : C.glassHi, padding: 3, justifyContent: 'center' }}>
-      <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: on ? C.ink : '#FFF', marginLeft: on ? 19 : 0 }} />
+      <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: on ? C.ink : '#FFF', marginStart: on ? 19 : 0 }} />
     </View>
   </Pressable>
 );
@@ -69,14 +69,19 @@ const Toggle = ({ on, onToggle }) => (
 const RadarRow = ({ lang }) => {
   const [on, setOn] = React.useState(radarOn());
   const ar = lang === 'ar';
+  /* Ayser, November 2026: the system switch broke in Arabic (its knob sat on the text) — the same toggle as the rows below */
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{ar ? '✦ رادار الوصول (اهتزاز وصوت)' : '✦ Arrival Radar (Proximity Haptics & Sound)'}</Text>
-        <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, lineHeight: 16 }}>{ar ? 'من ساعة قبل ترابيزتك وإنت فاتح مومنتس: بيقولّك لما تقرّب ٣٠٠ متر، وبيرشدك لحد الترابيزة. اقفله لو عايز توفّر البطارية أو تبقى ساكت.' : 'From an hour before your table, while Moments is open: tells you at 300 m and guides you in. Turn it off to save battery or stay silent.'}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
+      <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
+        <Ionicons name="navigate-outline" size={16} color={C.purple} />
       </View>
-      <Switch testID="settings-radar" value={on} onValueChange={(v) => { tapSelection(); setOn(v); setRadarOn(v); }} accessibilityLabel="Arrival Radar"
-        trackColor={{ false: C.glassHi, true: C.purple }} thumbColor="#FFF" ios_backgroundColor={C.glassHi} />
+      <View style={{ flex: 1, minWidth: 0, marginEnd: 10 }}>
+        <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{ar ? 'رادار الوصول' : 'Arrival Radar'}</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1, lineHeight: 16 }}>{ar ? 'قبل ترابيزتك بساعة: بيهزّ ويرنّ لما تقرّب، ويوصّلك لحد الترابيزة.' : 'An hour before your table: a buzz and a sound as you get close, then it guides you in.'}</Text>
+      </View>
+      <View testID="settings-radar" accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel="Arrival Radar">
+        <Toggle on={on} onToggle={() => { tapSelection(); const v = !on; setOn(v); setRadarOn(v); }} />
+      </View>
     </View>
   );
 };
@@ -193,7 +198,7 @@ export const SettingsScreen = ({ onClose }) => {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* header */}
       <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: C.line }}>
-        <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10} style={{ marginRight: 6 }} accessibilityLabel={t('back')} accessibilityRole="button">
+        <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10} style={{ marginEnd: 6 }} accessibilityLabel={t('back')} accessibilityRole="button">
           <Ionicons name="chevron-back" size={26} color={C.text} />
         </Pressable>
         <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('settings')}</Text>
@@ -209,11 +214,11 @@ export const SettingsScreen = ({ onClose }) => {
           {/* Language — opens the picker */}
           <Pressable onPress={() => { tapSelection(); setLangOpen(true); }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
                 <Ionicons name="language-outline" size={16} color={C.purple} />
               </View>
               <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1 }}>{t('language')}</Text>
-              <Text style={{ color: C.faint, fontSize: 13, marginRight: 6 }}>{meta.flag} {meta.native}</Text>
+              <Text style={{ color: C.faint, fontSize: 13, marginEnd: 6 }}>{meta.flag} {meta.native}</Text>
               <Ionicons name="chevron-forward" size={16} color={C.faint} />
             </View>
           </Pressable>
@@ -224,13 +229,15 @@ export const SettingsScreen = ({ onClose }) => {
               already know. */}
           <View style={{ paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
                 <Ionicons name={isDark ? 'moon' : 'moon-outline'} size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('appearance')}</Text>
                 <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>
-                  {pref === 'auto'
+                  {lang === 'ar'
+                    ? (pref === 'auto' ? 'زي موبايلك — ' + (isDark ? 'غامق دلوقتي' : 'فاتح دلوقتي') : 'أريح للعين بالليل')
+                    : pref === 'auto'
                     ? 'Following your phone — ' + (isDark ? 'dark right now' : 'light right now')
                     : 'Easier on the eyes at night'}
                 </Text>
@@ -238,9 +245,9 @@ export const SettingsScreen = ({ onClose }) => {
             </View>
             <View style={{ flexDirection: 'row', marginTop: 11, backgroundColor: C.glass, borderRadius: 12, padding: 3, borderWidth: 1, borderColor: C.line }}>
               {[
-                { k: 'auto', label: 'Auto', icon: 'phone-portrait-outline' },
-                { k: 'light', label: 'Light', icon: 'sunny-outline' },
-                { k: 'dark', label: 'Dark', icon: 'moon-outline' },
+                { k: 'auto', label: lang === 'ar' ? 'تلقائي' : 'Auto', icon: 'phone-portrait-outline' },
+                { k: 'light', label: lang === 'ar' ? 'فاتح' : 'Light', icon: 'sunny-outline' },
+                { k: 'dark', label: lang === 'ar' ? 'غامق' : 'Dark', icon: 'moon-outline' },
               ].map((o) => {
                 const on = pref === o.k;
                 return (
@@ -251,7 +258,7 @@ export const SettingsScreen = ({ onClose }) => {
                       backgroundColor: on ? C.purple : 'transparent',
                     }}>
                       <Ionicons name={o.icon} size={14} color={on ? '#FFF' : C.faint} />
-                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>{o.label}</Text>
+                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800', marginStart: 6 }}>{o.label}</Text>
                     </View>
                   </Pressable>
                 );
@@ -273,7 +280,7 @@ export const SettingsScreen = ({ onClose }) => {
               see src/lib/dataSaver.js. */}
           <View style={{ paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
                 <Ionicons name="cellular-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
@@ -298,7 +305,7 @@ export const SettingsScreen = ({ onClose }) => {
                       backgroundColor: on ? C.purple : 'transparent',
                     }}>
                       <Ionicons name={o.icon} size={14} color={on ? '#FFF' : C.faint} />
-                      <Text numberOfLines={1} style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>{o.label}</Text>
+                      <Text numberOfLines={1} style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800', marginStart: 6 }}>{o.label}</Text>
                     </View>
                   </Pressable>
                 );
@@ -307,12 +314,12 @@ export const SettingsScreen = ({ onClose }) => {
           </View>
 
           {[
-            { key: 'notifications', icon: 'notifications-outline', label: 'Notifications', hint: 'Vibes, comments & squad activity' },
-            { key: 'sound', icon: 'musical-notes-outline', label: 'Sounds', hint: 'The Moments sound identity' },
-            { key: 'haptics', icon: 'phone-portrait-outline', label: 'Haptics', hint: 'Tactile taps (on your phone)' },
+            { key: 'notifications', icon: 'notifications-outline', label: lang === 'ar' ? 'الإشعارات' : 'Notifications', hint: lang === 'ar' ? 'الرسايل، الترابيزات والتعليقات' : 'Vibes, comments & squad activity' },
+            { key: 'sound', icon: 'musical-notes-outline', label: lang === 'ar' ? 'الأصوات' : 'Sounds', hint: lang === 'ar' ? 'أصوات مومنتس' : 'The Moments sound identity' },
+            { key: 'haptics', icon: 'phone-portrait-outline', label: lang === 'ar' ? 'الاهتزاز' : 'Haptics', hint: lang === 'ar' ? 'اهتزاز خفيف مع اللمس (على الموبايل)' : 'Tactile taps (on your phone)' },
           ].map((row) => (
             <View key={row.key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
                 <Ionicons name={row.icon} size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
@@ -328,13 +335,15 @@ export const SettingsScreen = ({ onClose }) => {
               your account, not this phone. */}
           <View style={{ paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
                 <Ionicons name="timer-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('messages_disappear_after')}</Text>
                 <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>
-                  {msgTtl === 0
+                  {lang === 'ar'
+                    ? (msgTtl === 0 ? 'بتفضل لحد ما تمسحها' : 'الرسايل الأقدم بتتمسح عندكم إنتو الاتنين')
+                    : msgTtl === 0
                     ? 'Kept until you delete them'
                     : 'Older messages are deleted for both of you'}
                 </Text>
@@ -342,10 +351,10 @@ export const SettingsScreen = ({ onClose }) => {
             </View>
             <View style={{ flexDirection: 'row', marginTop: 11, backgroundColor: C.glass, borderRadius: 12, padding: 3, borderWidth: 1, borderColor: C.line }}>
               {[
-                { h: 24, label: '24h' },
-                { h: 48, label: '48h' },
-                { h: 168, label: '1 week' },
-                { h: 0, label: 'Keep' },
+                { h: 24, label: lang === 'ar' ? '٢٤ ساعة' : '24h' },
+                { h: 48, label: lang === 'ar' ? '٤٨ ساعة' : '48h' },
+                { h: 168, label: lang === 'ar' ? 'أسبوع' : '1 week' },
+                { h: 0, label: lang === 'ar' ? 'تفضل' : 'Keep' },
               ].map((o) => {
                 const on = msgTtl === o.h;
                 return (
@@ -379,7 +388,7 @@ export const SettingsScreen = ({ onClose }) => {
               awake the first time. */}
           <Pressable onPress={() => { tapLight(); setTourOpen(true); }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
                 <Ionicons name="hand-left-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
@@ -391,7 +400,7 @@ export const SettingsScreen = ({ onClose }) => {
           </Pressable>
           <Pressable onPress={() => { tapLight(); setHelpOpen(true); }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
                 <Ionicons name="help-circle-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
@@ -404,7 +413,7 @@ export const SettingsScreen = ({ onClose }) => {
           {/* licensed guides and activity hosts: show the card or ID, get the badge */}
           <Pressable onPress={() => { tapLight(); setHostOpen(true); }} accessibilityRole="button">
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
                 <Ionicons name="id-card-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
@@ -416,7 +425,7 @@ export const SettingsScreen = ({ onClose }) => {
           </Pressable>
           <Pressable onPress={() => { tapLight(); setTermsOpen(true); }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
                 <Ionicons name="shield-checkmark-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
@@ -427,7 +436,7 @@ export const SettingsScreen = ({ onClose }) => {
             </View>
           </Pressable>
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
-            <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+            <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
               <Ionicons name="information-circle-outline" size={16} color={C.purple} />
             </View>
             <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1 }}>{t('about_moments')}</Text>
@@ -440,13 +449,13 @@ export const SettingsScreen = ({ onClose }) => {
         {SUPABASE_READY ? (
           <Glass style={{ padding: 15 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <View style={{ flex: 1, marginRight: 12 }}>
+              <View style={{ flex: 1, marginEnd: 12 }}>
                 <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('show_for_exchange')}</Text>
                 <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('exchange_where')}</Text>
               </View>
               <Pressable onPress={() => { const n = !visible; setVisible(n); saveExchange(n); }}>
                 <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: visible ? C.purple : C.glassHi, padding: 3, justifyContent: 'center' }}>
-                  <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: visible ? C.ink : '#FFF', marginLeft: visible ? 19 : 0 }} />
+                  <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: visible ? C.ink : '#FFF', marginStart: visible ? 19 : 0 }} />
                 </View>
               </Pressable>
             </View>
@@ -468,7 +477,7 @@ export const SettingsScreen = ({ onClose }) => {
                 const on = speaks === l.c;
                 return (
                   <Pressable key={l.c} onPress={() => setSpeaks(on ? '' : l.c)}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.purple : C.bg, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.purple : C.bg, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginEnd: 8 }}>
                       <Text style={{ color: on ? '#FFF' : C.text, fontSize: 13, fontWeight: '700' }}>{langName(l.c, lang)}</Text>
                     </View>
                   </Pressable>
@@ -481,7 +490,7 @@ export const SettingsScreen = ({ onClose }) => {
                 const on = learning === l.c;
                 return (
                   <Pressable key={l.c} onPress={() => setLearning(on ? '' : l.c)}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.green : C.bg, borderWidth: 1, borderColor: on ? C.green : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.green : C.bg, borderWidth: 1, borderColor: on ? C.green : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginEnd: 8 }}>
                       <Text style={{ color: on ? '#FFF' : C.text, fontSize: 13, fontWeight: '700' }}>{langName(l.c, lang)}</Text>
                     </View>
                   </Pressable>
@@ -493,7 +502,7 @@ export const SettingsScreen = ({ onClose }) => {
               {LEVELS.map((lv) => {
                 const on = level === lv;
                 return (
-                  <Pressable key={lv} onPress={() => setLevel(on ? '' : lv)} style={{ marginRight: 8, marginBottom: 8 }}>
+                  <Pressable key={lv} onPress={() => setLevel(on ? '' : lv)} style={{ marginEnd: 8, marginBottom: 8 }}>
                     <View style={{ backgroundColor: on ? C.blue : C.bg, borderWidth: 1, borderColor: on ? C.blue : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
                       <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{lv}</Text>
                     </View>
@@ -534,8 +543,8 @@ export const SettingsScreen = ({ onClose }) => {
             <Text style={{ color: '#fff', fontSize: 36, fontWeight: '900', letterSpacing: 0.5 }}>
               {referrals == null ? '—' : referrals}
             </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '800', marginLeft: 8, marginBottom: 6 }}>
-              referral{referrals === 1 ? '' : 's'}
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '800', marginStart: 8, marginBottom: 6 }}>
+              {lang === 'ar' ? 'إحالة' : 'referral' + (referrals === 1 ? '' : 's')}
             </Text>
           </View>
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 4 }}>
@@ -553,7 +562,7 @@ export const SettingsScreen = ({ onClose }) => {
               <TextInput
                 placeholder={t('total_placeholder')} placeholderTextColor={C.faint} value={splitTotal} onChangeText={setSplitTotal}
                 keyboardType="decimal-pad"
-                style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}
+                style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginEnd: 8 }}
               />
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12 }}>
                 <Pressable onPress={() => { tapSelection(); setSplitPeople(String(Math.max(1, (parseInt(splitPeople, 10) || 1) - 1))); }} style={{ paddingHorizontal: 12, paddingVertical: 10 }} accessibilityLabel={t('remove')} accessibilityRole="button">
@@ -588,7 +597,7 @@ export const SettingsScreen = ({ onClose }) => {
                     <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', textTransform: 'capitalize' }}>{b.partner}</Text>
                     <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>{t('commission_label')} {b.rate}</Text>
                   </View>
-                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginRight: 10 }}>{b.clicks} click{b.clicks === 1 ? '' : 's'}</Text>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginEnd: 10 }}>{b.clicks} click{b.clicks === 1 ? '' : 's'}</Text>
                   <View style={{ backgroundColor: b.active ? C.greenSoft : 'rgba(245,179,1,0.12)', borderWidth: 1, borderColor: b.active ? 'rgba(16,185,129,0.4)' : 'rgba(245,179,1,0.45)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
                     <Text style={{ color: b.active ? C.green : '#8A6400', fontSize: 9.5, fontWeight: '900' }}>{b.active ? 'EARNING' : 'TAG PENDING'}</Text>
                   </View>
@@ -615,7 +624,7 @@ export const SettingsScreen = ({ onClose }) => {
                 borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: C.line,
               }}
             >
-              <Text style={{ fontSize: 19, marginRight: 12 }}>{t.icon}</Text>
+              <Text style={{ fontSize: 19, marginEnd: 12 }}>{t.icon}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700' }}>{t.label}</Text>
                 <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>{t.sub}</Text>
@@ -634,12 +643,12 @@ export const SettingsScreen = ({ onClose }) => {
         {/* ── ACCOUNT ── */}
         <SectionHeader title={t('account')} style={{ marginTop: 26 }} />
         <Glass style={{ padding: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View style={{ flex: 1, marginRight: 12 }}>
+          <View style={{ flex: 1, marginEnd: 12 }}>
             <Text style={{ color: C.text, fontWeight: 'bold' }}>
-              {isDemo ? 'Demo session' : (user && user.email) || 'Signed in'}
+              {isDemo ? (lang === 'ar' ? 'جلسة تجربة' : 'Demo session') : (user && user.email) || (lang === 'ar' ? 'مسجّل دخول' : 'Signed in')}
             </Text>
             <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>
-              {isDemo ? 'Demo session — nothing is saved' : '🔒 Encrypted & private'}
+              {isDemo ? (lang === 'ar' ? 'جلسة تجربة — مفيش حاجة بتتحفظ' : 'Demo session — nothing is saved') : (lang === 'ar' ? 'مشفّر وخاص' : 'Encrypted & private')}
             </Text>
           </View>
           <Pressable onPress={signOut} style={{ backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.4)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 }}>
