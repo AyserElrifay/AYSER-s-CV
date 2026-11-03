@@ -27805,6 +27805,27 @@ end $$;
 revoke execute on function public.circle_test_enter(uuid) from public, anon;
 grant execute on function public.circle_test_enter(uuid) to authenticated;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  A CALL STILL RINGING WHEN YOU OPEN THE APP
+--  Ayser, November 2026: "الكولز مش شغالة" — the caller stayed on
+--  "Ringing…". A phone with Moments in the background does not hear the
+--  live ring; it gets the push, and by the time it opens the broadcast can
+--  be gone. Now the app asks, the moment it opens or comes back: is anyone
+--  ringing me right now? Only your own rings, only the last 45 seconds,
+--  only from people you are allowed to be called by (call_ring checked).
+-- ═══════════════════════════════════════════════════════════════════════
+create or replace function public.call_pending()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('call_id', substr(n.body, 9), 'from', jsonb_build_object('id', p.id, 'name', p.name, 'avatar', p.avatar_url))
+    from public.notifications n join public.profiles p on p.id = n.actor_id
+   where auth.uid() is not null and n.user_id = auth.uid() and n.kind = 'call' and n.post_id is null
+     and n.body like 'Calling|%' and n.created_at > now() - interval '45 seconds'
+     and not public.blocked_between(auth.uid(), n.actor_id)
+   order by n.created_at desc limit 1;
+$$;
+revoke execute on function public.call_pending() from public, anon;
+grant execute on function public.call_pending() to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

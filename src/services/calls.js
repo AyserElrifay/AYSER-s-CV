@@ -52,6 +52,13 @@ export function subscribeIncomingCalls(myId, onEvent) {
   return () => { try { supabase.removeChannel(ch); } catch (e) {} };
 }
 
+/* ── a call still ringing when the app opens or comes back ──
+   The live ring is missed by a phone that had Moments in the background;
+   the server remembers the last 45 seconds (RUN_ME.sql · call_pending). */
+export async function callPending() {
+  try { const { data } = await supabase.rpc('call_pending'); return data && data.call_id ? data : null; } catch (e) { return null; }
+}
+
 /* ── ring someone's device for real ── */
 export async function ringUser(peerId, payload) {
   const ch = supabase.channel('ring_' + peerId, { config: { broadcast: { self: false } } });

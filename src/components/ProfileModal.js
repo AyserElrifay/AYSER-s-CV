@@ -15,7 +15,7 @@ import { fetchMyMoments, fetchRepostsByUser } from '../services/posts';
 import { fetchTaggedPosts } from '../services/tags';
 import { getProfile } from '../services/profiles';
 import { fetchUserStories } from '../services/stories';
-import { getMateStatus, mateUp, countMates } from '../services/mates';
+import { getMateStatus, mateUp, countMates, unmate } from '../services/mates';
 import { Glass } from './Glass';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
@@ -226,8 +226,22 @@ export const ProfileModal = ({ user, onClose }) => {
 
   if (!user) return null;
 
+  /* Ayser, November 2026: "mates ما قدرش أشيلهم" — tapping Mates ✓ (or a
+     sent request) asks once, then really removes it (RLS: participants can unmate) */
+  const [askUnmate, setAskUnmate] = useState(false);
+  const doUnmate = async () => {
+    if (!real || isMe || busy) return;
+    setBusy(true); setActionErr(null);
+    try {
+      await unmate(me.id, user.id);
+      setMateState('none'); setAskUnmate(false); tapLight();
+      countMates(user.id).then(setMates).catch(() => {});
+    } catch (e) { setActionErr(explain(e)); }
+    finally { setBusy(false); }
+  };
   const doMateUp = async () => {
     if (!real || isMe || busy) return;
+    if (mateState === 'mates' || mateState === 'requested') { tapLight(); setAskUnmate((v) => !v); return; }
     setActionErr(null);
     setBusy(true);
     try {
@@ -325,6 +339,25 @@ export const ProfileModal = ({ user, onClose }) => {
 
             {busy ? (
               <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 8 }}>{t('pm_working')}</Text>
+            ) : null}
+            {askUnmate && !isMe ? (
+              <View testID="pm-unmate" style={{ marginTop: 10, borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 12 }}>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700' }}>
+                  {mateState === 'requested' ? (lang === 'ar' ? 'تلغي الطلب؟' : 'Cancel your request?') : (lang === 'ar' ? 'تشيله من صحابك؟ مش هيتبعتله إشعار.' : 'Remove from your mates? They are not told.')}
+                </Text>
+                <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                  <Pressable testID="pm-unmate-yes" onPress={doUnmate} disabled={busy} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
+                    <View style={{ borderRadius: 999, paddingVertical: 10, alignItems: 'center', backgroundColor: C.text, opacity: busy ? 0.6 : 1 }}>
+                      <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '800' }}>{mateState === 'requested' ? (lang === 'ar' ? 'إلغاء الطلب' : 'Cancel request') : (lang === 'ar' ? 'شيله' : 'Remove')}</Text>
+                    </View>
+                  </Pressable>
+                  <Pressable onPress={() => { tapLight(); setAskUnmate(false); }} accessibilityRole="button" style={{ flex: 1 }}>
+                    <View style={{ borderRadius: 999, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: C.line }}>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{lang === 'ar' ? 'خلّيه' : 'Keep'}</Text>
+                    </View>
+                  </Pressable>
+                </View>
+              </View>
             ) : null}
             {actionErr ? (
               <Text style={{ color: C.coral, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 8, lineHeight: 17 }}>

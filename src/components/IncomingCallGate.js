@@ -5,7 +5,7 @@ import { C } from '../constants/theme';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { subscribeIncomingCalls, joinCall } from '../services/calls';
+import { subscribeIncomingCalls, joinCall, callPending } from '../services/calls';
 import { CallScreen } from './CallScreen';
 import { tapMedium, tapSuccess } from '../utils/feedback';
 import { startRingtone } from '../utils/sfx';
@@ -23,13 +23,29 @@ export const IncomingCallGate = () => {
     if (!SUPABASE_READY || Platform.OS !== 'web' || !user) return;
     const unsub = subscribeIncomingCalls(user.id, (ev) => {
       if (ev.type === 'ring') {
+        if (ringingRef.current === ev.callId) return;   // already ringing (the server told us first)
         ringingRef.current = ev.callId;
         setRing({ callId: ev.callId, from: ev.from || {}, video: !!ev.video });
       } else if (ev.type === 'cancel') {
         if (ringingRef.current === ev.callId) { ringingRef.current = null; setRing(null); }
       }
     });
-    return unsub;
+    /* the app opened from the "… is calling you" push, or came back to the
+       front: ask the server whether a call is ringing right now */
+    const handled = {};
+    const ask = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      callPending().then((c) => {
+        if (!c || handled[c.call_id] || ringingRef.current === c.call_id) return;
+        handled[c.call_id] = 1;
+        ringingRef.current = c.call_id;
+        setRing({ callId: c.call_id, from: c.from || {}, video: false });
+      });
+    };
+    ask();
+    const onVis = () => ask();
+    try { document.addEventListener('visibilitychange', onVis); window.addEventListener('focus', onVis); } catch (e) {}
+    return () => { unsub(); try { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('focus', onVis); } catch (e) {} };
   }, [user]);
 
   /* It has to actually RING: sound + a repeating buzz for as long as

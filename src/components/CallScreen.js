@@ -25,7 +25,7 @@ const CallGames = lazyOverlay(() => import('./CallGames').then((m) => ({ default
    Caller:   <CallScreen peer video onClose />
    Callee:   <CallScreen peer video incoming callId onClose />        */
 
-const RING_MS = 30000;
+const RING_MS = 45000;   // time to open Moments from the push (Ayser, November 2026)
 // once they've picked up, a connection that hasn't come together in this
 // long is never going to — say so instead of spinning on "Connecting…"
 const CONNECT_MS = 20000;
