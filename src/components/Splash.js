@@ -3,11 +3,9 @@ import { View, Text, Animated, Easing, Pressable, Platform } from 'react-native'
 import { C, R } from '../constants/theme';
 
 /* ── THE FIRST HALF-SECOND ───────────────────────────────────────────
-   Ayser, November 2026: one quiet opening — the Moments wordmark on the
-   page colour. The page paints it before any code arrives
-   (scripts/inject-html.mjs); this shows the same wordmark in the same
-   place, tells the page to fade its copy the moment it mounts, and fades
-   itself as soon as the app is ready. If that takes unusually long it
+   Ayser, November 2026: the star that becomes a kite is back
+   (scripts/inject-html.mjs, on the cream page). This is only the quiet
+   page it flies off from, and it fades as soon as the app is ready. If that takes unusually long it
    says so, with a way to try again. */
 const ready_ = () => { try { window.dispatchEvent(new Event('mm-app-ready')); } catch (e) {} };
 
@@ -34,10 +32,7 @@ export const Splash = ({ ready, onDone }) => {
 
   return (
     <Animated.View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, opacity: fade }}>
-      <View>
-        <Text style={{ position: 'absolute', left: -2, top: -22, fontSize: 22, color: '#F5B301' }}>✦</Text>
-        <Text style={{ fontSize: 44, fontWeight: '800', letterSpacing: -1.5, color: '#7C3AED' }}>moments</Text>
-      </View>
+      {/* the kite flies off this quiet page (scripts/inject-html.mjs): one opening, not two */}
       {slow ? (
         <View style={{ alignItems: 'center', marginTop: 26 }}>
           <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', lineHeight: 19 }}>
