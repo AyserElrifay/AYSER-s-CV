@@ -9,6 +9,7 @@ import { mv } from '../constants/mvpWords';
 import { splitPrompt } from '../constants/loopWords';
 import { memoryBook, keepPage, highlightPage, makeLight, isVideoUrl, addToPage, removeFromPage } from '../services/memory';
 import { uploadMediaSmart, smallImage } from '../lib/storage';
+import { fetchMyMoments } from '../services/posts';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { askUpgrade } from '../services/membership';
 import { tapLight, tapSuccess } from '../utils/feedback';
@@ -235,7 +236,7 @@ const Landscape = ({ mood }) => {
   );
 };
 const isToday = (day) => { const d = dayOf(day), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate(); };
-const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHighlight, onAddPhoto, onDraw, onRemoveExtra, adding }) => {
+const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHighlight, onAdd, onRemoveExtra, adding }) => {
   const V = black ? VINTAGE_NIGHT : VINTAGE;
   const d = dayOf(pg.day);
   const ph = (pg.photos || [])[0] || null;
@@ -264,11 +265,12 @@ const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHi
           <View style={{ flex: 1, backgroundColor: V.frame, padding: 8, borderWidth: 1, borderColor: V.edge }}>
             <View style={{ flex: 1, borderWidth: 1, borderColor: V.faint, overflow: 'hidden' }}>
               {pic ? <Image source={{ uri: pic }} style={{ flex: 1 }} resizeMode="cover" /> : <Landscape mood={mood} />}
-              {!pic && isToday(pg.day) ? (
-                <Pressable testID="mb-add-photo" onPress={() => { tapLight(); try { window.dispatchEvent(new CustomEvent('mm-open-capture')); } catch (e) {} }} accessibilityRole="button"
-                  style={{ position: 'absolute', bottom: 10, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: 'rgba(42,33,24,0.82)', paddingHorizontal: 12, paddingVertical: 7 }}>
-                  <Ionicons name="camera-outline" size={14} color="#FFF6E6" />
-                  <Text style={{ color: '#FFF6E6', fontSize: 12.5, fontWeight: '700', marginStart: 6 }}>{mw(lang, 'addPhoto')}</Text>
+              {!pic && !locked && Platform.OS === 'web' ? (
+                <Pressable testID="mb-add" onPress={() => onAdd(pg)} disabled={!!adding} accessibilityRole="button" accessibilityLabel={mw(lang, 'addTo')}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(42,33,24,0.78)', alignItems: 'center', justifyContent: 'center' }}>
+                    {adding && adding.indexOf(pg.day) === 0 ? <ActivityIndicator color="#FFF6E6" /> : <Ionicons name="add" size={30} color="#FFF6E6" />}
+                  </View>
                 </Pressable>
               ) : null}
             </View>
@@ -323,21 +325,12 @@ const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHi
             ) : null}
           </ScrollView>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-            {!locked && Platform.OS === 'web' ? (
-              <>
-                <Pressable testID="mb-add-own" onPress={() => onAddPhoto(pg)} disabled={!!adding} accessibilityRole="button" accessibilityLabel={mw(lang, 'photo')} hitSlop={6} style={{ marginEnd: 6 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: V.edge, paddingHorizontal: 10, paddingVertical: 6 }}>
-                    {adding === pg.day + 'photo' ? <ActivityIndicator size="small" color={V.ink} /> : <Ionicons name="image-outline" size={13} color={V.ink} />}
-                    <Text style={{ color: V.ink, fontSize: 12, fontWeight: '700', marginStart: 5 }}>{mw(lang, 'photo')}</Text>
-                  </View>
-                </Pressable>
-                <Pressable testID="mb-draw" onPress={() => onDraw(pg)} disabled={!!adding} accessibilityRole="button" accessibilityLabel={mw(lang, 'draw')} hitSlop={6} style={{ marginEnd: 6 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: V.edge, paddingHorizontal: 10, paddingVertical: 6 }}>
-                    {adding === pg.day + 'drawing' ? <ActivityIndicator size="small" color={V.ink} /> : <Ionicons name="brush-outline" size={13} color={V.ink} />}
-                    <Text style={{ color: V.ink, fontSize: 12, fontWeight: '700', marginStart: 5 }}>{mw(lang, 'draw')}</Text>
-                  </View>
-                </Pressable>
-              </>
+            {!locked && pic && Platform.OS === 'web' ? (
+              <Pressable testID="mb-add-more" onPress={() => onAdd(pg)} disabled={!!adding} accessibilityRole="button" accessibilityLabel={mw(lang, 'addTo')} hitSlop={6} style={{ marginEnd: 6 }}>
+                <View style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: V.edge, alignItems: 'center', justifyContent: 'center' }}>
+                  {adding && adding.indexOf(pg.day) === 0 ? <ActivityIndicator size="small" color={V.ink} /> : <Ionicons name="add" size={17} color={V.ink} />}
+                </View>
+              </Pressable>
             ) : null}
             {pg.blank ? null : !member ? (
               <Pressable testID="mb-keep" onPress={() => onKeep(pg)} accessibilityRole="button" hitSlop={6}>
@@ -369,6 +362,88 @@ const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHi
         </View>
       </View>
     </Pressable>
+  );
+};
+
+/* ─── ADD TO THIS PAGE ── Ayser, November 2026: "خليه هو يختار … يجيب
+   صوره من البوستات". Your own posts first, as a grid — one tap pins one;
+   then the phone's photos, or a drawing. Nothing else. */
+const AddSheet = ({ lang, pg, userId, onClose, onPost, onPhone, onDraw }) => {
+  useSheetBack(onClose);
+  const insets = useSafeAreaInsets();
+  const [posts, setPosts] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    if (!userId) { setPosts([]); return undefined; }
+    fetchMyMoments(userId).then((rows) => {
+      if (!alive) return;
+      setPosts((rows || []).map((r) => ({ id: r.id, url: isVideoUrl(r.media_url) ? r.thumb_url : r.media_url })).filter((r) => r.url && String(r.url).indexOf('/' + userId + '/') > 0).slice(0, 30));
+    }).catch(() => alive && setPosts([]));
+    return () => { alive = false; };
+  }, [userId]);
+  const V = VINTAGE;
+  const cell = { width: '31.5%', aspectRatio: 1, marginBottom: '2.75%', borderRadius: 6, overflow: 'hidden', backgroundColor: V.edge };
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }} onPress={onClose} />
+      <View testID="mb-add-sheet" style={{ backgroundColor: V.paper, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 18, paddingTop: 16, paddingBottom: insets.bottom + 16, maxHeight: '80%' }}>
+        <Text style={{ color: V.ink, fontSize: 20, fontWeight: '600', fontFamily: SERIF, fontStyle: lang === 'ar' ? 'normal' : 'italic' }}>{mw(lang, 'addTo')}</Text>
+        <Text style={{ color: V.dim, fontSize: 12.5, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.2, marginTop: 2 }}>{stampLine(lang, dayOf(pg.day))}</Text>
+        <Text style={{ color: V.faint, fontSize: 11, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.2, marginTop: 16, marginBottom: 8 }}>{mw(lang, 'fromPosts').toUpperCase()}</Text>
+        <ScrollView style={{ maxHeight: 330 }} keyboardShouldPersistTaps="handled">
+          {posts == null ? <ActivityIndicator color={V.ink} style={{ marginVertical: 20 }} />
+            : !posts.length ? <Text style={{ color: V.dim, fontSize: 13.5, marginBottom: 8 }}>{mw(lang, 'noPosts')}</Text> : (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                {posts.map((x) => (
+                  <Pressable key={x.id} testID="mb-post-pick" onPress={() => { tapLight(); onPost(x.url); }} accessibilityRole="button" style={cell}>
+                    <Image source={{ uri: x.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  </Pressable>
+                ))}
+                {posts.length % 3 ? Array.from({ length: 3 - (posts.length % 3) }).map((_, i) => <View key={'f' + i} style={{ width: '31.5%' }} />) : null}
+              </View>
+            )}
+        </ScrollView>
+        <View style={{ flexDirection: 'row', marginTop: 12 }}>
+          {[['phone', 'image-outline', onPhone], ['draw', 'brush-outline', onDraw]].map(([k, icon, fn]) => (
+            <Pressable key={k} testID={'mb-add-' + k} onPress={() => { tapLight(); fn(); }} accessibilityRole="button" style={{ flex: 1, marginEnd: k === 'phone' ? 10 : 0 }}>
+              <View style={{ borderRadius: 999, borderWidth: 1, borderColor: V.ink, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={icon} size={16} color={V.ink} />
+                <Text style={{ color: V.ink, fontSize: 14, fontWeight: '700', marginStart: 6 }}>{mw(lang, k === 'phone' ? 'fromPhone' : 'draw')}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+/* ─── SHARE ── one button on the book; two ways out */
+const ShareSheet = ({ lang, P, member, total, price, month, onClose, onRecap, onPdf }) => {
+  useSheetBack(onClose);
+  const insets = useSafeAreaInsets();
+  const row = (testID, icon, title, sub, fn) => (
+    <Pressable testID={testID} onPress={() => { tapLight(); fn(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: P.line }}>
+      <Ionicons name={icon} size={22} color={P.ink} />
+      <View style={{ flex: 1, marginStart: 12 }}>
+        <Text style={{ color: P.ink, fontSize: 16, fontWeight: '700' }}>{title}</Text>
+        <Text style={{ color: P.dim, fontSize: 12.5, marginTop: 2 }}>{sub}</Text>
+      </View>
+    </Pressable>
+  );
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }} onPress={onClose} />
+      <View testID="mb-share-sheet" style={{ backgroundColor: P.bg, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 18, paddingTop: 8, paddingBottom: insets.bottom + 16 }}>
+        {row('mb-recap', 'image-outline', mw(lang, 'chapter', { m: month }), mw(lang, 'recapSub'), onRecap)}
+        {row('mb-pdf', 'book-outline', member ? mw(lang, 'pdf') : mw(lang, 'pdfFree'), mw(lang, 'pdfSub'), onPdf)}
+        {!member && total > 5 ? (
+          <Pressable onPress={() => { tapLight(); onClose(); askUpgrade('member'); }} accessibilityRole="button" style={{ paddingTop: 14 }}>
+            <Text style={{ color: P.ink, fontSize: 13.5, fontWeight: '700', textDecorationLine: 'underline' }}>{mw(lang, 'unlockAll', { n: total, p: price || 129, c: lang === 'ar' ? 'جنيه' : 'EGP' })}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </Modal>
   );
 };
 
@@ -633,6 +708,16 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
   const [adding, setAdding] = useState(null);     // day+kind being added
   const [drawFor, setDrawFor] = useState(null);   // the page you are drawing on
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [addFor, setAddFor] = useState(null);      // the page the "+" was pressed on
+  const [shareOpen, setShareOpen] = useState(false);
+  // a photo you already posted: it is yours and already stored, so it is pinned as it is
+  const pinUrl = async (pg, url) => {
+    setAdding(pg.day + 'photo'); setNote(null);
+    const r = await addToPage(pg.day, 'photo', url);
+    if (r && r.ok) { tapSuccess(); await load(); }
+    else setNote(r && r.reason === 'full' ? mw(lang, 'extrasFull') : r && r.reason === 'locked' ? mw(lang, 'lockedAdd') : mw(lang, 'err'));
+    setAdding(null);
+  };
   const pin = async (pg, kind, blob, ext, type) => {
     if (!user) return;
     setAdding(pg.day + kind); setNote(null);
@@ -760,7 +845,8 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
     try { pager.current && size && pager.current.scrollTo({ y: n * size.h, animated: true }); } catch (e) {}
   };
   const onScroll = (e) => { if (!size) return; const n = Math.round(e.nativeEvent.contentOffset.y / size.h); if (n !== idx) setIdx(n); };
-  const unlock = '✦ ' + mw(lang, 'unlockAll', { n: book.total || 0, p: price || 129, c: lang === 'ar' ? 'جنيه' : 'EGP' });
+  // in the first week of a month the recap is last month's; otherwise the chapter you are reading
+  const recapCh = ready || curCh;
 
   return (
     <View nativeID="moments-book" testID="memory-book" style={{ flex: 1, backgroundColor: black ? '#0B0B0B' : '#EDE5D8' }}>
@@ -770,19 +856,7 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
           <Text style={{ color: P.ink, fontSize: 22, fontWeight: '600', fontFamily: SERIF, fontStyle: lang === 'ar' ? 'normal' : 'italic' }}>{curCh ? mw(lang, 'chapter', { m: monthName(lang, curCh.d) }) : mw(lang, 'title')}</Text>
           {pages.length ? <Text testID="mb-pageno" style={{ color: P.dim, fontSize: 13, marginHorizontal: 8 }}>{mw(lang, 'pageOf', { i: idx + 1, n: pages.length })}</Text> : null}
         </View>
-        {!member && (book.total || 0) > 5 ? (
-          <Pressable onPress={() => { tapLight(); askUpgrade('member'); }} accessibilityRole="button" style={{ marginTop: 6, alignSelf: 'flex-start' }}>
-            <Text style={{ color: P.ink, fontSize: 12.5, fontWeight: '700', textDecorationLine: 'underline' }}>{unlock}</Text>
-          </Pressable>
-        ) : null}
         {note ? <Text style={{ color: P.ink, fontSize: 13, marginTop: 8 }}>{note}</Text> : null}
-        {ready && Platform.OS === 'web' ? (
-          <Pressable testID="mb-recap-ready" onPress={() => recap(ready)} accessibilityRole="button" style={{ marginTop: 10 }}>
-            <View style={{ borderRadius: 14, backgroundColor: P.btn, paddingHorizontal: 14, paddingVertical: 10 }}>
-              <Text style={{ color: P.btnInk, fontSize: 14.5, fontWeight: '700', fontFamily: SERIF }}>{mw(lang, 'recapReady', { m: monthName(lang, ready.d) }) + '  ·  ' + mw(lang, 'recap') + ' ✦'}</Text>
-            </View>
-          </Pressable>
-        ) : null}
       </View>
 
       {!pages.length ? <Text style={{ color: P.dim, fontSize: 14, lineHeight: 20, paddingHorizontal: 16, marginTop: 16 }}>{mw(lang, 'empty')}</Text> : (
@@ -795,7 +869,7 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
                 <View key={pg.day} style={{ width: size.w, height: size.h, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 10, alignItems: 'center' }}>
                   <Spread pg={pg} n={i + 1} lang={lang} black={black} member={member} price={price} total={book.total}
                     onOpen={(x) => { tapLight(); setOpen(x); }} onKeep={keep} onHighlight={highlight}
-                    onAddPhoto={addPhoto} onDraw={(x) => { tapLight(); setDrawFor(x); }} onRemoveExtra={removeExtra} adding={adding} />
+                    onAdd={(x) => { tapLight(); setAddFor(x); }} onRemoveExtra={removeExtra} adding={adding} />
                 </View>
               ))}
             </ScrollView>
@@ -816,23 +890,29 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
             </Pressable>
           </View>
           {Platform.OS === 'web' ? (
-            <Pressable testID="mb-pdf" onPress={makePdf} disabled={pdfBusy} accessibilityRole="button" style={{ marginTop: 8 }}>
-              <View style={{ borderRadius: 999, paddingVertical: 11, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: P.btn }}>
-                {pdfBusy ? <ActivityIndicator color={P.ink} /> : <Ionicons name="book-outline" size={16} color={P.ink} />}
-                <Text style={{ color: P.ink, fontSize: 14, fontWeight: '700', marginStart: 8 }}>{pdfBusy ? mw(lang, 'pdfMaking') : member ? mw(lang, 'pdf') : mw(lang, 'pdfFree')}</Text>
-              </View>
-            </Pressable>
-          ) : null}
-          {Platform.OS === 'web' && curCh ? (
-            <Pressable testID="mb-recap" onPress={() => recap(curCh)} accessibilityRole="button" style={{ marginTop: 8 }}>
-              <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', backgroundColor: P.btn }}>
-                {making === curCh.key ? <ActivityIndicator color={P.btnInk} /> : <Text style={{ color: P.btnInk, fontSize: 14.5, fontWeight: '700' }}>{mw(lang, 'recap') + ' ✦'}</Text>}
+            <Pressable testID="mb-share" onPress={() => { tapLight(); setShareOpen(true); }} accessibilityRole="button" style={{ marginTop: 8 }}>
+              <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', backgroundColor: P.btn }}>
+                {pdfBusy || making ? <ActivityIndicator color={P.btnInk} /> : <Ionicons name="share-outline" size={17} color={P.btnInk} />}
+                <Text style={{ color: P.btnInk, fontSize: 15, fontWeight: '700', marginStart: 8 }}>{pdfBusy ? mw(lang, 'pdfMaking') : mw(lang, 'share')}</Text>
               </View>
             </Pressable>
           ) : null}
         </View>
       ) : null}
       {open ? <OpenPage pg={open} lang={lang} P={P} onClose={() => setOpen(null)} /> : null}
+      {addFor ? (
+        <AddSheet lang={lang} pg={addFor} userId={user && user.id}
+          onClose={() => setAddFor(null)}
+          onPost={(url) => { const pg = addFor; setAddFor(null); pinUrl(pg, url); }}
+          onPhone={() => { const pg = addFor; setAddFor(null); addPhoto(pg); }}
+          onDraw={() => { const pg = addFor; setAddFor(null); setDrawFor(pg); }} />
+      ) : null}
+      {shareOpen ? (
+        <ShareSheet lang={lang} P={P} member={member} total={book.total || 0} price={price} month={recapCh ? monthName(lang, recapCh.d) : ''}
+          onClose={() => setShareOpen(false)}
+          onRecap={() => { setShareOpen(false); if (recapCh) recap(recapCh); }}
+          onPdf={() => { setShareOpen(false); makePdf(); }} />
+      ) : null}
       {drawFor ? <DrawSheet lang={lang} onClose={() => setDrawFor(null)} onDone={async ({ blob, ext, type }) => { const pg = drawFor; setDrawFor(null); await pin(pg, 'drawing', blob, ext, type); }} /> : null}
     </View>
   );
