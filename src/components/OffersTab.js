@@ -12,7 +12,7 @@ import { searchProfiles } from '../services/social';
 import { giftMembership, endGift, giftList } from '../services/gifts';
 import { ownerDrops, ownerDropSave, ownerDropLevel } from '../services/mvp';
 import { ownerContacts } from '../services/contact';
-import { ownerHostWallets, ownerHostRate, ownerHostPayout, ownerAssignHost, ownerOfferPoint } from '../services/hub';
+import { ownerHostWallets, ownerPayoutRequests, ownerHostRate, ownerHostPayout, ownerAssignHost, ownerOfferPoint } from '../services/hub';
 
 // the event page, as its host sees it: write the pin, open or end the workshop room
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -382,7 +382,11 @@ const OrganizersBox = ({ offers }) => {
   const [found, setFound] = useState([]);
   const [who, setWho] = useState(null);
   const [offer, setOffer] = useState(null);
-  const load = () => ownerHostWallets().then((x) => { if (x && x.ok) { setW(x); setRate(x.rate != null ? String(x.rate) : ''); } else setW({ ok: false }); });
+  const [asks, setAsks] = useState({});      // host id → their open InstaPay request
+  const load = () => {
+    ownerHostWallets().then((x) => { if (x && x.ok) { setW(x); setRate(x.rate != null ? String(x.rate) : ''); } else setW({ ok: false }); });
+    ownerPayoutRequests().then((x) => { const m = {}; ((x && x.requests) || []).forEach((r) => { m[r.host_id] = r; }); setAsks(m); });
+  };
   useEffect(() => { load(); }, []);
   useEffect(() => {
     if (q.trim().length < 2) { setFound([]); return undefined; }
@@ -436,6 +440,7 @@ const OrganizersBox = ({ offers }) => {
           <View key={h.id} style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: C.line, paddingTop: 10 }}>
             <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{(h.name || '') + (h.handle ? '  @' + h.handle : '')}</Text>
             <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{'Balance ' + Math.round(bal) + ' · unlocked ' + Math.round(h.unlocked || 0) + ' · waiting ' + Math.round(h.waiting || 0) + ' · paid ' + Math.round(h.paid || 0) + ' EGP · ' + (h.events || []).length + ' events'}</Text>
+            {asks[h.id] ? <Text testID="studio-payout-ask" style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 4 }}>{'Asked for ' + Math.round(asks[h.id].amount) + ' EGP on InstaPay: ' + asks[h.id].instapay}</Text> : null}
             <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
               <View style={{ flex: 1, marginEnd: 8 }}><Field label="Pay (EGP)" value={p.amount} onChange={(v) => setPay((x) => ({ ...x, [h.id]: { ...p, amount: v } }))} ph={String(Math.round(bal))} num /></View>
               <View style={{ flex: 2 }}><Field label="Note (InstaPay ref…)" value={p.note} onChange={(v) => setPay((x) => ({ ...x, [h.id]: { ...p, note: v } }))} ph="InstaPay 12345" /></View>

@@ -22,11 +22,16 @@ export function collapseNotifications(rows) {
   return out;
 }
 
+/* never in the bell: chat lines live on the chat badge, app problems in
+   the Studio, and the daily poems stopped (RUN_ME.sql, A QUIETER BELL) */
+const QUIET = '(message,app_problem,daily_line,repost)';
+
 export async function fetchMyNotifications(userId) {
   const { data, error } = await supabase
     .from('notifications')
     .select('*, actor:profiles!notifications_actor_id_fkey(name, avatar_url, country_flag), post:posts(caption, media_url)')
     .eq('user_id', userId)
+    .not('kind', 'in', QUIET)
     .order('created_at', { ascending: false })
     .limit(80);
   if (error) throw error;
@@ -41,6 +46,7 @@ export async function countUnread(userId) {
     .select('id, actor_id, kind, post_id')
     .eq('user_id', userId)
     .eq('read', false)
+    .not('kind', 'in', QUIET)
     .order('created_at', { ascending: false })
     .limit(200);
   if (error) throw error;
@@ -52,7 +58,8 @@ export async function markAllRead(userId) {
     .from('notifications')
     .update({ read: true })
     .eq('user_id', userId)
-    .eq('read', false);
+    .eq('read', false)
+    .not('kind', 'in', QUIET);
   if (error) throw error;
 }
 

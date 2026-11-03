@@ -28,7 +28,7 @@ const monthYear = (iso, lang) => {
 
 const STAMP = ['#64748B', '#10B981', '#0EA5E9', '#7C3AED', '#F59E0B', '#E11D48'];
 
-export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit, mates, onMates, onStamp }) => {
+export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit, mates, onMates, onStamp, footer }) => {
   const { t, lang } = useLang();
   const p = profile || {};
   const lv = levelOf(p.community_xp);
@@ -120,14 +120,14 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
             </View>
           </View>
         ) : null}
-        {lv.next && lv.xp > 0 ? (
+        {footer ? null : lv.next && lv.xp > 0 ? (
           <View style={{ marginTop: 10 }}>
             <View style={{ height: 4, borderRadius: 2, backgroundColor: C.glassHi, overflow: 'hidden' }}>
               <View style={{ width: Math.round(lv.progress * 100) + '%', height: 4, backgroundColor: tone }} />
             </View>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 5 }}>{t('xp_to_next').replace('{n}', String(lv.toNext)).replace('{level}', t('xp_lvl_' + lv.next))}</Text>
           </View>
-        ) : lv.xp === 0 && own ? (
+        ) : lv.xp === 0 && own && !footer ? (
           <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8 }}>{t('xp_how')}</Text>
         ) : null}
         {own && !langs.length && !loves.length ? (
@@ -136,6 +136,7 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
           </Pressable>
         ) : null}
       </View>
+      {footer || null}
     </View>
   );
 };

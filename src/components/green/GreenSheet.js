@@ -10,6 +10,7 @@ import { useLang } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { goToTab } from '../../lib/mapBus';
 import { isOwner } from '../../services/music';
+import { sendFeedback } from '../../services/feedback';
 import { lazyOverlay } from '../../lib/lazyScreen';
 const ImpactDrops = lazyOverlay(() => import('../WeeklyDrops').then((m) => ({ default: () => <m.DropsSection max={4} only="impact" /> })));
 import { SUPABASE_READY } from '../../lib/supabase';
@@ -139,22 +140,76 @@ const Chip = ({ on, children, onPress }) => (
 export const GREEN_PACK = 'ffff6666-0000-4000-8000-000000000001';
 
 /* the final MVP: plans are the Moments team's (RUN_ME.sql refuses anybody
-   else), so making one opens a single line pointing at the week's Drops */
+   else). Ayser, November 2026: instead of a "team only" wall, anybody can
+   pitch a weekend table — Thursday, Friday or Saturday — and the team reads
+   it in the Studio's feedback. Nothing is published by itself. */
+const PW = {
+  en: { title: 'Pitch a weekend table', sub: 'Tables happen Thursday to Saturday, so the room is full. Tell the team your idea — if it fits, they open it and invite you to host.', day: 'Which night?', idea: 'The idea', ph: 'e.g. A board-game table in Zamalek, 8 people, Friday 8 pm', send: 'Send to the team', done: 'Sent. The team reads every pitch and answers in Moments.', drops: 'See this weekend' },
+  ar: { title: 'اقترح ترابيزة في الويكند', sub: 'الترابيزات بتبقى من الخميس للسبت عشان تبقى مليانة. قول للفريق فكرتك — لو مناسبة، هيفتحوها ويعزموك تنظّمها.', day: 'أنهي ليلة؟', idea: 'الفكرة', ph: 'مثلاً: ترابيزة ألعاب في الزمالك، ٨ أشخاص، الجمعة ٨ بالليل', send: 'ابعتها للفريق', done: 'اتبعتت. الفريق بيقرا كل اقتراح وبيرد عليك في مومنتس.', drops: 'شوف الويكند ده' },
+};
+const NIGHTS = [['thu', 'Thu', 'الخميس'], ['fri', 'Fri', 'الجمعة'], ['sat', 'Sat', 'السبت']];
 const TeamOnly = ({ onClose }) => {
-  const { t } = useLang();
+  const { lang } = useLang();
+  const { user } = useAuth();
+  const L = PW[lang === 'ar' ? 'ar' : 'en'];
+  const [night, setNight] = useState('fri');
+  const [idea, setIdea] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState(null);
   useSheetBack(onClose);
+  const send = async () => {
+    if (idea.trim().length < 6 || busy) return;
+    tapMedium(); setBusy(true); setErr(null);
+    try {
+      await sendFeedback(user && user.id, 'idea', 'Weekend table pitch · ' + night.toUpperCase() + ' · ' + idea.trim());
+      tapSuccess(); setDone(true);
+    } catch (e) { setErr(lang === 'ar' ? 'ماتبعتتش. جرّب تاني.' : 'That did not send. Try again.'); }
+    setBusy(false);
+  };
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 }}>
-        <View style={{ borderRadius: 24, borderWidth: 1, borderColor: C.line, backgroundColor: C.bg, padding: 24 }}>
-          <Text style={{ color: C.text, fontSize: 17, lineHeight: 25 }}>{t('team_only')}</Text>
-          <Pressable onPress={() => { onClose(); goToTab('HOME'); }} accessibilityRole="button" style={{ marginTop: 18 }}>
-            <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.text }}>
-              <Text style={{ color: C.bg, fontSize: 15.5, fontWeight: '700' }}>{t('see_drops')}</Text>
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} />
+      <View testID="pitch-sheet" style={{ borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: C.bg, padding: 22, paddingBottom: 34 }}>
+        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="close" hitSlop={10} style={{ alignSelf: 'center', marginTop: -8, marginBottom: 6 }}>
+          <Ionicons name="chevron-down" size={24} color={C.dim} />
+        </Pressable>
+        <Ionicons name="bulb-outline" size={24} color={C.text} />
+        <Text style={{ color: C.text, fontSize: 22, fontWeight: '800', marginTop: 8 }}>{L.title}</Text>
+        {done ? (
+          <>
+            <Text style={{ color: C.text, fontSize: 15.5, lineHeight: 23, marginTop: 10 }}>{L.done}</Text>
+            <Pressable onPress={() => { onClose(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ marginTop: 18 }}>
+              <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.text }}>
+                <Text style={{ color: C.bg, fontSize: 15.5, fontWeight: '700' }}>{L.drops}</Text>
+              </View>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{L.sub}</Text>
+            <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', marginTop: 16 }}>{L.day}</Text>
+            <View style={{ flexDirection: 'row', marginTop: 8 }}>
+              {NIGHTS.map(([k, en, ar]) => (
+                <Pressable key={k} onPress={() => { tapLight(); setNight(k); }} accessibilityRole="button" accessibilityState={{ selected: night === k }} style={{ flex: 1, marginEnd: k === 'sat' ? 0 : 8 }}>
+                  <View style={{ borderRadius: 999, paddingVertical: 10, alignItems: 'center', backgroundColor: night === k ? C.text : 'transparent', borderWidth: 1, borderColor: night === k ? C.text : C.line }}>
+                    <Text style={{ color: night === k ? C.bg : C.text, fontSize: 14, fontWeight: '700' }}>{lang === 'ar' ? ar : en}</Text>
+                  </View>
+                </Pressable>
+              ))}
             </View>
-          </Pressable>
-        </View>
-      </Pressable>
+            <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', marginTop: 16 }}>{L.idea}</Text>
+            <TextInput testID="pitch-idea" value={idea} onChangeText={setIdea} placeholder={L.ph} placeholderTextColor={C.faint} multiline maxLength={400}
+              style={{ marginTop: 8, minHeight: 84, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 12, color: C.text, fontSize: 15, textAlignVertical: 'top' }} />
+            {err ? <Text style={{ color: C.coral, fontSize: 13, marginTop: 8 }}>{err}</Text> : null}
+            <Pressable testID="pitch-send" onPress={send} disabled={busy || idea.trim().length < 6} accessibilityRole="button" style={{ marginTop: 16, opacity: idea.trim().length < 6 ? 0.5 : 1 }}>
+              <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: C.text }}>
+                {busy ? <ActivityIndicator color={C.bg} /> : <Text style={{ color: C.bg, fontSize: 15.5, fontWeight: '700' }}>{L.send}</Text>}
+              </View>
+            </Pressable>
+          </>
+        )}
+      </View>
     </Modal>
   );
 };
@@ -209,7 +264,13 @@ const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefil
   const days = React.useMemo(() => {
     const out = [];
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    (rows || []).forEach((g) => {
+    /* one card per plan: the same walk on Tuesday and Thursday showed as
+       two identical cards — the soonest stays (and any you are going to) */
+    const seen = new Set();
+    (rows || []).slice().sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)).forEach((g) => {
+      const name = String(g.title || '').trim().toLowerCase();
+      if (name && seen.has(name) && !g.im_going) return;
+      if (name) seen.add(name);
       const d = new Date(g.starts_at); const k = new Date(d); k.setHours(0, 0, 0, 0);
       const key = k.toISOString().slice(0, 10);
       let bucket = out.find((b) => b.key === key);

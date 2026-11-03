@@ -27459,6 +27459,115 @@ $$;
 revoke execute on function public.radar_targets() from public, anon;
 grant execute on function public.radar_targets() to authenticated;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  THE ORGANIZER HUB, SIMPLER · seats on the event line, ask for a payout
+--  Ayser, November 2026: the organizer sees the next table first with
+--  "8/10" (booked of the seats there are, never invented), and asks for
+--  their balance on InstaPay in one tap. The team still pays from the
+--  Studio; a request is open until the next payout is written.
+-- ═══════════════════════════════════════════════════════════════════════
+create or replace function public.host_event_line(p_kind text, p_id uuid, me uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('kind', p_kind, 'id', p_id, 'title', m.title, 'starts_at', m.starts_at, 'ends_at', m.ends_at,
+    'going', (case when p_kind = 'offer' then (select count(*) from public.bookings b where b.offer_id = p_id and b.status in ('reserved','paid','attended'))
+                   else (select count(*) from public.green_joins j where j.gathering_id = p_id) end),
+    'seats', (case when p_kind = 'offer' then (select o.seats from public.offers o where o.id = p_id)
+                   else (select g.capacity from public.green_gatherings g where g.id = p_id) end),
+    'paid', (case when p_kind = 'offer' then (select count(*) from public.bookings b where b.offer_id = p_id and b.status in ('paid','attended')) else null end),
+    'arrived', (select count(*) from public.event_arrivals a where a.kind = p_kind and a.event_id = p_id),
+    'checked', (select count(*) from public.event_checkins c where c.kind = p_kind and c.event_id = p_id and c.user_id not in (select public.event_hosts(p_kind, p_id))),
+    'pings', (select count(*) from public.host_pings h where h.kind = p_kind and h.event_id = p_id and h.done_at is null),
+    'sos', (select count(*) from public.host_pings h where h.kind = p_kind and h.event_id = p_id and h.done_at is null and h.reason = 'sos'),
+    'here', exists (select 1 from public.host_here x where x.kind = p_kind and x.event_id = p_id and x.host_id = me),
+    'stars', (select round(avg(r.stars)::numeric, 1) from public.host_ratings r where r.kind = p_kind and r.event_id = p_id),
+    'ratings', (select count(*) from public.host_ratings r where r.kind = p_kind and r.event_id = p_id))
+  from public.event_meta(p_kind, p_id) m;
+$$;
+revoke all on function public.host_event_line(text, uuid, uuid) from public, anon, authenticated;
+
+create table if not exists public.host_payout_requests (
+  id uuid primary key default gen_random_uuid(),
+  host_id uuid not null references public.profiles(id) on delete cascade,
+  amount numeric not null check (amount > 0),
+  instapay text not null check (char_length(instapay) between 3 and 80),
+  at timestamptz not null default now()
+);
+alter table public.host_payout_requests enable row level security;
+create index if not exists host_payout_requests_host on public.host_payout_requests (host_id, at desc);
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch','trip_invite','level_up','event_update','buddy','buddy_ping','arrived','spark','circle_open','drop_open','host_ping','payout_request'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+-- the open request: made after the last payout
+create or replace function public.host_open_request(h uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('amount', r.amount, 'instapay', r.instapay, 'at', r.at)
+    from public.host_payout_requests r
+   where r.host_id = h and r.at > coalesce((select max(p.at) from public.host_payouts p where p.host_id = h), '-infinity'::timestamptz)
+   order by r.at desc limit 1;
+$$;
+revoke all on function public.host_open_request(uuid) from public, anon, authenticated;
+
+create or replace function public.my_wallet()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select public.host_wallet(auth.uid()) || jsonb_build_object('ok', auth.uid() is not null, 'request', public.host_open_request(auth.uid()));
+$$;
+revoke execute on function public.my_wallet() from public, anon;
+grant execute on function public.my_wallet() to authenticated;
+
+-- ask for the balance (what is unlocked minus what was paid) on InstaPay
+create or replace function public.host_request_payout(p_instapay text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); w jsonb; bal numeric; addr text := btrim(coalesce(p_instapay, '')); owner_id uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if char_length(addr) < 3 or char_length(addr) > 80 then return jsonb_build_object('ok', false, 'reason', 'address'); end if;
+  w := public.host_wallet(me);
+  bal := greatest(0, coalesce((w->>'unlocked')::numeric, 0) - coalesce((w->>'paid')::numeric, 0));
+  if bal <= 0 then return jsonb_build_object('ok', false, 'reason', 'nothing'); end if;
+  if public.host_open_request(me) is not null then return jsonb_build_object('ok', false, 'reason', 'open'); end if;
+  insert into public.host_payout_requests (host_id, amount, instapay) values (me, bal, addr);
+  for owner_id in select p.id from public.profiles p join auth.users u on u.id = p.id
+                   where lower(u.email) = 'ayseryourlifecoach@gmail.com'
+                      or lower(u.email) in (select lower(o.email) from public.app_owners o)
+  loop
+    insert into public.notifications (user_id, actor_id, kind, body) values (owner_id, me, 'payout_request', round(bal)::text);
+  end loop;
+  return jsonb_build_object('ok', true, 'amount', bal);
+exception when undefined_table or undefined_column then
+  return jsonb_build_object('ok', true, 'amount', bal);
+end $$;
+revoke execute on function public.host_request_payout(text) from public, anon;
+grant execute on function public.host_request_payout(text) to authenticated;
+
+-- the Studio: who asked, how much, to which InstaPay address
+create or replace function public.owner_payout_requests()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not coalesce(public.owner_ok(), false) then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  return jsonb_build_object('ok', true, 'requests', coalesce((select jsonb_agg(public.host_open_request(p.id) || jsonb_build_object('host_id', p.id, 'name', p.name) order by p.name)
+    from public.profiles p where public.host_open_request(p.id) is not null and p.id in (select host_id from public.host_payout_requests)), '[]'::jsonb));
+end $$;
+revoke execute on function public.owner_payout_requests() from public, anon;
+grant execute on function public.owner_payout_requests() to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════
+--  A QUIETER BELL · no poems, no crash reports, no chat lines
+--  Ayser, November 2026: the bell is for what matters — a table soon, a
+--  spark, a friend, a level. The morning and evening lines stop; app
+--  problems stay in the Studio's Problems list only; messages show on the
+--  chat badge, not in the bell.
+-- ═══════════════════════════════════════════════════════════════════════
+create or replace function public.send_daily_lines()
+returns int language sql security definer set search_path = public as $$ select 0; $$;
+revoke all on function public.send_daily_lines() from public, anon, authenticated;
+delete from public.notifications where kind in ('daily_line', 'app_problem');
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

@@ -295,7 +295,7 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
   const [safe, setSafe] = useState(null);
   const [tables, setTables] = useState([]);     // Table Chats: every table you claimed a seat at, or host
   const [room, setRoom] = useState(null);
-  const [sec, setSec] = useState('tables');   // Table Chats | Connections
+  const [sec, setSec] = useState('people');   // Connections first: friends are one tap away
   useSheetBack(open ? () => setOpen(null) : mt ? () => setMt(false) : onClose);
   useEffect(() => {
     myPassport().then((p) => p && p.ok && setDmOn(p.dm_open !== false));
@@ -341,7 +341,7 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
               <Text style={{ color: C.text, fontSize: 28, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.7 }}>{mw(lang, 'chats')}</Text>
               {/* Ayser, November 2026: two clean sections — Table Chats and Connections */}
               <View style={{ flexDirection: 'row', marginTop: 14, borderRadius: 999, padding: 4, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }} accessibilityRole="tablist">
-                {[['tables', SEC[lang === 'ar' ? 'ar' : 'en'][0]], ['people', SEC[lang === 'ar' ? 'ar' : 'en'][1]]].map(([k, label]) => (
+                {[['people', SEC[lang === 'ar' ? 'ar' : 'en'][1]], ['tables', SEC[lang === 'ar' ? 'ar' : 'en'][0]]].map(([k, label]) => (
                   <Pressable key={k} testID={'msg-tab-' + k} onPress={() => { tapLight(); setSec(k); }} accessibilityRole="tab" accessibilityState={{ selected: sec === k }} style={{ flex: 1 }}>
                     <View style={{ borderRadius: 999, paddingVertical: 9, alignItems: 'center', backgroundColor: sec === k ? C.text : 'transparent' }}>
                       <Text style={{ color: sec === k ? C.bg : C.text, fontSize: 14, fontWeight: '700' }}>{label}</Text>

@@ -23,15 +23,15 @@ export const LammaCard = ({ style }) => {
     <>
       <Pressable testID="lamma-card" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" accessibilityLabel={w.t} style={style}>
         {({ pressed }) => (
-          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, backgroundColor: '#17131F', transform: [{ scale: pressed ? 0.985 : 1 }] }}>
-            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#6C3CE9', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="people" size={21} color="#FFFFFF" />
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, backgroundColor: '#EFEBF9', borderWidth: 1, borderColor: '#D8CFF0', transform: [{ scale: pressed ? 0.985 : 1 }] }}>
+            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.75)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="people-outline" size={21} color="#18181B" />
             </View>
             <View style={{ flex: 1, minWidth: 0, marginHorizontal: 12 }}>
-              <Text style={{ color: '#FFFFFF', fontSize: 15.5, fontWeight: '800' }}>{'✦ ' + w.t}</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, lineHeight: 17, marginTop: 3 }} numberOfLines={2}>{w.s}</Text>
+              <Text style={{ color: '#18181B', fontSize: 15.5, fontWeight: '800' }}>{'✦ ' + w.t}</Text>
+              <Text style={{ color: 'rgba(24,24,27,0.65)', fontSize: 12.5, lineHeight: 17, marginTop: 3 }} numberOfLines={2}>{w.s}</Text>
             </View>
-            <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color="rgba(255,255,255,0.6)" />
+            <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color="rgba(24,24,27,0.45)" />
           </View>
         )}
       </Pressable>

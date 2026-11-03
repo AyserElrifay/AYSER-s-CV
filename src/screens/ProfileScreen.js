@@ -91,7 +91,7 @@ const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then
 const HubEntry = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.HubEntry })));
 const ProfileCardEntry = lazyOverlay(() => import('../components/ProfileCardSheet').then((m) => ({ default: m.ProfileCardEntry })));
 const MomentsBookCover = lazyOverlay(() => import('../components/MemoryBook').then((m) => ({ default: m.MomentsBookCover })));
-const StampBook = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.StampBook })));
+const StampScanner = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.StampScanner })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
 
 /* ─── YOUR SPACE — the profile, Facebook / Instagram / X style ───
@@ -233,6 +233,7 @@ export const ProfileScreen = () => {
   const [matesOpen, setMatesOpen] = useState(false);
   const [dumpOpen, setDumpOpen] = useState(false);   // Bardi's one thing today, in a sheet
   const [rewardsOpen, setRewardsOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);   // the table QR, from the pass
   const [avatarBuilderOpen, setAvatarBuilderOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [followers, setFollowers] = useState(null);   // null until it answers
@@ -767,6 +768,18 @@ export const ProfileScreen = () => {
             mates={SUPABASE_READY ? mates : undefined}
             onMates={() => setMatesOpen(true)}
             onStamp={SUPABASE_READY && user ? () => { tapLight(); setRewardsOpen(true); } : undefined}
+            footer={SUPABASE_READY && user ? (
+              /* Ayser, November 2026: one pass — the level and the table QR live on it */
+              <View style={{ marginTop: 2 }}>
+                <GlobalTrack pill />
+                <Pressable testID="pass-scan" onPress={() => { tapLight(); setScanOpen(true); }} accessibilityRole="button" style={{ marginTop: 10 }}>
+                  <View style={{ borderRadius: 999, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181B' }}>
+                    <Ionicons name="qr-code-outline" size={18} color="#FAF8F5" />
+                    <Text style={{ color: '#FAF8F5', fontSize: 15, fontWeight: '800', marginStart: 8 }}>{lang === 'ar' ? 'امسح QR الترابيزة' : 'Scan a table QR'}</Text>
+                  </View>
+                </Pressable>
+              </View>
+            ) : null}
           />
           {myProfile ? <HostCard profile={myProfile} /> : null}
           {/* ── ONE ROW ── Ayser: "راجع ترتيب الأبلكيشن، بلاش زحمة". Two rows of
@@ -796,10 +809,6 @@ export const ProfileScreen = () => {
 
         </View>
 
-        {/* the Moments Passport: a stamp for every table you sat at (StampKit) */}
-        {SUPABASE_READY && user ? <StampBook /> : null}
-        {/* one level bar for stamps and XP — the same pill as Together (GlobalTrack) */}
-        {SUPABASE_READY && user ? <View style={{ marginHorizontal: 16 }}><GlobalTrack pill /></View> : null}
 
         {/* the Moments Book: one page a day — the photo, the reflection, the tables you checked into */}
         {SUPABASE_READY && user ? <HubEntry /> : null}
@@ -1487,6 +1496,7 @@ export const ProfileScreen = () => {
       {teachOpen ? <TeacherApplySheet onClose={() => setTeachOpen(false)} /> : null}
       {capsOpen ? <CapsuleSheet onClose={() => setCapsOpen(false)} /> : null}
       {venueOpen ? <BizHub lang={lang} onClose={() => setVenueOpen(false)} /> : null}
+      {scanOpen ? <StampScanner onClose={() => setScanOpen(false)} /> : null}
       {rewardsOpen ? <RewardsSheet onClose={() => setRewardsOpen(false)} onStartPlan={() => { setRewardsOpen(false); setHostOpen(true); }} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
       {avatarBuilderOpen ? (

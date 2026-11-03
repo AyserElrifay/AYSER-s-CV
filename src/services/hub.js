@@ -30,3 +30,5 @@ export const hereNow = () => new Promise((resolve) => {
   } catch (e) { resolve(null); }
 });
 export const ownerOfferPoint = (offer, lat, lng) => rpc('owner_offer_point', { p_offer: offer, p_lat: lat, p_lng: lng });
+export const requestPayout = (instapay) => rpc('host_request_payout', { p_instapay: instapay });
+export const ownerPayoutRequests = () => rpc('owner_payout_requests');

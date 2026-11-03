@@ -61,31 +61,7 @@ const timeAgo = (ts) => {
 };
 
 
-const FILTERS = [
-  { k: 'all', label: 'nt_f_all', kinds: null },
-  { k: 'people', label: 'nt_f_people', kinds: ['mate_request', 'mate_accept', 'message', 'call', 'buddy', 'buddy_ping', 'spark'] },
-  { k: 'moments', label: 'nt_f_moments', kinds: ['vibe', 'laugh', 'repost', 'tag', 'comment'] },
-];
-
-/* the morning or night line (RUN_ME.sql "A GOOD WORD"): body is
-   en¦ar¦by_en¦by_ar; Arabic readers get the Arabic, everybody else the
-   English. One tap stops them. */
-const DailyLine = ({ body, lang, t }) => {
-  const [off, setOff] = useState(false);
-  const p = String(body).split('¦');
-  const ar = lang === 'ar';
-  const text = (ar ? p[1] : p[0]) || p[0];
-  const by = ar ? p[3] : p[2];
-  return (
-    <View style={{ marginTop: 3 }}>
-      <Text style={{ color: C.text, fontSize: 14, lineHeight: 21, fontWeight: '700' }}>{text}</Text>
-      {by ? <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>{'— ' + by}</Text> : null}
-      <Pressable hitSlop={8} accessibilityRole="button" disabled={off} onPress={() => { tapSelection(); setOff(true); supabase.rpc('set_daily_lines', { p_on: false }).then(() => {}, () => setOff(false)); }} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
-        <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', textDecorationLine: off ? 'none' : 'underline' }}>{off ? t('dl_stopped') : t('dl_stop')}</Text>
-      </Pressable>
-    </View>
-  );
-};
+const QUIET_KINDS = new Set(['message', 'app_problem', 'daily_line', 'repost']);
 
 /* notices Moments itself sends: the name on them is Moments, never the
    reader's own (they are stored with the reader as the actor) */
@@ -98,6 +74,10 @@ const verbOf = (t, kind, many) => {
   const v = t(k);
   return v && v !== k ? v : t('nt_v_' + kind);
 };
+
+/* one quiet icon on a soft circle for what Moments itself sends */
+const ICON = { team_reply: 'chatbubble-outline', partner_watch: 'storefront-outline', plan_soon: 'time-outline', xp_award: 'star-outline', trip_invite: 'ticket-outline', level_up: 'trending-up', event_update: 'pin-outline', arrived: 'location-outline', trip_open: 'airplane-outline', drop_open: 'calendar-outline' };
+const SOFT = { plan_soon: '#FDF3D8', drop_open: '#FDF3D8', level_up: '#E6F0EC', xp_award: '#E6F0EC', trip_open: '#E6F0EC', trip_invite: '#FCE8E8', event_update: '#FCE8E8', team_reply: '#EFEBF9' };
 
 const isVideo = (u) => typeof u === 'string' && /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(u);
 
@@ -124,7 +104,6 @@ export const NotificationsSheet = ({ onClose }) => {
   const [items, setItems] = useState(() => kept('notifs.' + (user ? user.id : '')));   // last time's, at once
   const [accepted, setAccepted] = useState({});
   const [loadErr, setLoadErr] = useState(null);
-  const [filter, setFilter] = useState('all');
 
   // tap targets
   const [profileUser, setProfileUser] = useState(null);
@@ -283,8 +262,7 @@ export const NotificationsSheet = ({ onClose }) => {
   };
 
   // filter → group into time sections (Instagram layout)
-  const activeKinds = (FILTERS.find((f) => f.k === filter) || {}).kinds;
-  const filtered = (items || []).filter((n) => !activeKinds || activeKinds.includes(n.kind));
+  const filtered = (items || []).filter((n) => !QUIET_KINDS.has(n.kind));
   const byBucket = {};
   filtered.forEach((n) => { const b = bucketOf(n.created_at); (byBucket[b] = byBucket[b] || []).push(n); });
   // one line per thing that happened, inside each section (lib/notifGroups.js)
@@ -321,7 +299,7 @@ export const NotificationsSheet = ({ onClose }) => {
     <Pressable onPress={() => openNotif(n)} accessibilityRole="button" style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, opacity: n.read ? 0.78 : 1 }}>
       <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{timeAgo(n.created_at)}</Text>
       <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', lineHeight: 20, marginTop: 4 }}>
-        {'⏰ ' + t('push_plan_soon').replace('{title}', String(n.body || '').split('|').slice(1).join('|'))}
+        {t('push_plan_soon').replace('{title}', String(n.body || '').split('|').slice(1).join('|'))}
       </Text>
     </Pressable>
   ) : n.kind === 'bardi_match' ? (() => {
@@ -352,7 +330,7 @@ export const NotificationsSheet = ({ onClose }) => {
             </>
           ) : (
             SYSTEM_KINDS.has(n.kind) ? (
-              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'trip_open' ? C.glassHi : n.kind === 'daily_line' ? C.goldSoft : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>{n.kind === 'team_reply' ? '💬' : n.kind === 'app_problem' ? '🛠️' : n.kind === 'partner_watch' ? '🏪' : n.kind === 'daily_line' ? (new Date(n.created_at).getHours() < 15 ? '☀️' : '🌙') : n.kind === 'plan_soon' ? '⏰' : n.kind === 'xp_award' ? '⭐' : n.kind === 'trip_invite' ? '🎟' : n.kind === 'level_up' ? '🧭' : n.kind === 'event_update' ? '📌' : n.kind === 'arrived' ? '📍' : '🧳'}</Text></View>
+              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: SOFT[n.kind] || '#EFEBF9', alignItems: 'center', justifyContent: 'center' }}><Ionicons name={ICON[n.kind] || 'sparkles-outline'} size={20} color="#18181B" /></View>
             ) : <Image source={{ uri: (n.actor && n.actor.avatar_url) || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
           )}
           {!(g ? g.read : n.read) ? <View style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: C.purple, borderWidth: 2, borderColor: C.bg2 }} /> : null}
@@ -371,10 +349,6 @@ export const NotificationsSheet = ({ onClose }) => {
           ) : null}
           {n.kind === 'safety' && n.body ? (
             <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={3}>{t('notif_safety_' + n.body)}</Text>
-          ) : null}
-          {n.kind === 'daily_line' && n.body ? <DailyLine body={n.body} lang={lang} t={t} /> : null}
-          {n.kind === 'app_problem' && n.body ? (
-            <Text style={{ color: C.text, fontSize: 13, lineHeight: 18, marginTop: 2 }} numberOfLines={3}>{n.body}</Text>
           ) : null}
           {n.kind === 'team_reply' && n.body ? (
             <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19, marginTop: 3 }} numberOfLines={8}>{n.body}</Text>
@@ -450,27 +424,11 @@ export const NotificationsSheet = ({ onClose }) => {
         {/* on the phone too, with the app closed */}
         <View style={{ paddingHorizontal: 16, paddingBottom: 6 }}><PushRow compact /></View>
 
-        {/* filter chips — Instagram style */}
-        {items && items.length ? (
-          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, minHeight: 46 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 6, alignItems: 'center' }}>
-            {FILTERS.map((f) => {
-              const on = filter === f.k;
-              return (
-                <Pressable key={f.k} onPress={() => { tapLight(); setFilter(f.k); }} style={{ marginRight: 8 }}>
-                  <View style={{ backgroundColor: on ? C.text : C.glassHi, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
-                    <Text style={{ color: on ? C.bg : C.text, fontSize: 13, fontWeight: '700' }}>{t(f.label)}</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        ) : null}
-
         {items === null ? (
           <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>{t('loading')}</Text>
         ) : items.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 34, paddingHorizontal: 30 }}>
-            <Text style={{ fontSize: 34 }}>🔔</Text>
+            <Ionicons name="notifications-outline" size={30} color={C.faint} />
             <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', marginTop: 10 }}>
               {loadErr ? 'Almost there' : 'No activity yet'}
             </Text>

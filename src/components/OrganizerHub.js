@@ -7,7 +7,7 @@ import { useLang } from '../context/LanguageContext';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import {
-  myHosting, hostRoster, hostCheckin, hostImHere, hostPingDone, hereNow, myWallet,
+  myHosting, hostRoster, hostCheckin, hostImHere, hostPingDone, hereNow, myWallet, requestPayout,
   pingHost, eventHostHere, rateEvent, myEventRating,
 } from '../services/hub';
 
@@ -33,6 +33,10 @@ const W = {
     rule: 'You earn {r} EGP for every person who really checked in. An event unlocks once 3 or more people rated it and the average is 4.2★ or more. Moments pays out from the Studio; every payout is written below.',
     noRate: 'The team has not set the amount per person yet — your check-ins are counted and will be paid at that amount once it is set.',
     payouts: 'Payouts', scanned: '{n} checked in', locked: 'locked', open: 'unlocked', egp: 'EGP',
+    next: 'NEXT UP', confirmed: '{n}/{s} confirmed', confirmedN: '{n} confirmed', beacon: 'Table beacon', beaconSub: 'Marks you here and shows the QR',
+    roster: 'Live roster', rosterSub: 'Check people in', later: 'Coming up', archive: 'Past events', nothingNext: 'No event coming up. Past ones are below.',
+    available: 'Available for payout', pending: 'Pending rating', ask: 'Request payout via InstaPay', askHint: 'Your InstaPay address', send: 'Send request',
+    asked: 'Requested {a} EGP to {to}. The team pays from the Studio.', nothing: 'Nothing to pay out yet.', earnings: 'Earnings',
   },
   ar: {
     title: 'لوحة المنظّم', events: 'فعالياتك', wallet: 'المحفظة', none: 'لسه مفيش حاجة تنظّمها. لما الفريق يحطّك على Drop أو رحلة، هتظهر هنا.',
@@ -46,6 +50,10 @@ const W = {
     rule: 'بتاخد {r} جنيه عن كل شخص سجّل حضور فعلاً. الفعالية بتتفتح لما ٣ أو أكتر يقيّموها ويبقى المتوسط ٤٫٢★ أو أكتر. مومنتس بتصرف من الستوديو، وكل صرفة مكتوبة تحت.',
     noRate: 'الفريق لسه ماحدّدش المبلغ عن كل شخص — الحضور بيتعدّ وهيتصرف بالمبلغ ده أول ما يتحدّد.',
     payouts: 'الصرفات', scanned: '{n} سجّلوا حضور', locked: 'مقفول', open: 'مفتوح', egp: 'جنيه',
+    next: 'الجاي', confirmed: '{n}/{s} مأكّدين', confirmedN: '{n} مأكّدين', beacon: 'إشارة الترابيزة', beaconSub: 'بتسجّل إنك وصلت وبتفتح الـ QR',
+    roster: 'قايمة الحضور', rosterSub: 'سجّل حضور الناس', later: 'بعد كده', archive: 'فعاليات فاتت', nothingNext: 'مفيش فعالية جاية. اللي فاتت تحت.',
+    available: 'متاح للصرف', pending: 'مستني التقييم', ask: 'اطلب الصرف على InstaPay', askHint: 'عنوان InstaPay بتاعك', send: 'ابعت الطلب',
+    asked: 'طلبت {a} جنيه على {to}. الفريق بيصرف من الستوديو.', nothing: 'لسه مفيش حاجة للصرف.', earnings: 'الأرباح',
   },
 };
 const hw = (lang, k, v) => { let s = W[lang === 'ar' ? 'ar' : 'en'][k] || W.en[k] || k; Object.keys(v || {}).forEach((x) => { s = s.replace('{' + x + '}', String(v[x])); }); return s; };
@@ -152,36 +160,69 @@ const EventView = ({ ev, lang, onBack }) => {
   );
 };
 
+const IP_KEY = 'mm.instapay';
 const Wallet = ({ lang }) => {
   const [w, setW] = useState(null);
-  useEffect(() => { myWallet().then((x) => setW(x && x.ok ? x : { ok: false })); }, []);
+  const [ask, setAsk] = useState(false);
+  const [addr, setAddr] = useState(() => { try { return localStorage.getItem(IP_KEY) || ''; } catch (e) { return ''; } });
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState(null);
+  const load = () => myWallet().then((x) => setW(x && x.ok ? x : { ok: false }));
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!w) return <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} />;
   if (!w.ok) return <Text style={{ color: C.dim, margin: 20 }}>{hw(lang, 'err')}</Text>;
   const bal = Math.max(0, (Number(w.unlocked) || 0) - (Number(w.paid) || 0));
+  const earned = (w.events || []).filter((e) => Number(e.earned) > 0);
+  const send = async () => {
+    const a = addr.trim(); if (a.length < 3) return;
+    tapMedium(); setBusy(true); setNote(null);
+    try { localStorage.setItem(IP_KEY, a); } catch (e) {}
+    const r = await requestPayout(a);
+    setBusy(false);
+    if (r && r.ok) { tapSuccess(); setAsk(false); load(); } else setNote(r && r.reason === 'nothing' ? hw(lang, 'nothing') : hw(lang, 'err'));
+  };
   return (
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 4, paddingBottom: 60 }}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 14, paddingBottom: 60 }}>
       <View style={{ borderRadius: 22, backgroundColor: C.text, padding: 20 }}>
-        <Text style={{ color: C.bg, opacity: 0.7, fontSize: 12, fontWeight: '800' }}>{hw(lang, 'balance')}</Text>
+        <Text style={{ color: C.bg, opacity: 0.7, fontSize: 12, fontWeight: '800' }}>{hw(lang, 'available')}</Text>
         <Text testID="hub-balance" style={[{ color: C.bg, fontSize: 36, fontWeight: '900', marginTop: 4 }, NUM]}>{money(bal) + ' ' + hw(lang, 'egp')}</Text>
-        <View style={{ flexDirection: 'row', marginTop: 12 }}>
-          {[['unlocked', w.unlocked], ['waiting', w.waiting], ['paidOut', w.paid]].map(([k, v]) => (
-            <View key={k} style={{ flex: 1 }}>
-              <Text style={[{ color: C.bg, fontSize: 16, fontWeight: '800' }, NUM]}>{money(v)}</Text>
-              <Text style={{ color: C.bg, opacity: 0.7, fontSize: 11.5, marginTop: 2 }}>{hw(lang, k)}</Text>
-            </View>
-          ))}
-        </View>
+        <Text style={[{ color: C.bg, opacity: 0.7, fontSize: 13, marginTop: 6 }, NUM]}>{hw(lang, 'pending') + '  ·  ' + money(w.waiting) + ' ' + hw(lang, 'egp')}</Text>
       </View>
-      <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 12 }}>{w.rate != null ? hw(lang, 'rule', { r: money(w.rate) }) : hw(lang, 'noRate')}</Text>
-      {(w.events || []).map((e) => (
-        <View key={e.kind + e.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
+      {w.request ? (
+        <View testID="hub-asked" style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 14 }}>
+          <Ionicons name="checkmark-circle" size={18} color={C.green} />
+          <Text style={{ flex: 1, color: C.text, fontSize: 13.5, lineHeight: 19, marginStart: 8 }}>{hw(lang, 'asked', { a: money(w.request.amount), to: w.request.instapay })}</Text>
+        </View>
+      ) : ask ? (
+        <View style={{ marginTop: 12 }}>
+          <TextInput testID="hub-instapay" value={addr} onChangeText={setAddr} placeholder={hw(lang, 'askHint')} placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false}
+            style={{ borderRadius: 14, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 12, color: C.text, fontSize: 15 }} />
+          <Pressable testID="hub-send-ask" onPress={send} disabled={busy || addr.trim().length < 3} accessibilityRole="button" style={{ marginTop: 8, opacity: addr.trim().length < 3 ? 0.5 : 1 }}>
+            <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.text }}>
+              {busy ? <ActivityIndicator color={C.bg} /> : <Text style={{ color: C.bg, fontSize: 15, fontWeight: '800' }}>{hw(lang, 'send')}</Text>}
+            </View>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable testID="hub-ask" onPress={() => { tapLight(); if (bal > 0) setAsk(true); else setNote(hw(lang, 'nothing')); }} accessibilityRole="button" style={{ marginTop: 12 }}>
+          <View style={{ borderRadius: 999, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.text, opacity: bal > 0 ? 1 : 0.5 }}>
+            <Ionicons name="sparkles-outline" size={16} color={C.text} />
+            <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', marginStart: 8 }}>{hw(lang, 'ask')}</Text>
+          </View>
+        </Pressable>
+      )}
+      {note ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 8 }}>{note}</Text> : null}
+      <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 12 }}>{w.rate != null ? hw(lang, 'rule', { r: money(w.rate) }) : hw(lang, 'noRate')}</Text>
+      {earned.length ? <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.2, marginTop: 22 }}>{hw(lang, 'earnings').toUpperCase()}</Text> : null}
+      {earned.map((e) => (
+        <View key={e.kind + e.id} testID="hub-earning" style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
           <View style={{ flex: 1, marginEnd: 10 }}>
             <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700' }} numberOfLines={1}>{e.title}</Text>
-            <Text style={{ color: C.dim, fontSize: 12, marginTop: 2 }}>{when(e.starts_at, lang) + '  ·  ' + hw(lang, 'scanned', { n: e.scanned }) + (e.stars ? '  ·  ' + e.stars + '★ (' + e.ratings + ')' : '')}</Text>
+            <Text style={{ color: C.dim, fontSize: 12, marginTop: 2 }}>{when(e.starts_at, lang) + '  ·  ' + hw(lang, 'scanned', { n: e.scanned }) + (e.stars ? '  ·  ' + e.stars + '★' : '')}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={[{ color: C.text, fontSize: 15, fontWeight: '800' }, NUM]}>{money(e.earned)}</Text>
-            <Text style={{ color: e.unlocked ? C.green : C.faint, fontSize: 11, fontWeight: '700' }}>{hw(lang, e.unlocked ? 'open' : 'locked')}</Text>
+            <Text style={{ color: e.unlocked ? C.green : C.faint, fontSize: 11, fontWeight: '700' }}>{hw(lang, e.unlocked ? 'open' : 'pending')}</Text>
           </View>
         </View>
       ))}
@@ -196,6 +237,84 @@ const Wallet = ({ lang }) => {
   );
 };
 
+/* Thursday, Friday or Saturday in Cairo */
+const weekend = (at) => { try { const d = new Date(at).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Africa/Cairo' }); return d === 'Thu' || d === 'Fri' || d === 'Sat'; } catch (e) { return false; } };
+const seatsLine = (e, lang) => (e.seats ? hw(lang, 'confirmed', { n: e.going, s: e.seats }) : hw(lang, 'confirmedN', { n: e.going }));
+
+const Row = ({ e, lang, onPress }) => (
+  <Pressable testID="hub-event" onPress={() => { tapLight(); onPress(e); }} accessibilityRole="button">
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
+      <View style={{ flex: 1, marginEnd: 10 }}>
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700' }} numberOfLines={1}>{e.title}</Text>
+        <Text style={[{ color: C.dim, fontSize: 12, marginTop: 2 }, NUM]}>{when(e.starts_at, lang) + '  ·  ' + seatsLine(e, lang) + (e.stars ? '  ·  ' + e.stars + '★' : '')}</Text>
+      </View>
+      {e.sos ? <View style={{ borderRadius: 999, backgroundColor: C.coral, paddingHorizontal: 8, paddingVertical: 3, marginEnd: 6 }}><Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>SOS</Text></View> : null}
+      <Ionicons name="chevron-forward" size={16} color={C.faint} />
+    </View>
+  </Pressable>
+);
+
+const Events = ({ list, lang, onOpen }) => {
+  const [beacon, setBeacon] = useState(null);
+  const [past, setPast] = useState(false);
+  if (list == null) return <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} />;
+  if (!list.length) return <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, margin: 20 }}>{hw(lang, 'none')}</Text>;
+  const now = Date.now();
+  const coming = list.filter((e) => new Date(e.ends_at).getTime() > now).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  const done = list.filter((e) => new Date(e.ends_at).getTime() <= now).sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+  const next = coming.find((e) => weekend(e.starts_at)) || coming[0] || null;
+  const rest = coming.filter((e) => e !== next);
+  const light = async (e) => { tapMedium(); const at = await hereNow(); hostImHere(e.kind, e.id, at && at.lat, at && at.lng); setBeacon(e); };
+  return (
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+      {next ? (
+        <View testID="hub-next" style={{ borderRadius: 24, backgroundColor: C.text, padding: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ flex: 1, color: C.bg, opacity: 0.6, fontSize: 11.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{hw(lang, 'next')}</Text>
+            {next.sos ? <View style={{ borderRadius: 999, backgroundColor: C.coral, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>SOS</Text></View>
+              : next.pings ? <View style={{ borderRadius: 999, backgroundColor: C.bg, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: C.text, fontSize: 11, fontWeight: '900' }}>{next.pings + ' ' + hw(lang, 'pings')}</Text></View> : null}
+          </View>
+          <Text style={{ color: C.bg, fontSize: 22, fontWeight: '800', marginTop: 8 }} numberOfLines={2}>{next.title}</Text>
+          <Text style={{ color: C.bg, opacity: 0.7, fontSize: 13.5, marginTop: 4 }}>{when(next.starts_at, lang)}</Text>
+          <Text testID="hub-seats" style={[{ color: C.bg, fontSize: 28, fontWeight: '900', marginTop: 12 }, NUM]}>{seatsLine(next, lang)}</Text>
+          <Pressable testID="hub-beacon" onPress={() => light(next)} accessibilityRole="button" style={{ marginTop: 16 }}>
+            <View style={{ borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg }}>
+              <Ionicons name="flag" size={20} color={C.text} />
+              <View style={{ flex: 1, marginStart: 12 }}>
+                <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }}>{hw(lang, 'beacon')}</Text>
+                <Text style={{ color: C.dim, fontSize: 12, marginTop: 1 }}>{hw(lang, 'beaconSub')}</Text>
+              </View>
+              <Ionicons name="qr-code-outline" size={20} color={C.text} />
+            </View>
+          </Pressable>
+          <Pressable testID="hub-roster" onPress={() => { tapLight(); onOpen(next); }} accessibilityRole="button" style={{ marginTop: 8 }}>
+            <View style={{ borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' }}>
+              <Ionicons name="list" size={20} color={C.bg} />
+              <View style={{ flex: 1, marginStart: 12 }}>
+                <Text style={{ color: C.bg, fontSize: 15.5, fontWeight: '800' }}>{hw(lang, 'roster')}</Text>
+                <Text style={{ color: C.bg, opacity: 0.65, fontSize: 12, marginTop: 1 }}>{hw(lang, 'rosterSub')}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={C.bg} />
+            </View>
+          </Pressable>
+        </View>
+      ) : <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{hw(lang, 'nothingNext')}</Text>}
+      {rest.length ? <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.2, marginTop: 24 }}>{hw(lang, 'later').toUpperCase()}</Text> : null}
+      {rest.map((e) => <Row key={e.kind + e.id} e={e} lang={lang} onPress={onOpen} />)}
+      {done.length ? (
+        <Pressable testID="hub-archive" onPress={() => { tapLight(); setPast(!past); }} accessibilityRole="button" accessibilityState={{ expanded: past }} style={{ marginTop: 24 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
+            <Text style={{ flex: 1, color: C.dim, fontSize: 14, fontWeight: '700' }}>{hw(lang, 'archive') + '  ·  ' + done.length}</Text>
+            <Ionicons name={past ? 'chevron-up' : 'chevron-down'} size={18} color={C.dim} />
+          </View>
+        </Pressable>
+      ) : null}
+      {past ? done.map((e) => <Row key={e.kind + e.id} e={e} lang={lang} onPress={onOpen} />) : null}
+      {beacon ? <HostQr kind={beacon.kind} id={beacon.id} onClose={() => setBeacon(null)} /> : null}
+    </ScrollView>
+  );
+};
+
 export const OrganizerHub = ({ onClose, start }) => {
   const { lang } = useLang();
   const insets = useSafeAreaInsets();
@@ -204,7 +323,6 @@ export const OrganizerHub = ({ onClose, start }) => {
   const [ev, setEv] = useState(start || null);
   useSheetBack(ev ? () => setEv(null) : onClose);
   useEffect(() => { myHosting().then((x) => setList(x && x.ok ? x.events || [] : [])); }, [ev]);
-  const now = Date.now();
   return (
     <Modal visible animationType="slide" onRequestClose={() => (ev ? setEv(null) : onClose())}>
       <View testID="organizer-hub" style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 6, paddingBottom: insets.bottom }}>
@@ -223,28 +341,7 @@ export const OrganizerHub = ({ onClose, start }) => {
                 </Pressable>
               ))}
             </View>
-            {tab === 'wallet' ? <Wallet lang={lang} /> : (
-              <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-                {list == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> : !list.length ? <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 10 }}>{hw(lang, 'none')}</Text> : list.map((e) => {
-                  const live = new Date(e.starts_at).getTime() - 3 * 3600e3 < now && new Date(e.ends_at).getTime() > now;
-                  return (
-                    <Pressable key={e.kind + e.id} testID="hub-event" onPress={() => { tapLight(); setEv(e); }} accessibilityRole="button" style={{ marginBottom: 10 }}>
-                      <View style={{ borderRadius: 18, borderWidth: live ? 2 : 1, borderColor: live ? C.purple : C.line, padding: 14 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <Text style={{ flex: 1, color: C.text, fontSize: 16, fontWeight: '800' }} numberOfLines={1}>{e.title}</Text>
-                          {e.sos ? <View style={{ borderRadius: 999, backgroundColor: C.coral, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>SOS</Text></View>
-                            : e.pings ? <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>{e.pings}</Text></View> : null}
-                        </View>
-                        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>{when(e.starts_at, lang)}</Text>
-                        <Text style={[{ color: C.text, fontSize: 13, marginTop: 8 }, NUM]}>
-                          {e.going + ' ' + hw(lang, 'going') + (e.paid != null ? '  ·  ' + e.paid + ' ' + hw(lang, 'paid') : '') + '  ·  ' + e.checked + ' ' + hw(lang, 'checked') + (e.stars ? '  ·  ' + e.stars + '★' : '')}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            )}
+            {tab === 'wallet' ? <Wallet lang={lang} /> : <Events list={list} lang={lang} onOpen={setEv} />}
           </>
         )}
       </View>
