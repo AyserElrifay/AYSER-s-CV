@@ -235,6 +235,16 @@ const CircleRoom = ({ room, lang, onClose }) => {
 };
 
 /* ── the week's Language Circle: vote → countdown → 30 minutes ── */
+/* Ayser, November 2026: "فين سيركل الإنجليزي الأونلاين؟" — say where it happens */
+const OnlineLine = ({ lang }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+    <Ionicons name="mic-outline" size={14} color={C.text} />
+    <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '600', marginStart: 5, flex: 1 }}>
+      {lang === 'ar' ? 'أونلاين هنا على Moments — أوضة صوت ٣٠ دقيقة بتفتح هنا في المعاد' : 'Online, here on Moments — a 30-minute voice room that opens right here on time'}
+    </Text>
+  </View>
+);
+
 export const CircleCard = ({ onShowDrops }) => {
   const { lang } = useLang();
   const [c, setC] = useState(null);
@@ -277,6 +287,7 @@ export const CircleCard = ({ onShowDrops }) => {
         <>
           <Small>{mv(lang, 'cName').toUpperCase()}</Small>
           <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 4 }}>{mv(lang, 'cPick')}</Text>
+          <OnlineLine lang={lang} />
           <View style={{ flexDirection: 'row', marginTop: 12, marginHorizontal: -4 }}>
             {(c.options || []).map((o, i) => {
               const mine = c.my_vote === i;
@@ -297,6 +308,7 @@ export const CircleCard = ({ onShowDrops }) => {
             <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }}>{mv(lang, 'cName')}</Text>
             <Text style={[{ color: C.dim, fontSize: 13, marginTop: 3 }, NUM]} numberOfLines={1}>{mv(lang, 'cMine') + ' · ' + short(c.options[c.my_vote].at, lang)}</Text>
             <Text style={[{ color: C.faint, fontSize: 12, marginTop: 2 }, NUM]} numberOfLines={1}>{mv(lang, 'cRes', { t: rel(Date.parse(c.closes_at) - now, lang) })}</Text>
+            <OnlineLine lang={lang} />
           </View>
           <Pressable onPress={() => { tapLight(); setEditing(true); }} accessibilityRole="button" hitSlop={10}>
             <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '600', textDecorationLine: 'underline' }}>{mv(lang, 'cChange')}</Text>
@@ -306,6 +318,7 @@ export const CircleCard = ({ onShowDrops }) => {
         <View>
           <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }}>{mv(lang, 'cName')}</Text>
           <Text style={[{ color: C.dim, fontSize: 13, marginTop: 3 }, NUM]}>{mv(lang, 'cIn', { d: short(c.opens_at, lang), t: rel(Date.parse(c.opens_at) - now, lang) })}</Text>
+          <OnlineLine lang={lang} />
         </View>
       ) : c.state === 'open' ? (
         <>

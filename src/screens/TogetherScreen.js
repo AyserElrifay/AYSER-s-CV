@@ -834,7 +834,7 @@ export const TogetherScreen = () => {
 
                         {/* seats, then one button: Claim Seat → Seat Reserved → the place */}
                         {(() => {
-                          const line = seatLine(lang, g);
+                          const line = mine ? null : seatLine(lang, g);   // the host sees the real count below
                           return line ? <Text style={[{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 10 }, NUM]}>{line}</Text> : null;
                         })()}
                         {g.revealed && (g.im_going || mine) && !g.checked_in ? (
@@ -857,8 +857,28 @@ export const TogetherScreen = () => {
                               </View>
                             </Pressable>
                           ) : mine ? (
-                            /* your own plan: people see Claim Seat here; you see who is coming in the Host Hub */
-                            <Text style={{ color: C.dim, fontSize: 12.5 }}>{lang === 'ar' ? 'الناس بيشوفوا هنا «احجز كرسي». اللي جايين في لوحة المنظّم.' : 'People see Claim Seat here. Who is coming is in the Host Hub.'}</Text>
+                            /* your own plan (Ayser, November 2026: "فين زرار الحجز وكام واحد رايح واعزم صحابك"):
+                               the real count, invite friends, and who is coming */
+                            <View testID="host-actions">
+                              <Text style={[{ color: C.text, fontSize: 14, fontWeight: '800' }, NUM]}>
+                                {(() => { const n = Number(g.going) || 0; const cap = Number(g.capacity) || TABLE_SEATS;
+                                  return lang === 'ar' ? `${n} حاجزين من ${cap} · فاضل ${Math.max(cap - n, 0)}` : `${n} booked of ${cap} · ${Math.max(cap - n, 0)} seats left`; })()}
+                              </Text>
+                              <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                                <Pressable testID="host-invite" onPress={() => invite(g)} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
+                                  <View style={{ backgroundColor: C.text, borderRadius: 999, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Ionicons name="person-add-outline" size={15} color={C.bg} />
+                                    <Text style={{ color: C.bg, fontSize: 14, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'اعزم صحابك' : 'Invite friends'}</Text>
+                                  </View>
+                                </Pressable>
+                                <Pressable testID="host-who" onPress={() => { tapLight(); setEventOf(g.id); }} accessibilityRole="button" style={{ flex: 1 }}>
+                                  <View style={{ borderRadius: 999, paddingVertical: 12, borderWidth: 1, borderColor: C.text, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Ionicons name="people-outline" size={15} color={C.text} />
+                                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'مين جاي' : 'Who is coming'}</Text>
+                                  </View>
+                                </Pressable>
+                              </View>
+                            </View>
                           ) : g.im_going ? (
                             <Pressable onPress={() => { tapLight(); setEventOf(g.id); }} accessibilityRole="button">
                               <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: C.text }}>
@@ -881,6 +901,12 @@ export const TogetherScreen = () => {
                             </Pressable>
                           )}
                         </View>
+                        {!mine && !g.checked_in ? (
+                          <Pressable testID="guest-invite" onPress={() => sharePlan(g)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                            <Ionicons name="share-outline" size={15} color={C.text} />
+                            <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginStart: 6, textDecorationLine: 'underline' }}>{lang === 'ar' ? 'اعزم صحابك' : 'Invite friends'}</Text>
+                          </Pressable>
+                        ) : null}
                         {sent && sent.id === g.id ? (
                           <Text style={{ color: C.green, fontSize: 12, fontWeight: '800', marginTop: 8 }}>{t('green_sent_to')} {sent.n}</Text>
                         ) : null}
