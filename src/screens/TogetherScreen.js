@@ -155,6 +155,7 @@ const Tile = ({ icon, label, onPress }) => (
    at, the people, the countries, and how many times you came. Nothing
    counted yet → the card says so plainly and asks you to start one. */
 const GreenDoor = ({ t, onPress }) => {
+  const { lang } = useLang();
   const [n, setN] = useState(null);
   useEffect(() => { greenImpact().then((r) => { if (r && typeof r.held === 'number') setN(r); }); }, []);
   const stat = (v, k) => (
@@ -167,21 +168,17 @@ const GreenDoor = ({ t, onPress }) => {
     <Pressable onPress={() => { tapLight(); onPress(); }} accessibilityRole="button" style={{ marginBottom: 10 }}>
       <LinearGradient colors={['#047857', '#10B981']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 20, padding: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontSize: 24 }}>🌿</Text>
+          <Ionicons name="leaf-outline" size={24} color="#FFF" />
           <View style={{ flex: 1, marginStart: 10 }}>
             <Text style={{ color: '#FFF', fontSize: 16.5, fontWeight: '900' }}>{t('green_title')}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12.5, marginTop: 2 }} numberOfLines={2}>{t('gm_hero')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#FFF" />
         </View>
-        {n && n.held > 0 ? (
-          <View style={{ flexDirection: 'row', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' }}>
-            {stat(n.held, 'gi_held')}{stat(n.people, 'gi_people')}{stat(n.countries, 'gi_countries')}{n.mine > 0 ? stat(n.mine, 'gi_mine') : null}
-          </View>
-        ) : n ? (
-          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700', marginTop: 12 }}>{t('gi_none')}</Text>
-        ) : null}
-        {n && n.held > 0 ? <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 8 }}>{t('gi_note')}</Text> : null}
+        {/* Ayser, November 2026: no small counts on the door — one quiet invitation */}
+        <View style={{ alignSelf: 'flex-start', marginTop: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 12, paddingVertical: 6 }}>
+          <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800' }}>{lang === 'ar' ? '✦ انضم ليوم الأثر الجاي' : '✦ Join the next Impact Day'}</Text>
+        </View>
       </LinearGradient>
     </Pressable>
   );
@@ -589,7 +586,9 @@ export const TogetherScreen = () => {
     if (d) setDay(d.key);
     setOpen(focus);
   }, [focus, !!rows]); // eslint-disable-line react-hooks/exhaustive-deps
-  const days = useMemo(() => groupByDay(aud ? (rows || []).filter((g) => (g.audience || 'all') === aud) : rows), [rows, aud]);
+  /* Ayser, November 2026: the weekend only (Thursday to Saturday, Cairo), so people meet at full tables, not six half-empty ones */
+  const wkend = (g) => { try { const w = new Date(g.starts_at).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Africa/Cairo' }); return w === 'Thu' || w === 'Fri' || w === 'Sat'; } catch (e) { return true; } };
+  const days = useMemo(() => groupByDay((aud ? (rows || []).filter((g) => (g.audience || 'all') === aud) : (rows || [])).filter(wkend)), [rows, aud]);
   const dayLabel = (d, long) => {
     if (d.offset === 0) return t('green_today');
     if (d.offset === 1) return t('green_tomorrow');
@@ -726,17 +725,13 @@ export const TogetherScreen = () => {
 
         {/* ── the hub (Ayser, October 2026): the week's Drops — Tables, Culture,
             Impact days, Roam — then the English Circle, then the Global Track */}
+        {/* the level is one line at the top; the card opens in a sheet (GlobalTrack pill) */}
+        {uid ? <GlobalTrack pill /> : null}
         {uid ? <DropsSection max={6} /> : null}
         {uid ? <CircleCard /> : null}
-        {uid ? <GlobalTrack /> : null}
         <View style={{ height: 18 }} />
 
-        {/* ── where ── */}
-        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-          <Pill on={scope === 'near'} label={hub ? hub.flag + ' ' + (lang === 'ar' && hub.name_ar ? hub.name_ar : hub.name) : (fix ? '📍' : myFlag) + ' ' + t('tg_near_me')} onPress={() => { tapLight(); setScope('near'); setDay(null); }} />
-          <Pill on={scope === 'all'} label={'🌍 ' + t('tg_everywhere')} onPress={() => { tapLight(); setScope('all'); setDay(null); }} />
-        </View>
-
+        {/* one city picker only — the one at the top (Ayser, November 2026) */}
         {/* ── the week ── */}
         {rows === null ? (
           <ActivityIndicator color={C.purple} style={{ marginVertical: 40 }} />
@@ -864,7 +859,7 @@ export const TogetherScreen = () => {
                               </View>
                             </Pressable>
                           ) : mine ? (
-                            <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{seatsLeftOf(lang, g) || jw(lang, 'hosting')}</Text>
+                            <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{seatsLeftOf(lang, g) || ''}</Text>
                           ) : g.im_going ? (
                             <Pressable onPress={() => { tapLight(); setEventOf(g.id); }} accessibilityRole="button">
                               <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: C.text }}>
@@ -1005,11 +1000,9 @@ export const TogetherScreen = () => {
           try { if (h) localStorage.setItem('mm.hub', JSON.stringify(h)); else localStorage.removeItem('mm.hub'); } catch (e) {}
         }} /> : null}
         {/* the rooms open all week gave way to the voted 30-minute Circle (Home) */}
-        {uid ? <MeetRows lang={lang} onBuddies={() => setMeet('buddies')} /> : null}
         {meet === 'lounges' ? <LoungesSheet onClose={() => setMeet(null)} /> : null}
         {meet === 'buddies' ? <BuddiesSheet onClose={() => setMeet(null)} /> : null}
         {eventOf ? <EventRoom kind="gathering" id={eventOf} lang={lang} onClose={() => setEventOf(null)} /> : null}
-        <Workshops t={t} lang={lang} onOpen={(o) => setSheet({ trips: 'browse', only: 'workshop', focus: o.id })} />
 
 
         {/* ── more ── Ayser: "يبقي مترابط و سهل و الfeatures مش كتير". Nine
@@ -1018,19 +1011,18 @@ export const TogetherScreen = () => {
             inside Settling in; exchanges live in Chats. */}
         <Section>{t('tg_more')}</Section>
         <GreenDoor t={t} onPress={() => setSheet('green')} />
-        {/* Explore: places, trips, countries, customs and settling in —
-            five doors that were in three rooms, now one, with a picture */}
-        <Pressable onPress={() => { tapLight(); setSheet('explore'); }} accessibilityRole="button" accessibilityLabel={t('ex_title')}
-          style={({ pressed }) => ({ marginTop: 2, transform: [{ scale: pressed ? 0.985 : 1 }] })}>
-          <View style={{ height: 128, borderRadius: 22, overflow: 'hidden', backgroundColor: C.glassHi }}>
-            <Image source={{ uri: publicMedia('trip-siwa-3.jpg') }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
-            <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} locations={[0.3, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
-            <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
-              <Text style={{ color: '#FFF', fontSize: 21, fontWeight: '900' }}>{t('ex_title')}</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13.5, fontWeight: '600', marginTop: 2 }} numberOfLines={1}>{t('ex_door')}</Text>
-            </View>
-          </View>
-        </Pressable>
+        {/* Workshops and Explore: one compact strip right above Lamma (Ayser, November 2026) */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 2 }} testID="together-strip">
+          {[['workshops', t('bk_kind_workshop'), 'art-sketch-1.jpg', () => setSheet({ trips: 'browse', only: 'workshop' })], ['explore', t('ex_title'), 'trip-siwa-3.jpg', () => setSheet('explore')]].map(([k, label, pic, go]) => (
+            <Pressable key={k} testID={'strip-' + k} onPress={() => { tapLight(); go(); }} accessibilityRole="button" accessibilityLabel={label} style={{ marginEnd: 10 }}>
+              <View style={{ width: 170, height: 86, borderRadius: 18, overflow: 'hidden', backgroundColor: C.glassHi }}>
+                <Image source={{ uri: publicMedia(pic) }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
+                <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.65)']} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
+                <Text style={{ position: 'absolute', left: 12, bottom: 10, color: '#FFF', fontSize: 15.5, fontWeight: '900' }}>{label}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </ScrollView>
         {/* play is Lamma, at the table (Ayser, October 2026) */}
         <LammaCard style={{ marginTop: 10 }} />
 

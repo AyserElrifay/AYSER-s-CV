@@ -47,6 +47,7 @@ export const MomentBond = ({ other, meName, lang }) => {
   const [mine, setMine] = useState(meName || '');
   useEffect(() => { if (!mine && user) getProfile(user.id).then((p) => p && p.name && setMine(p.name)).catch(() => {}); }, [user && user.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [now, setNow] = useState(Date.now());
+  const [open, setOpen] = useState(false);   // one line until tapped (Ayser, November 2026)
   const key = 'mm.bond.sign.' + (other && other.id);
   const [sign, setSign] = useState(() => { try { return Number(localStorage.getItem(key)) || 0; } catch (e) { return 0; } });
   useEffect(() => {
@@ -72,8 +73,19 @@ export const MomentBond = ({ other, meName, lang }) => {
     if (data && data.ok) supabase.rpc('bond_info', { p_other: other.id }).then(({ data: x }) => { if (x && x.ok) setB(x); }, () => {});
   };
   const glass = Platform.OS === 'web' ? { backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' } : null;
+  if (!open) {
+    const city = b.their_city || b.my_city;
+    return (
+      <Pressable testID="moment-bond" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button"
+        style={[{ marginHorizontal: 12, marginTop: 8, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(23,19,31,0.86)' }, glass]}>
+        <Text style={{ color: '#D9C08C', fontSize: 12, fontWeight: '700' }}>{t(lang, 'title') + ' ✦ '}</Text>
+        <Text testID="bond-counter" style={{ color: '#FFF', fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'], flex: 1 }} numberOfLines={1}>{counter + (city ? '  •  ' + city : '')}</Text>
+        <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.6)" />
+      </Pressable>
+    );
+  }
   return (
-    <View testID="moment-bond" style={[{ marginHorizontal: 12, marginTop: 10, borderRadius: 20, padding: 14, backgroundColor: 'rgba(23,19,31,0.86)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }, glass]}>
+    <Pressable testID="moment-bond" onPress={() => setOpen(false)} accessibilityRole="button" style={[{ marginHorizontal: 12, marginTop: 10, borderRadius: 20, padding: 14, backgroundColor: 'rgba(23,19,31,0.86)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }, glass]}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, borderColor: '#D9C08C', alignItems: 'center', justifyContent: 'center' }}>
@@ -99,6 +111,6 @@ export const MomentBond = ({ other, meName, lang }) => {
           <Text style={{ color: '#D9C08C', fontSize: 12, fontWeight: '700' }}>{b.i_hide ? t(lang, 'show') : t(lang, 'hide')}</Text>
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 };

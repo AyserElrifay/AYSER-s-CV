@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, Modal, ScrollView } from 'react-native';
+import { useSheetBack } from '../hooks/useSheetBack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
@@ -35,8 +36,25 @@ const Bar = ({ label, have, need }) => {
 
 const KINDS = [['exchange', 'gt_k_exchange'], ['volunteer', 'gt_k_volunteer'], ['travel', 'gt_k_travel']];
 
-export const GlobalTrack = ({ compact }) => {
+const TrackSheet = ({ onClose }) => {
+  useSheetBack(onClose);
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }} onPress={onClose} />
+      <View testID="level-sheet" style={{ maxHeight: '85%', backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingBottom: 24 }}>
+        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="close" hitSlop={10} style={{ alignSelf: 'center', paddingTop: 10, paddingBottom: 2 }}>
+          <Ionicons name="chevron-down" size={24} color={C.dim} />
+        </Pressable>
+        {/* eslint-disable-next-line no-use-before-define */}
+        <ScrollView keyboardShouldPersistTaps="handled"><GlobalTrack /></ScrollView>
+      </View>
+    </Modal>
+  );
+};
+
+export const GlobalTrack = ({ compact, pill }) => {
   const { lang } = useLang();
+  const [open, setOpen] = useState(false);   // the pill's sheet
   const [r, setR] = useState(null);
   const [pick, setPick] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -48,6 +66,26 @@ export const GlobalTrack = ({ compact }) => {
   const name = lw(lang, 'gt_l' + lvl);
   const n = r.next;
   const asked = Array.isArray(r.asked) ? r.asked : [];
+
+  /* Ayser, November 2026: on Together the track is one line, 52 high — the
+     whole card opens in a sheet only when tapped, so Drops come first */
+  if (pill) {
+    const share = n ? Math.min(1, ((r.circles || 0) + (r.drops || 0) + (r.impact || 0)) / Math.max(1, (n.circles || 0) + (n.drops || 0) + (n.impact || 0))) : 1;
+    return (
+      <>
+        <Pressable testID="level-pill" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button"
+          style={{ height: 52, flexDirection: 'row', alignItems: 'center', borderRadius: 26, paddingHorizontal: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 12 }}>
+          <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'✦ ' + (lang === 'ar' ? 'مستوى ' + '٠١٢٣٤'[lvl] : 'Level ' + lvl) + ': ' + name}</Text>
+          <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: C.line, marginHorizontal: 12, overflow: 'hidden' }}>
+            <View style={{ height: 4, width: Math.round(share * 100) + '%', backgroundColor: C.purple }} />
+          </View>
+          <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '700' }}>{lang === 'ar' ? 'المزايا' : 'Perks'}</Text>
+          <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={16} color={C.faint} />
+        </Pressable>
+        {open ? <TrackSheet onClose={() => setOpen(false)} /> : null}
+      </>
+    );
+  }
 
   if (compact) {
     return (

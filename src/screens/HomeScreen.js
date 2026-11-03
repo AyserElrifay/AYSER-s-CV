@@ -677,7 +677,8 @@ export const HomeScreen = () => {
 
             
 
-            {homeTab === 'reflect' ? <View style={{ marginTop: 18 }}>{user ? <DailyMoment /> : null}<ReflectionPane user={user} /></View> : null}
+            {/* one reflection card a day (Ayser, November 2026: the Daily Moment and Today's Reflection were two boxes asking the same thing) */}
+            {homeTab === 'reflect' ? <View style={{ marginTop: 18 }}><ReflectionPane user={user} /></View> : null}
 
             {homeTab === 'moments' && widgets.length ? <HomeWidgets ids={widgets} /> : null}
 

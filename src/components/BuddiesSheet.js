@@ -131,7 +131,11 @@ const Chat = ({ other, threadId, lang, onBack }) => {
     dmState(tid).then((x) => x && x.ok && setSt(x));
   };
   // the invite list opens and closes on the same button; it never takes over the chat
-  const openPing = async () => { tapLight(); if (ping) { setPing(null); return; } setPing((await myNextEvents()) || []); };
+  const openPing = async () => { tapLight(); if (ping) { setPing(null); return; }
+    // only this weekend's tables (Thursday to Saturday, Cairo)
+    const wk = (at) => { try { const w = new Date(at).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Africa/Cairo' }); return w === 'Thu' || w === 'Fri' || w === 'Sat'; } catch (e) { return true; } };
+    setPing(((await myNextEvents()) || []).filter((e) => wk(e.starts_at) && new Date(e.starts_at).getTime() - Date.now() < 8 * 864e5));
+  };
   const [call, setCall] = useState(null);   // 'audio' | 'video' — friends call each other (RUN_ME.sql call_ring: people who share a chat)
   const doPing = async (e) => {
     tapMedium();
@@ -203,9 +207,9 @@ const Chat = ({ other, threadId, lang, onBack }) => {
       {call ? <CallScreen peer={{ id: person.id, name: person.name, avatar: person.avatar_url }} video={call === 'video'} onClose={() => setCall(null)} /> : null}
       <ScrollView ref={scroll} onContentSizeChange={() => scroll.current && scroll.current.scrollToEnd({ animated: false })} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16 }}>
         {opLine ? <Text style={{ color: C.dim, fontSize: 12.5, textAlign: 'center', marginBottom: 10 }}>{opLine}</Text> : null}
-        {msgs.map((m, i) => {
+        {msgs.filter((m) => !isGameNote(m)).map((m, i, shown) => {
           const mine = m.user_id === (user && user.id);
-          const nextVoice = () => { const n = msgs.slice(i + 1).find((x) => x.kind === 'voice'); setPlaying(n ? n.id : null); };
+          const nextVoice = () => { const n = shown.slice(i + 1).find((x) => x.kind === 'voice'); setPlaying(n ? n.id : null); };
           return (
             <View key={m.id} style={{ marginTop: 6, alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '82%', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 9, backgroundColor: mine ? C.purple : C.glass, borderWidth: mine ? 0 : 1, borderColor: C.line }}>
               {m.kind === 'voice' && m.media_url
@@ -257,6 +261,8 @@ const Chat = ({ other, threadId, lang, onBack }) => {
   );
 };
 
+/* Ayser, November 2026: the old Catch Your Mate invites are not conversation — never in a chat or a preview */
+const isGameNote = (m) => !!m && (m.kind === 'game_invite' || /Catch Your Mate/i.test(String(m.body || m)));
 const Row = ({ person, last, onPress, match, lang, premium }) => (
   <Pressable onPress={onPress} accessibilityRole="button">
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
@@ -266,7 +272,7 @@ const Row = ({ person, last, onPress, match, lang, premium }) => (
           <Text style={{ color: C.text, fontSize: 16, fontWeight: '600', flexShrink: 1 }} numberOfLines={1}>{person.name}</Text>
           {premium ? <Mark /> : null}
         </View>
-        {last ? <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 2 }} numberOfLines={1}>{last}</Text> : null}
+        {last && !isGameNote(last) ? <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 2, textAlign: 'left', alignSelf: 'stretch' }} numberOfLines={1}>{last}</Text> : null}
         <MatchBadge score={match} lang={lang} style={{ marginTop: 5 }} />
       </View>
       <Ionicons name="chevron-forward" size={18} color={C.faint} />

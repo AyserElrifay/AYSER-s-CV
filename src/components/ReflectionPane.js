@@ -4,6 +4,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { reflectionToday, reflect, fallbackPrompt, MOODS } from '../services/reflection';
+import { uploadMediaSmart } from '../lib/storage';
+import { addToPage } from '../services/memory';
+import { lazyOverlay } from '../lib/lazyScreen';
+const DrawSheet = lazyOverlay(() => import('./DrawSheet').then((m) => ({ default: m.DrawSheet })));
 import { goToTab } from '../lib/mapBus';
 import { mw } from '../constants/memoryWords';
 import { earnBonus } from '../lib/feedGate';
@@ -30,6 +34,18 @@ export const ReflectionPane = ({ user }) => {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [draw, setDraw] = useState(false);
+  const [drawn, setDrawn] = useState(false);
+  const saveDrawing = async ({ blob, ext, type }) => {
+    setDraw(false);
+    if (!user) return;
+    try {
+      const url = await uploadMediaSmart(user.id, blob, ext, type);
+      const day = (() => { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' }); } catch (e) { return new Date().toISOString().slice(0, 10); } })();
+      const r = await addToPage(day, 'drawing', url);
+      if (r && r.ok) setDrawn(true); else setErr(t('rf_err'));
+    } catch (e) { setErr(t('rf_err')); }
+  };
 
   /* other people's answers are theirs: no screenshots in the apps, and
      covered on the web when the page loses focus */
@@ -65,13 +81,19 @@ export const ReflectionPane = ({ user }) => {
           <View style={{ marginTop: 16 }}>
             <TextInput value={text} onChangeText={setText} maxLength={500} multiline placeholder={t('rf_ph')} placeholderTextColor={C.faint}
               style={{ color: C.text, fontSize: 16, lineHeight: 22, minHeight: 84, borderRadius: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, padding: 12, textAlignVertical: 'top', outlineStyle: 'none' }} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', rowGap: 8, marginTop: 12 }}>
               {MOODS.map((m, i) => (
                 <Pressable key={m} onPress={() => { tapLight(); setMood(mood === i + 1 ? null : i + 1); }} accessibilityRole="radio" accessibilityState={{ checked: mood === i + 1 }} hitSlop={4}
                   style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginEnd: 6, backgroundColor: mood === i + 1 ? C.glassHi : 'transparent', borderWidth: mood === i + 1 ? 1 : 0, borderColor: C.line }}>
                   <Text style={{ fontSize: 22, opacity: mood && mood !== i + 1 ? 0.45 : 1 }}>{m}</Text>
                 </Pressable>
               ))}
+              {/* a drawing for today's page of the book (DrawSheet → page_add) */}
+              <Pressable testID="rf-draw" onPress={() => { tapLight(); setDraw(true); }} accessibilityRole="button" accessibilityLabel={lang === 'ar' ? 'ارسم ذكرى' : 'Draw a memory'} hitSlop={4}
+                style={{ height: 40, borderRadius: 20, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.line }}>
+                <Ionicons name="brush-outline" size={16} color={C.text} />
+                <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700', marginStart: 5 }}>{drawn ? (lang === 'ar' ? 'اترسمت' : 'Drawn') : (lang === 'ar' ? 'ارسم' : 'Draw')}</Text>
+              </Pressable>
               <View style={{ flex: 1 }} />
               <Pressable onPress={send} disabled={busy || !text.trim()} accessibilityRole="button">
                 <View style={{ borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10, backgroundColor: text.trim() ? C.text : C.glassHi }}>
@@ -94,12 +116,10 @@ export const ReflectionPane = ({ user }) => {
 
       {/* what the others said — open only once you answered */}
       {!mine ? (
-        <View style={{ marginTop: 14, borderRadius: 20, padding: 18, alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: C.line }}>
-          <Ionicons name="lock-closed-outline" size={22} color={C.faint} />
-          <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700', textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
-            {Number(data.count) > 0 ? t('rf_locked_n').replace('{n}', String(data.count)) : t('rf_locked_0')}
-          </Text>
-        </View>
+        /* no counts, no empty lock box: one warm line (Ayser, November 2026) */
+        <Text testID="rf-teaser" style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, textAlign: 'center', marginTop: 14, paddingHorizontal: 10 }}>
+          {lang === 'ar' ? '✦ شارك تأملك عشان تفتح دايرة النهارده وتتحفظ في كتاب مومنتس بتاعك' : "✦ Share your reflection to unlock today's community circle and save it to your Moments Book"}
+        </Text>
       ) : (
         <View style={[{ marginTop: 14 }, NO_SAVE]}>
           {covered ? (
@@ -132,6 +152,7 @@ export const ReflectionPane = ({ user }) => {
           <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color={C.faint} />
         </View>
       </Pressable>
+      {draw ? <DrawSheet lang={lang} onClose={() => setDraw(false)} onDone={saveDrawing} /> : null}
     </View>
   );
 };

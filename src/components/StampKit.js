@@ -329,8 +329,7 @@ export const StampBook = () => {
         </View>
       ) : null}
 
-      {/* the way: 3 · 5 · 10 */}
-      <Way lang={lang} n={n} passUsed={p.pass_used} />
+      {/* Ayser, November 2026: the old 3 · 5 · 10 ladder gave way to the one level bar (GlobalTrack, right under this card) */}
 
       {/* the stamps */}
       {hist.length ? (

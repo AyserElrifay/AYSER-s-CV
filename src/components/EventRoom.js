@@ -17,6 +17,7 @@ import { StampScanner, HostQr, TableBeacon } from './StampKit';   // the same ch
 import { tbw, countdown, lookFor } from '../constants/tableWords';
 import { FlagBadge } from './TableFlag';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { showOnMap } from '../lib/mapBus';
 const CallScreen = lazyOverlay(() => import('./CallScreen').then((m) => ({ default: m.CallScreen })));
 import { TableIcebreakers } from './ScaleKit';
 import { SeatBadge, seatLabel, SeatPeek, SparksDeck } from './SeatCard';
@@ -321,7 +322,7 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
             <Text selectable numberOfLines={4} style={{ color: C.bg, fontSize: 15, lineHeight: 21, marginTop: 6 }}>{r.pin || tbw(lang, 'pinEmpty')}</Text>
             {r.is_drop ? <Text style={{ color: C.bg, opacity: 0.8, fontSize: 13, fontWeight: '700', marginTop: 6 }}>{lookFor(lang, r.category, r.table_no)}</Text> : null}
             {r.map ? (
-              <Pressable onPress={() => { tapLight(); Linking.openURL(r.map).catch(() => {}); }} accessibilityRole="link" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+              <Pressable onPress={() => { tapLight(); const s = String(r.map); const m = s.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/) || s.match(/[?&](?:q|query|ll|destination|center)=(-?\d{1,2}\.\d+)(?:,|%2C)\s*(-?\d{1,3}\.\d+)/) || s.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/); if (m) { showOnMap({ lat: Number(m[1]), lng: Number(m[2]), title: r.title }); onClose && onClose(); } else { try { navigator.clipboard.writeText(s); } catch (e) {} } }} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.bg, paddingHorizontal: 12, paddingVertical: 7 }}>
                   <Ionicons name="location" size={14} color={C.text} />
                   <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginHorizontal: 6 }}>{tbw(lang, 'openPin')}</Text>

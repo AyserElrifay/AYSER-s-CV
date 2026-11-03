@@ -21,6 +21,17 @@ import { useSheetBack } from '../hooks/useSheetBack';
 import { tcw as tbw, lookFor } from '../constants/tableCore';
 import { FlagBadge } from './TableFlag';
 import { supabase, SUPABASE_READY } from '../lib/supabase';
+import { showOnMap, goToTab } from '../lib/mapBus';
+
+/* a Google Maps link carries its spot: …/@30.06,31.22 · ?q=30.06,31.22 · !3d30.06!4d31.22 */
+const pointOf = (u) => {
+  const s = String(u || '');
+  const m = s.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/) || s.match(/[?&](?:q|query|ll|destination|center)=(-?\d{1,2}\.\d+)(?:,|%2C)\s*(-?\d{1,3}\.\d+)/) || s.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/);
+  return m ? { lat: Number(m[1]), lng: Number(m[2]) } : null;
+};
+/* the weekend: Thursday, Friday, Saturday in Cairo */
+const weekendDay = (at) => { try { const w = new Date(at).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Africa/Cairo' }); return w === 'Thu' || w === 'Fri' || w === 'Sat'; } catch (e) { return false; } };
+const copyText = async (txt) => { try { await navigator.clipboard.writeText(txt); return true; } catch (e) { return false; } };
 const WhatsAppBook = lazyOverlay(() => import('./WhatsAppBook').then((m) => ({ default: m.WhatsAppBook })));
 
 /* Ayser, November 2026: Roam waits as Coming Soon until the Studio opens it
@@ -397,13 +408,16 @@ const DropCard = ({ d, lang, onChanged }) => {
         </View>
       ) : (
         <>
-          <Seats taken={taken} seats={seats} />
+          {/* Ayser, November 2026: a curated table says what it is until it is half full; after that, the seats left — never "1 / 20" */}
+          {taken / Math.max(1, seats) >= 0.5 ? <Seats taken={taken} seats={seats} /> : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
-            <Text style={[{ color: C.text, fontSize: 13.5, fontWeight: '600' }, NUM]}>
-              {(d.table_no > 1 ? tbw(lang, 'tableN', { n: d.table_no }) + '  ·  ' : '') + mv(lang, 'claimed', { n: taken, m: seats }) + '  —  ' + (full ? mv(lang, 'full') : mv(lang, 'left', { n: seats - taken }))}
+            <Text testID="drop-seats" style={[{ color: C.text, fontSize: 13.5, fontWeight: '600' }, NUM]}>
+              {full ? mv(lang, 'full')
+                : taken / Math.max(1, seats) >= 0.5 ? (lang === 'ar' ? 'باقي ' + (seats - taken) + ' كراسي بس على ترابيزة #' + (d.table_no || 1) : 'Only ' + (seats - taken) + (seats - taken === 1 ? ' spot' : ' spots') + ' left on Table #' + (d.table_no || 1))
+                : (lang === 'ar' ? '✦ ترابيزة منتقاة · ' + seats + ' كراسي بالكتير' : '✦ Curated table · max ' + seats + ' seats')}
             </Text>
             {/* the last seats, said out loud */}
-            {hot ? (
+            {hot && taken / Math.max(1, seats) < 0.5 ? (
               <View testID="drop-hot" style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.text, paddingHorizontal: 10, paddingVertical: 4, marginStart: 8 }}>
                 <Ionicons name="flame" size={12} color={C.bg} />
                 <Text style={{ color: C.bg, fontSize: 11.5, fontWeight: '800', marginStart: 4 }}>{seats - taken === 1 ? tbw(lang, 'lastSeat') : tbw(lang, 'lastSeats', { n: seats - taken })}</Text>
@@ -425,11 +439,20 @@ const DropCard = ({ d, lang, onChanged }) => {
         <View style={{ marginTop: 12 }}>
           <Text style={{ color: C.text, fontSize: 15, fontWeight: '600' }} numberOfLines={2}>{d.venue.name || ''}</Text>
           {d.venue.map_url ? (
-            <Pressable onPress={() => { tapLight(); Linking.openURL(d.venue.map_url).catch(() => {}); }} accessibilityRole="link" hitSlop={8}
-              style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: C.text, paddingHorizontal: 14, paddingVertical: 8, marginTop: 8 }}>
-              <Ionicons name="location-outline" size={15} color={C.text} />
-              <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginHorizontal: 6 }}>{mv(lang, 'map')}</Text>
-            </Pressable>
+            /* Ayser, November 2026: never out of the app — the Moments map, and a copy of the pin */
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+              {pointOf(d.venue.map_url) ? (
+                <Pressable testID="drop-on-map" onPress={() => { tapLight(); const pt = pointOf(d.venue.map_url); showOnMap({ ...pt, title: d.venue.name || place }); goToTab('MAP'); }} accessibilityRole="button" hitSlop={8}
+                  style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.text, paddingHorizontal: 14, paddingVertical: 9, marginEnd: 8 }}>
+                  <Ionicons name="map-outline" size={15} color={C.bg} />
+                  <Text style={{ color: C.bg, fontSize: 13, fontWeight: '700', marginStart: 6 }}>{lang === 'ar' ? 'شوفها على خريطة مومنتس' : 'View on Moments Map'}</Text>
+                </Pressable>
+              ) : null}
+              <Pressable testID="drop-copy-pin" onPress={async () => { tapLight(); const ok = await copyText(d.venue.map_url); if (ok) { tapSuccess(); setNote(lang === 'ar' ? '✦ لينك المكان اتنسخ!' : '✦ Location link copied!'); } }} accessibilityRole="button" accessibilityLabel={lang === 'ar' ? 'انسخ المكان' : 'Copy pin'} hitSlop={8}
+                style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: C.text, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="link-outline" size={17} color={C.text} />
+              </Pressable>
+            </View>
           ) : null}
           <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>{jw(lang, 'arrive')}</Text>
         </View>
@@ -537,8 +560,13 @@ export const DropsSection = ({ max = 3, only = null }) => {
   if (!list || !list.length) return only ? null : <View style={{ marginTop: 22 }}><WeekendBanner lang={lang} /></View>;
   // the open Drops first (yours, then the spotlight), then the ones waiting their turn
   const rank = (d) => (d.mine ? 0 : d.state === 'queued' ? 2 : 1);
-  const shown = list.filter((d) => cat === 'all' || (d.category || 'tables') === cat)
-    .sort((a, b) => rank(a) - rank(b) || String(a.starts_at).localeCompare(String(b.starts_at))).slice(0, max);
+  const all = list.filter((d) => cat === 'all' || (d.category || 'tables') === cat)
+    .sort((a, b) => rank(a) - rank(b) || String(a.starts_at).localeCompare(String(b.starts_at)));
+  /* Ayser, November 2026: one weekend, full tables — Thursday to Saturday, the trip, and yours in the spotlight;
+     everything else waits in one small row, so people are not spread thin over six half-empty tables */
+  const spot = (d) => d.mine || (d.category || 'tables') === 'roam' || (d.state !== 'queued' && weekendDay(d.starts_at));
+  const shown = all.filter(spot).slice(0, max);
+  const later = all.filter((d) => !shown.includes(d)).slice(0, 8);
   if (only && !shown.length) return null;   // one kind asked for, none this week: nothing, never an empty card
   return (
     <View style={{ marginTop: 22 }}>
@@ -558,7 +586,24 @@ export const DropsSection = ({ max = 3, only = null }) => {
         })}
       </ScrollView>}
       {shown.length ? shown.map((d) => <DropCard key={d.id} d={d} lang={lang} onChanged={load} />)
-        : <Text style={{ color: C.dim, fontSize: 14, marginTop: 14 }}>{mv(lang, 'empty')}</Text>}
+        : !later.length ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 14 }}>{mv(lang, 'empty')}</Text> : null}
+      {later.length ? (
+        <View testID="drops-queue" style={{ marginTop: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="lock-closed-outline" size={13} color={C.dim} />
+            <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '700', marginStart: 6 }}>{lang === 'ar' ? 'في الطابور (بتفتح لما الترابيزة اللي قبلها تتملي)' : 'Queueing next (opens when the current table fills)'}</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 8 }}>
+            {later.map((d) => (
+              <View key={d.id} style={{ width: 170, marginEnd: 8, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 12, backgroundColor: C.glass }}>
+                <Text style={{ color: C.dim, fontSize: 10.5, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.2 }}>{catWord(lang, CATS.includes(d.category) ? d.category : 'tables').toUpperCase()}</Text>
+                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', marginTop: 4 }} numberOfLines={1}>{lang === 'ar' && d.neighborhood_ar ? d.neighborhood_ar : d.neighborhood}</Text>
+                <Text style={{ color: C.dim, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{when(d.starts_at, lang)}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
     </View>
   );
 };

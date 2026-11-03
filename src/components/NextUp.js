@@ -42,7 +42,9 @@ const pick = (rows) => {
   const now = Date.now();
   const fix = lastFix();
   const seen = {};
-  return (rows || []).filter((g) => new Date(g.starts_at).getTime() > now - 30 * 60000
+  /* Ayser, November 2026: Next near you is the weekend — Thursday, Friday, Saturday (Cairo) — unless you are already going */
+  const wk = (at) => { try { const w = new Date(at).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Africa/Cairo' }); return w === 'Thu' || w === 'Fri' || w === 'Sat'; } catch (e) { return true; } };
+  return (rows || []).filter((g) => new Date(g.starts_at).getTime() > now - 30 * 60000 && (g.im_going || wk(g.starts_at))
       && (!fix || (g.lat != null && km(fix, { lat: +g.lat, lng: +g.lng }) <= NEAR_KM)))
     .sort((a, b) => (b.im_going ? 1 : 0) - (a.im_going ? 1 : 0) || new Date(a.starts_at) - new Date(b.starts_at))
     .filter((g) => !seen[g.title] && (seen[g.title] = 1)).slice(0, 5);

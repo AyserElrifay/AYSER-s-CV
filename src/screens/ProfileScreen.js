@@ -678,7 +678,6 @@ export const ProfileScreen = () => {
     { key: 'grid', icon: 'grid-outline', on: true },
     { key: 'posts', icon: 'chatbox-ellipses-outline', on: gridItems.some((m) => m.text) },
     { key: 'reels', icon: 'play-outline', on: gridItems.some((m) => m.kind === 'reel') },
-    { key: 'reposts', icon: 'repeat-outline', on: repostedMoments.length > 0 },
     { key: 'tagged', icon: 'pricetag-outline', on: taggedMoments.length > 0 },
   ].filter((x) => x.on);
   // a tab that emptied (a repost undone, a tag removed) falls back to the moments
@@ -686,6 +685,8 @@ export const ProfileScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
+      {/* nothing scrolls under the phone's clock: a strip of the page colour sits behind the status bar */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: C.bg, zIndex: 10 }} />
       <ScrollView keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: 130 }}
         showsVerticalScrollIndicator={false}
@@ -777,8 +778,6 @@ export const ProfileScreen = () => {
             <GhostButton small label={t('sp_share')} onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
             {user ? <GhostButton small label={t('sp_today')} onPress={() => { tapLight(); setDumpOpen(true); }} style={{ flex: 1 }} /> : null}
           </View>
-          {/* your Moments Level, one line; the whole Global Track is on Together */}
-          {SUPABASE_READY && user ? <GlobalTrack compact /> : null}
           {/* what is left of this month's Drops and Circles (members) */}
           {SUPABASE_READY && user ? <QuotaLine style={{ marginTop: 14 }} /> : null}
           {SUPABASE_READY && user ? <ShowedUp userId={user.id} own /> : null}
@@ -799,6 +798,8 @@ export const ProfileScreen = () => {
 
         {/* the Moments Passport: a stamp for every table you sat at (StampKit) */}
         {SUPABASE_READY && user ? <StampBook /> : null}
+        {/* one level bar for stamps and XP — the same pill as Together (GlobalTrack) */}
+        {SUPABASE_READY && user ? <View style={{ marginHorizontal: 16 }}><GlobalTrack pill /></View> : null}
 
         {/* the Moments Book: one page a day — the photo, the reflection, the tables you checked into */}
         {SUPABASE_READY && user ? <HubEntry /> : null}

@@ -5,16 +5,16 @@
 const W = {
   en: {
     seats: '{n} / {m} Seats Claimed • {l} Spots Left', going: '{n} going', full: 'Table full',
-    lock: 'Exact venue & Google Maps pin unlock 12h before start',
+    lock: 'Exact venue & pin unlock 12h before start',
     claim: 'Claim Seat', impact: 'Join Impact Drop', reserved: '✓ Seat Reserved • Open Table Chat', hosting: 'You are hosting', seatsLeft: '{n} Seats Left', seatLeft: '1 Seat Left', tableFull: 'Table full',
-    maps: 'Open in Google Maps', arrive: 'Ask for the Moments Table & scan the table QR code when you arrive.',
+    maps: 'View on Moments Map', arrive: 'Ask for the Moments Table & scan the table QR code when you arrive.',
     lensDrops: 'Drops to Join', lensPartners: 'Partner Places',
   },
   ar: {
     seats: '{n} / {m} كراسي اتحجزت • فاضل {l}', going: '{n} رايحين', full: 'الترابيزة كملت',
-    lock: 'المكان بالظبط ودبوس جوجل ماب بيظهروا قبلها بـ ١٢ ساعة',
+    lock: 'المكان بالظبط بيظهر قبلها بـ ١٢ ساعة',
     claim: 'احجز كرسي', impact: 'انضم ليوم التطوّع', reserved: '✓ كرسيك محجوز • افتح شات الترابيزة', hosting: 'إنت المنظّم', seatsLeft: 'فاضل {n} كراسي', seatLeft: 'فاضل كرسي واحد', tableFull: 'الترابيزة كملت',
-    maps: 'افتح في جوجل ماب', arrive: 'اسأل على ترابيزة مومنتس وامسح كود الـ QR أول ما توصل.',
+    maps: 'شوفه على خريطة مومنتس', arrive: 'اسأل على ترابيزة مومنتس وامسح كود الـ QR أول ما توصل.',
     lensDrops: 'خروجات تنضم لها', lensPartners: 'أماكن شركائنا',
   },
 };
