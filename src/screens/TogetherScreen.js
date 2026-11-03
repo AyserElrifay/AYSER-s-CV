@@ -11,7 +11,7 @@ import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings, myUnrated, rateGathering, listSparks } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings, myUnrated, rateGathering, listSparks, greenImpact } from '../services/green';
 import { COUNTRY_LIST } from '../constants/countries';
 import { remember, recall } from '../lib/offline';
 import { uploadPlanPhoto } from '../lib/storage';
@@ -46,7 +46,7 @@ import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
 import { JourneyMap } from '../components/JourneyMap';
 import { jw, mapsLink, seatsLeftOf, seatLine, TABLE_SEATS } from '../constants/joinWords';
-import { LammaRow } from '../components/LammaCard';
+import { LammaCard } from '../components/LammaCard';
 const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
 const EventRoom = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.EventRoom })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
@@ -148,6 +148,42 @@ const Tile = ({ icon, label, onPress }) => (
     </View>
   </Pressable>
 );
+
+/* ── GREEN MINDS, ONE DOOR ──
+   Ayser: it showed up in several places and nobody could see it does
+   any good. Now it is here only, as the one wide card, with what it has
+   really done this month (green_impact): gatherings people checked in
+   at, the people, the countries, and how many times you came. Nothing
+   counted yet → the card says so plainly and asks you to start one. */
+const GreenDoor = ({ t, onPress }) => {
+  const { lang } = useLang();
+  const [n, setN] = useState(null);
+  useEffect(() => { greenImpact().then((r) => { if (r && typeof r.held === 'number') setN(r); }); }, []);
+  const stat = (v, k) => (
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900' }}>{String(v)}</Text>
+      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '700', marginTop: 1, textAlign: 'center' }} numberOfLines={1}>{t(k)}</Text>
+    </View>
+  );
+  return (
+    <Pressable onPress={() => { tapLight(); onPress(); }} accessibilityRole="button" style={{ marginBottom: 10 }}>
+      <LinearGradient colors={['#047857', '#10B981']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 20, padding: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons name="leaf-outline" size={24} color="#FFF" />
+          <View style={{ flex: 1, marginStart: 10 }}>
+            <Text style={{ color: '#FFF', fontSize: 16.5, fontWeight: '900' }}>{t('green_title')}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12.5, marginTop: 2 }} numberOfLines={2}>{t('gm_hero')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#FFF" />
+        </View>
+        {/* Ayser, November 2026: no small counts on the door — one quiet invitation */}
+        <View style={{ alignSelf: 'flex-start', marginTop: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 12, paddingVertical: 6 }}>
+          <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800' }}>{lang === 'ar' ? '✦ انضم ليوم الأثر الجاي' : '✦ Join the next Impact Day'}</Text>
+        </View>
+      </LinearGradient>
+    </Pressable>
+  );
+};
 
 const JoinPill = ({ going, busy, onPress, t }) => (
   <Pressable onPress={onPress} disabled={busy} hitSlop={6} accessibilityRole="button">
@@ -980,37 +1016,33 @@ export const TogetherScreen = () => {
             have their own doors above and in the tabs; the papers live
             inside Settling in; exchanges live in Chats. */}
         <Section>{t('tg_more')}</Section>
-        {/* Ayser, November 2026 — "خد رأي ستيف جوبز": one quiet list, one colour, four doors */}
-        <View testID="together-more" style={{ borderRadius: 20, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, overflow: 'hidden' }}>
-          {[
-            ['green', 'leaf-outline', t('green_title'), lang === 'ar' ? 'أيام تطوّع وتنضيف، ساعة برّه مع ناس كويسة' : 'Impact days — an hour outside with good people', () => setSheet('green')],
-            ['workshops', 'brush-outline', t('bk_kind_workshop'), lang === 'ar' ? 'مزيكا، رسم، حكي، أفلام وكتب' : 'Music, art, storytelling, film & books', () => setSheet({ trips: 'browse', only: 'workshop' })],
-            ['explore', 'compass-outline', t('ex_title'), lang === 'ar' ? 'رحلات وأماكن' : 'Trips and places', () => setSheet('explore')],
-          ].map(([k, icon, title, sub, go], i) => (
-            <Pressable key={k} testID={'more-' + k} onPress={() => { tapLight(); go(); }} accessibilityRole="button">
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, borderTopWidth: i ? 1 : 0, borderTopColor: C.line }}>
-                <Ionicons name={icon} size={20} color={C.text} />
-                <View style={{ flex: 1, marginHorizontal: 12 }}>
-                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{title}</Text>
-                  <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{sub}</Text>
-                </View>
-                <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={C.faint} />
+        {/* Ayser, November 2026: "الشكل القديم أحسن" — the green card, the photo strip, Lamma and the invite are back */}
+        <GreenDoor t={t} onPress={() => setSheet('green')} />
+        {/* Workshops and Explore: one compact strip right above Lamma (Ayser, November 2026) */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 2 }} testID="together-strip">
+          {[['workshops', t('bk_kind_workshop'), 'art-sketch-1.jpg', () => setSheet({ trips: 'browse', only: 'workshop' })], ['explore', t('ex_title'), 'trip-siwa-3.jpg', () => setSheet('explore')]].map(([k, label, pic, go]) => (
+            <Pressable key={k} testID={'strip-' + k} onPress={() => { tapLight(); go(); }} accessibilityRole="button" accessibilityLabel={label} style={{ marginEnd: 10 }}>
+              <View style={{ width: 170, height: 86, borderRadius: 18, overflow: 'hidden', backgroundColor: C.glassHi }}>
+                <Image source={{ uri: publicMedia(pic) }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
+                <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.65)']} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
+                <Text style={{ position: 'absolute', left: 12, bottom: 10, color: '#FFF', fontSize: 15.5, fontWeight: '900' }}>{label}</Text>
               </View>
             </Pressable>
           ))}
-          <LammaRow>{(open) => (
-            <Pressable testID="more-lamma" onPress={open} accessibilityRole="button">
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: C.line }}>
-                <Ionicons name="people-outline" size={20} color={C.text} />
-                <View style={{ flex: 1, marginHorizontal: 12 }}>
-                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{lang === 'ar' ? 'لمّة — ألعاب الترابيزة' : 'Lamma — table games'}</Text>
-                  <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{lang === 'ar' ? 'كود واحد للترابيزة كلها' : 'One code for the whole table'}</Text>
-                </View>
-                <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={C.faint} />
-              </View>
-            </Pressable>
-          )}</LammaRow>
-        </View>
+        </ScrollView>
+        {/* play is Lamma, at the table (Ayser, October 2026) */}
+        <LammaCard style={{ marginTop: 10 }} />
+
+        {/* ── bring your people ── one quiet line; the details are in Rewards */}
+        {uid ? (
+          <Pressable onPress={() => { tapLight(); setSheet({ rewards: 'invite' }); }} accessibilityRole="button" style={{ marginTop: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.goldSoft, borderRadius: 18, paddingVertical: 13, paddingHorizontal: 16 }}>
+              <Ionicons name="gift-outline" size={19} color={C.gold} />
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', flex: 1, marginStart: 12 }} numberOfLines={2}>{t('rw_inv_plus')}</Text>
+              <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={C.dim} />
+            </View>
+          </Pressable>
+        ) : null}
         {/* ── own a place, or run trips? ── a line of text, not another card (PartnerSheet) */}
         <Pressable onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ marginTop: 16, marginBottom: 8, alignSelf: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1.5, borderColor: C.text, paddingVertical: 10, paddingHorizontal: 18 }}>
