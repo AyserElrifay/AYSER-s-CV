@@ -62,3 +62,8 @@ let planPending = null;
 }());
 export function pendingPlan() { return planPending; }
 export function takePlan() { const id = planPending; planPending = null; return id; }
+
+/* a plan tapped somewhere else in the app (the map's pin): Together opens on it */
+const planSubs = new Set();
+export function openPlan(id) { planPending = id; planSubs.forEach((f) => { try { f(id); } catch (e) {} }); }
+export function onOpenPlan(f) { planSubs.add(f); return () => planSubs.delete(f); }

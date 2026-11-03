@@ -27606,6 +27606,25 @@ end $$;
 revoke execute on function public.circle_shuffle(uuid) from public, anon;
 grant execute on function public.circle_shuffle(uuid) to authenticated;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  TABLES OF TEN · every plan has a size
+--  Ayser, November 2026: "مش كنا متفقين ١٠ كراسي". A plan without a size
+--  becomes ten seats (the joins already stop at the capacity), so the app
+--  can say "Curated table · max 10 seats" and "Only 3 spots left" truly.
+--  A size the team set stays as it is.
+-- ═══════════════════════════════════════════════════════════════════════
+alter table public.green_gatherings alter column capacity set default 10;
+update public.green_gatherings set capacity = 10 where capacity is null and starts_at > now() - interval '1 day';
+create or replace function public.gathering_ten() returns trigger language plpgsql as $$
+begin new.capacity := coalesce(new.capacity, 10); return new; end $$;
+drop trigger if exists gathering_ten on public.green_gatherings;
+create trigger gathering_ten before insert on public.green_gatherings for each row execute function public.gathering_ten();
+do $do$ begin
+  alter table public.green_weekly alter column capacity set default 10;
+  update public.green_weekly set capacity = 10 where capacity is null;
+exception when undefined_table or undefined_column then null;
+end $do$;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

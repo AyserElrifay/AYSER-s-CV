@@ -22,7 +22,7 @@ import { PushRow } from '../components/PushRow';
 import { talkRoomsNear } from '../services/talkRooms';
 import { fmt, remaining, offsetFrom } from '../lib/talkClock';
 import { appLink, shareLink, shareNote } from '../utils/share';
-import { takePlan } from '../lib/tripLink';
+import { takePlan, onOpenPlan } from '../lib/tripLink';
 import { isOwner } from '../services/music';
 import { listOffers, photoUrl } from '../services/offers';
 import { fetchWhatsOn } from '../services/whatson';
@@ -45,7 +45,7 @@ import { greenPic } from '../components/green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
 import { JourneyCard, JourneyMap } from '../components/JourneyMap';
-import { jw, mapsLink, seatsLeftOf } from '../constants/joinWords';
+import { jw, mapsLink, seatsLeftOf, seatLine, TABLE_SEATS } from '../constants/joinWords';
 import { LammaCard } from '../components/LammaCard';
 const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
 const EventRoom = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -428,7 +428,8 @@ export const TogetherScreen = () => {
   const [rows, setRows] = useState(() => keptGatherings(readCode()));  // the week as last seen; null = still asking
   const [on, setOn] = useState(() => recall('whatson') || null);  // fetchWhatsOn: now / soon / groups
   const [day, setDay] = useState(null);
-  const [focus] = useState(() => takePlan());   // a plan somebody sent (…/?plan=<id>), shown on its day and marked
+  const [focus, setFocus] = useState(() => takePlan());   // a plan somebody sent (…/?plan=<id>) or tapped on the map, shown on its day and marked
+  useEffect(() => onOpenPlan((id) => { takePlan(); setFocus(id); }), []);
   const [aud, setAud] = useState(null);   // null = all · 'all' = mixed · 'women' · 'men'
   const [open, setOpen] = useState(null);
   const [busy, setBusy] = useState({});
@@ -828,7 +829,7 @@ export const TogetherScreen = () => {
                                 <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', marginStart: 5 }}>{t(g.photo_url ? 'pl_remove_photo_short' : 'pl_add_photo_short')}</Text>
                               </Pressable>
                             ) : null}
-                            {g.lat != null && g.lng != null ? (
+                            {g.lat != null && g.lng != null && !(g.revealed && (g.im_going || mine) && !g.checked_in) ? (
                               <Pressable onPress={() => { tapLight(); showOnMap({ lat: g.lat, lng: g.lng }); }} accessibilityRole="button"
                                 style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.purpleSoft, paddingHorizontal: 11, paddingVertical: 7 }}>
                                 <Ionicons name="map-outline" size={14} color={C.purple} />
@@ -840,13 +841,12 @@ export const TogetherScreen = () => {
 
                         {/* seats, then one button: Claim Seat → Seat Reserved → the place */}
                         {(() => {
-                          const n = Number(g.going) || 0; const cap = Number(g.capacity) || 0;
-                          const line = cap ? jw(lang, 'seats', { n: Math.min(n, cap), m: cap, l: Math.max(0, cap - n) }) : n >= 3 ? jw(lang, 'going', { n }) : null;
+                          const line = seatLine(lang, g);
                           return line ? <Text style={[{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 10 }, NUM]}>{line}</Text> : null;
                         })()}
                         {g.revealed && (g.im_going || mine) && !g.checked_in ? (
                           <View style={{ marginTop: 10 }}>
-                            <Pressable onPress={() => { tapLight(); Linking.openURL(mapsLink(g)).catch(() => {}); }} accessibilityRole="link"
+                            <Pressable onPress={() => { tapLight(); if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('MAP'); }} accessibilityRole="button"
                               style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: C.text, paddingHorizontal: 14, paddingVertical: 8 }}>
                               <Ionicons name="location-outline" size={15} color={C.text} />
                               <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginHorizontal: 6 }}>{jw(lang, 'maps')}</Text>
@@ -864,7 +864,8 @@ export const TogetherScreen = () => {
                               </View>
                             </Pressable>
                           ) : mine ? (
-                            <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{seatsLeftOf(lang, g) || ''}</Text>
+                            /* your own plan: people see Claim Seat here; you see who is coming in the Host Hub */
+                            <Text style={{ color: C.dim, fontSize: 12.5 }}>{lang === 'ar' ? 'الناس بيشوفوا هنا «احجز كرسي». اللي جايين في لوحة المنظّم.' : 'People see Claim Seat here. Who is coming is in the Host Hub.'}</Text>
                           ) : g.im_going ? (
                             <Pressable onPress={() => { tapLight(); setEventOf(g.id); }} accessibilityRole="button">
                               <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: C.text }}>
@@ -877,7 +878,7 @@ export const TogetherScreen = () => {
                                 <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '800' }}>{t('au_' + g.audience)}</Text>
                               </View>
                             </Pressable>
-                          ) : Number(g.capacity) && (Number(g.going) || 0) >= Number(g.capacity) ? (
+                          ) : (Number(g.going) || 0) >= (Number(g.capacity) || TABLE_SEATS) ? (
                             <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{jw(lang, 'full')}</Text>
                           ) : (
                             <Pressable onPress={() => join(g)} disabled={!!busy[g.id]} accessibilityRole="button">

@@ -11,7 +11,7 @@ import { ME, DOING_OPTIONS, av, AV_NEUTRAL } from '../constants/mockData';
 import { listOffers, photoUrl, money } from '../services/offers';
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
-import { takeMapTarget, onMapTarget } from '../lib/mapBus';
+import { takeMapTarget, onMapTarget, goToTab } from '../lib/mapBus';
 import { listGatherings, keptGatherings, joinGathering, bardiMatchMe } from '../services/green';
 import { activityFor } from '../lib/activityMatch';
 import { activityPin, lookOf, titleFor, whenFor } from '../lib/activityPins';
@@ -33,7 +33,7 @@ import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
 import { publicMedia } from '../lib/publicMedia';
 import { openPartner as openPartnerPage } from '../lib/partnerLink';
-import { openTrip } from '../lib/tripLink';
+import { openTrip, openPlan } from '../lib/tripLink';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
 import { fetchMomentPins } from '../services/posts';
 import { requestTrip } from '../services/trips';
@@ -483,7 +483,8 @@ export const MapScreen = () => {
     else if (m.kind === 'note') { const n = realNotes.find((x) => x.id === m.srcId); if (n) setNoteOpen(n); }
     else if (m.kind === 'moment') { const p = momentPins.find((x) => x.id === m.srcId); if (p) openMomentPin(p); }
     else if (m.kind === 'story') { const st = storyPins.find((x) => x.id === m.srcId); if (st) openStoryPin(st); }
-    else if (m.kind === 'activity') setGreenOpen(true);
+    // a plan's pin opens that plan (Together, opened on it), never the Green Minds list
+    else if (m.kind === 'activity') { openPlan(m.srcId); goToTab('TOGETHER'); }
     else if (m.kind === 'event') { const e = WORLD_EVENTS.find((x) => x.id === m.srcId); if (e) setEventOpen(e); }
     // a trip pin sends you to the trips lens, where you can actually join it
     else if (m.kind === 'trip') { setLens('trips'); setNewTrip(null); }
@@ -1112,7 +1113,7 @@ export const MapScreen = () => {
           plans={inView} people={nearbyPeople}
           open={panelOpen} onOpen={setPanelOpen}
           joining={joiningG} onJoin={joinFromMap}
-          onFocus={(g) => { setPanelOpen(false); setMapFocus({ lat: g.lat, lng: g.lng, zoom: 16, ts: Date.now() }); }}
+          onFocus={(g) => { setPanelOpen(false); openPlan(g.id); goToTab('TOGETHER'); }}
           onGoNow={() => setGoNow(true)}
           onPerson={(p) => setProfileUser(p)}
           chips={lens === 'activities'} kind={actKind} onKind={setActKind}

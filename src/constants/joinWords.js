@@ -34,3 +34,16 @@ export const seatsLeftOf = (lang, g) => {
 export const mapsLink = (g) => (g && g.lat != null && g.lng != null
   ? 'https://www.google.com/maps/search/?api=1&query=' + g.lat + ',' + g.lng
   : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((g && (g.place_name || g.city)) || ''));
+
+/* Ayser, November 2026 — the honest seat line, the same everywhere: a table
+   is ten seats unless the team set another number; until it is half full it
+   says what it is, then how many are left. Never "1 / 20", never "1 going". */
+export const TABLE_SEATS = 10;
+export const seatLine = (lang, g) => {
+  const cap = Number(g && g.capacity) || TABLE_SEATS;
+  const n = Math.min(cap, Number(g && g.going) || 0);
+  const left = cap - n;
+  if (left <= 0) return jw(lang, 'tableFull');
+  if (n / cap >= 0.5) return lang === 'ar' ? 'باقي ' + left + (left === 1 ? ' كرسي بس' : ' كراسي بس') : 'Only ' + left + (left === 1 ? ' spot' : ' spots') + ' left';
+  return lang === 'ar' ? '✦ ترابيزة منتقاة · ' + cap + ' كراسي بالكتير' : '✦ Curated table · max ' + cap + ' seats';
+};

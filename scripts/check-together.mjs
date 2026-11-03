@@ -54,7 +54,7 @@ is('Chill has a way back', /onBack=\{\(\) => \{ tapLight\(\); nav\.navigate\('TO
 
 console.log('\nthe counts are the database\'s');
 const scr = read('src/screens/TogetherScreen.js');
-is('going is what the row says', /const n = Number\(g\.going\) \|\| 0; const cap = Number\(g\.capacity\) \|\| 0;/.test(scr), true);
+is('going is what the row says', /const line = seatLine\(lang, g\);/.test(scr) && /Number\(g && g\.going\) \|\| 0/.test(read('src/constants/joinWords.js')), true);
 is('a failed join puts the card back', /if \(!\(r && r\.ok\)\) load\(\);/.test(scr), true);
 // Ayser, October 2026: never an empty card, never "start one" — the curated Drops are the week
 is('a quiet week shows no empty card and no start button', /rows\.length === 0 \? null/.test(scr) && !/tg_empty_t/.test(scr), true);

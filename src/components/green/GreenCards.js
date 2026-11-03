@@ -6,7 +6,7 @@ import { C } from '../../constants/theme';
 import { publicMedia } from '../../lib/publicMedia';
 import { planPhotoOf } from './PlanPhoto';
 import { titleFor } from '../../lib/activityPins';
-import { seatsLeftOf } from '../../constants/joinWords';
+import { seatsLeftOf, seatLine } from '../../constants/joinWords';
 import { lw } from '../../constants/loopWords';
 
 /* ─── GREEN MINDS · THE CARDS ─────────────────────────────────────────
@@ -108,7 +108,7 @@ export const PlanCard = ({ g, lang, t, mine, onJoin, onManage, onOpen, open, mov
         {open && g.about ? <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 10 }}>{g.about}</Text> : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
           <Text style={{ flex: 1, color: C.faint, fontSize: 13, fontWeight: '700' }}>
-            {seatsLeftOf(lang, g) || (n > 0 ? t('gm_join_them').replace('{n}', String(n)) : lw(lang, 'curated'))}
+            {seatLine(lang, g)}
           </Text>
           {mine ? (
             <Pressable onPress={onManage} accessibilityRole="button" accessibilityLabel={t('green_manage')}

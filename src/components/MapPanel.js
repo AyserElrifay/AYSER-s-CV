@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { View, Text, ScrollView, Pressable, Image, PanResponder, ActivityIndicator, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
-import { jw, seatsLeftOf } from '../constants/joinWords';
+import { jw, seatsLeftOf, seatLine } from '../constants/joinWords';
 import { lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { whyText } from '../lib/recommend';
 import { HostBadge } from './HostCard';
@@ -67,7 +67,6 @@ export const MapPanel = ({
 
   const renderPlan = (g, k) => {
     const mine = user && g.host_id === user.id;
-    const going = Number(g.going) || 0;
     return (
       <Pressable key={g.id} onPress={() => { tapLight(); onFocus(g); }} accessibilityRole="button"
         style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: k ? 1 : 0, borderTopColor: C.line }}>
@@ -78,18 +77,14 @@ export const MapPanel = ({
             {whenFor(g.starts_at, lang)}{g.place_name ? ' · ' + g.place_name : ''}
           </Text>
           {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
-          {going || g.why ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-              {/* seats left when the plan has a size; a head count only once it says something */}
-              {Number(g.capacity) || going >= 3 ? (
-                <View style={{ backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginEnd: 8 }}>
-                  <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '700' }}>{Number(g.capacity) ? jw(lang, 'seats', { n: Math.min(going, Number(g.capacity)), m: Number(g.capacity), l: Math.max(0, Number(g.capacity) - going) }) : jw(lang, 'going', { n: going })}</Text>
-                </View>
-              ) : null}
-              {/* why it is here, from real counts — see src/lib/recommend.js */}
-              {g.why ? <Text style={{ flexShrink: 1, color: C.green, fontSize: 11.5, fontWeight: '800' }} numberOfLines={1}>{whyText(g.why, t)}</Text> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+            {/* the honest seat line (src/constants/joinWords.js seatLine) */}
+            <View style={{ backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginEnd: 8 }}>
+              <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '700' }}>{seatLine(lang, g)}</Text>
             </View>
-          ) : null}
+            {/* why it is here, from real counts — see src/lib/recommend.js */}
+            {g.why ? <Text style={{ flexShrink: 1, color: C.green, fontSize: 11.5, fontWeight: '800' }} numberOfLines={1}>{whyText(g.why, t)}</Text> : null}
+          </View>
         </View>
         {mine ? (
           /* seats left, not "you're hosting" (Ayser, October 2026) */
