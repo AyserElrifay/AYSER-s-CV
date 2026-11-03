@@ -60,7 +60,6 @@ import { myVolunteering, myUnrated } from '../services/green';
    place. Opened, not loaded with the feed. */
 /* A shared group link has to open the group. GroupPage is a Modal, so
    it can live here as well as in Search. */
-const StampScanner = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.StampScanner })));
 const BuddiesSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.BuddiesSheet })));
 const GroupPage = lazyOverlay(() => import('../components/GroupPage').then((mod) => ({ default: mod.GroupPage })));
 const WhatsOnSheet = lazyOverlay(() => import('../components/WhatsOnSheet').then((mod) => ({ default: mod.WhatsOnSheet })));
@@ -286,7 +285,6 @@ export const HomeScreen = () => {
   const [searching, setSearching] = useState(false);
   const [storyIndex, setStoryIndex] = useState(null);
   const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
-  const [qrOpen, setQrOpen] = useState(false);               // the table QR scanner, from the header
   const [personalise, setPersonalise] = useState(false);     // hold the logo: app icon and widgets
   const [widgets, setWidgets] = useState(readWidgets);
   useEffect(() => {
@@ -625,7 +623,7 @@ export const HomeScreen = () => {
                 </Pressable>
 {/* search lives on Map (Ayser, November 2026: fewer buttons on Home) */}
                 {/* Chats where the + was: posting starts from today's prompt in the feed */}
-                <Pressable testID="btn-chats" accessibilityRole="button" accessibilityLabel={t('chats_title')} onPress={() => { tapLight(); setChatsOpen(true); markChatsSeen(); setChatNew(0); }} style={[headerBtn(), { marginRight: 10 }]}>
+                <Pressable testID="btn-chats" accessibilityRole="button" accessibilityLabel={t('chats_title')} onPress={() => { tapLight(); setChatsOpen(true); markChatsSeen(); setChatNew(0); }} style={headerBtn()}>
                   <Ionicons name={chatNew ? 'chatbubble' : 'chatbubble-outline'} size={17} color={chatNew ? C.purple : C.text} />
                   {chatNew ? (
                     <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: C.bg }}>
@@ -633,14 +631,7 @@ export const HomeScreen = () => {
                     </View>
                   ) : null}
                 </Pressable>
-                {/* Ayser, November 2026: Space is already a tab — the avatar went; one tap to the table's QR instead */}
-                <Pressable testID="btn-qr" accessibilityRole="button" accessibilityLabel={lang === 'ar' ? 'امسح QR الترابيزة' : 'Scan the table QR'} onPress={() => { tapLight(); setQrOpen(true); }}>
-                  <View style={{ height: 38, borderRadius: 19, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', backgroundColor: C.purple }}>
-                    <Text style={{ color: '#FFC233', fontSize: 13, fontWeight: '900' }}>✦</Text>
-                    <Ionicons name="qr-code-outline" size={16} color="#FFF" style={{ marginStart: 5 }} />
-                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', marginStart: 5 }}>QR</Text>
-                  </View>
-                </Pressable>
+                {/* the table QR lives on Space's pass (Ayser, November 2026: one QR button in the app) */}
               </View>
             </View>
 
@@ -853,7 +844,6 @@ export const HomeScreen = () => {
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
       {chatsOpen ? <BuddiesSheet onClose={() => setChatsOpen(false)} /> : null}
-      {qrOpen ? <StampScanner onClose={() => setQrOpen(false)} /> : null}
       {likersPost ? (
         <LikersSheet
           post={likersPost} kind={likersKind}
