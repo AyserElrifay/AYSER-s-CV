@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SUPABASE_READY, storedSessionNow } from '../lib/supabase';
 import { explain } from '../lib/explain';
-import { fetchFeed, fetchLiveMoments } from '../services/posts';
+import { fetchFeed, fetchLiveMoments, FEED_PAGE } from '../services/posts';
 import { fetchTagsForPosts } from '../services/tags';
 import { rankFeed } from '../services/algorithm';
 import { actionFeed, liveStrip } from '../lib/actionFeed';
@@ -145,7 +145,8 @@ async function fetchFresh() {
      LIVE MOMENTS strip, and leave it after 48 hours */
   const [rows, live] = await Promise.all([fetchFeed(), fetchLiveMoments().catch(() => [])]);
   const cards = (rows || []).map(toCard);
-  return { all: actionFeed(cards, whoNow()), live: liveStrip((live || []).map(toCard)) };
+  const oldest = (rows || []).length ? rows[rows.length - 1].created_at : null;
+  return { all: actionFeed(cards, whoNow()), live: liveStrip((live || []).map(toCard)), oldest, more: (rows || []).length >= FEED_PAGE };
 }
 
 /* The head start. A request already on its way is reused by the first
@@ -183,6 +184,9 @@ export function useFeed() {
      The screen shows a calm skeleton until then, and "be the first"
      appears only after a real load came back with nothing. */
   const [settled, setSettled] = useState(() => !SUPABASE_READY || posts.length > 0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const oldestRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!SUPABASE_READY) {
@@ -191,7 +195,8 @@ export function useFeed() {
       return;
     }
     try {
-      const { all, live: strip } = await (takePrimed() || fetchFresh());
+      const { all, live: strip, oldest, more } = await (takePrimed() || fetchFresh());
+      oldestRef.current = oldest || null; setHasMore(!!more);
       setLive(strip || []);
       const ranked = await rankFeed(all);
       setPosts(ranked);
@@ -239,5 +244,18 @@ export function useFeed() {
     setPosts((p) => p.map((x) => (x.id === id ? { ...x, ...fields } : x)));
   }, []);
 
-  return { posts, live, refreshing, refresh, isLive, prependPost, removePost, patchPost, loadError, settled };
+  /* the next page, when the list reaches its end */
+  const loadMore = useCallback(async () => {
+    if (!SUPABASE_READY || loadingMore || !hasMore || !oldestRef.current) return;
+    setLoadingMore(true);
+    try {
+      const rows = await fetchFeed({ before: oldestRef.current });
+      oldestRef.current = rows.length ? rows[rows.length - 1].created_at : oldestRef.current;
+      setHasMore(rows.length >= FEED_PAGE);
+      const cards = actionFeed(rows.map(toCard), whoNow());
+      setPosts((p) => { const seen = new Set(p.map((x) => x.id)); return p.concat(cards.filter((c) => !seen.has(c.id))); });
+    } catch (e) { setHasMore(false); } finally { setLoadingMore(false); }
+  }, [loadingMore, hasMore]);
+
+  return { posts, live, refreshing, refresh, isLive, prependPost, removePost, patchPost, loadError, settled, hasMore, loadMore, loadingMore };
 }

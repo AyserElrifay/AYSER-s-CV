@@ -12,15 +12,20 @@ const FEED_COLS = '*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, 
 /* the permanent feed: every post without an end (posts.expires_at is
    null). The day's prompt answers, which end after 48 hours, are asked
    for on their own (fetchLiveMoments) so they never push old posts out. */
-export async function fetchFeed() {
-  let { data, error } = await supabase
+/* Ayser, November 2026: the first page is small (12) so Home paints fast;
+   the next 12 come when you reach the end (before = the oldest one shown) */
+export const FEED_PAGE = 12;
+export async function fetchFeed({ before = null, limit = FEED_PAGE } = {}) {
+  let q = supabase
     .from('posts')
     .select(FEED_COLS)
     .is('expires_at', null)
     .order('created_at', { ascending: false })
-    .limit(30);
+    .limit(limit);
+  if (before) q = q.lt('created_at', before);
+  let { data, error } = await q;
   /* a database that has not had RUN_ME.sql's expires_at yet: everything */
-  if (error && /expires_at/.test(error.message || '')) ({ data, error } = await supabase.from('posts').select(FEED_COLS).order('created_at', { ascending: false }).limit(30));
+  if (error && /expires_at/.test(error.message || '')) ({ data, error } = await supabase.from('posts').select(FEED_COLS).order('created_at', { ascending: false }).limit(limit));
   if (error) throw error;
   // flatten the embedded counts so every caller sees plain numbers
   return (data || []).filter(alive).map((row) => ({

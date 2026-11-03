@@ -29,10 +29,9 @@ const KEYWORDS = 'Moments, Moments app, The Real Moments, therealmoments, Moment
 //    soft backdrop instead of being stretched across a wide window.
 const responsiveCss = `
   <style>
-    html, body { margin: 0; height: 100%; background: #0F0D14; }
-    @media (prefers-color-scheme: light) { html, body { background: #FAF8F5; } }
-    html.mm-dark, html.mm-dark body { background: #0F0D14; }
-    html.mm-light, html.mm-light body { background: #FAF8F5; }
+    html, body { margin: 0; height: 100%; min-height: 100dvh; background: #FAF8F5; }
+    #root { min-height: 100dvh; }
+    html.mm-boot-dark, html.mm-boot-dark body { background: #0F0D14; }
     /* the design system, where the screens cannot say it themselves:
        no drop shadows anywhere — a 1px hairline takes their place — and
        everything you can press gives a little under your finger */
@@ -202,57 +201,37 @@ if (!html.includes('tap-highlight-color')) {
 </style></head>`);
 }
 
-/* ─── THE STAR THAT BECOMES A KITE ───────────────────────────────────
-   Ayser: the Moments star turning into a kite the moment the app opens.
-   The kite is Dahab — the first time his mind went quiet, out by the
-   sea — and a star that lifts off and flies away says "go out" without
-   a word.
-
-   It is plain HTML and CSS in the page itself, so it plays while the
-   app's code is still arriving and adds no wait of its own: about 1.4
-   seconds, once per open (a tab switch never reloads the page). A tap
-   ends it. With Reduce Motion switched on it is not drawn at all —
-   motion people asked their phone to spare them is not ours to add. */
+/* ─── THE FIRST PAINT ─────────────────────────────────────────────────
+   Ayser, November 2026: the kite is gone — a dark screen flying a
+   cartoon kite stood between people and the app for a second and a half
+   on every open. Now the page itself paints the Moments wordmark on the
+   warm paper colour (dark only when the app itself will be dark), full
+   height with no white strip under it, and it fades away the moment the
+   app has painted (src/components/Splash.js sends mm-app-ready), or
+   after four seconds at most. Plain HTML: no wait of its own. */
 const kiteIntro = `
-<div id="mm-kite" aria-hidden="true">
-  <svg viewBox="-60 -60 120 120" width="132" height="132">
-    <g class="mm-k-star"><path d="M0,-34 C4,-8 8,-4 34,0 C8,4 4,8 0,34 C-4,8 -8,4 -34,0 C-8,-4 -4,-8 0,-34Z" fill="#F5B301"/></g>
-    <g class="mm-k-kite">
-      <path d="M0,-38 L26,-4 L0,38 L-26,-4 Z" fill="#7C3AED"/>
-      <path d="M0,-38 L26,-4 L0,-4 Z" fill="#A78BFA"/>
-      <path d="M0,-4 L-26,-4 L0,38 Z" fill="#5B21B6"/>
-      <path d="M0,-38 L0,38 M-26,-4 L26,-4" stroke="#F5B301" stroke-width="2"/>
-      <path class="mm-k-tail" d="M0,38 C-10,48 10,56 0,66 C-10,76 8,84 -2,94" stroke="#F5B301" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-      <path d="M-5,50 L0,47 L5,50 L0,53Z M-5,72 L0,69 L5,72 L0,75Z" fill="#F5B301"/>
-    </g>
-  </svg>
-</div>
+<div id="mm-splash" aria-hidden="true"><div class="mm-w"><span class="mm-s">✦</span>moments</div></div>
 <style>
-  #mm-kite { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center;
-    background: #111111; animation: mmKiteBg 1.45s ease forwards; cursor: pointer; }
-  #mm-kite svg { overflow: visible; }
-  .mm-k-star { transform-origin: 0 0; animation: mmKiteStar 1.45s cubic-bezier(.4,0,.2,1) forwards; }
-  .mm-k-kite { transform-origin: 0 0; opacity: 0; animation: mmKiteFly 1.45s cubic-bezier(.5,0,.3,1) forwards; }
-  .mm-k-tail { animation: mmKiteTail 0.35s ease-in-out infinite alternate; transform-origin: 0 38px; }
-  @keyframes mmKiteStar { 0% { transform: scale(0.4) rotate(-90deg); opacity: 0; } 25% { transform: scale(1) rotate(0); opacity: 1; }
-    45% { transform: scale(1.1) rotate(45deg); opacity: 1; } 55% { transform: scale(0.6) rotate(45deg); opacity: 0; } 100% { opacity: 0; } }
-  @keyframes mmKiteFly { 0%, 45% { opacity: 0; transform: scale(0.6) rotate(0); } 58% { opacity: 1; transform: scale(1) rotate(-8deg); }
-    100% { opacity: 1; transform: translate(150px, -560px) scale(0.55) rotate(18deg); } }
-  @keyframes mmKiteTail { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
-  @keyframes mmKiteBg { 0%, 62% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-  @media (prefers-reduced-motion: reduce) { #mm-kite { display: none; } }
+  #mm-splash { position: fixed; left: 0; top: 0; right: 0; height: 100vh; height: 100dvh; z-index: 99999; display: flex; align-items: center; justify-content: center;
+    background: #FAF8F5; transition: opacity .18s ease; }
+  html.mm-boot-dark #mm-splash { background: #0F0D14; }
+  #mm-splash.mm-out { opacity: 0; pointer-events: none; }
+  #mm-splash .mm-w { position: relative; font: 800 44px/1 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; letter-spacing: -1.5px; color: #7C3AED; }
+  #mm-splash .mm-s { position: absolute; left: -2px; top: -22px; font-size: 22px; color: #F5B301; }
 </style>
 <script>
   (function () {
-    var el = document.getElementById('mm-kite');
+    var el = document.getElementById('mm-splash');
     if (!el) return;
-    var done = function () { if (el && el.parentNode) el.parentNode.removeChild(el); el = null; };
+    var gone = false;
+    var done = function () { if (gone || !el) return; gone = true; el.className = 'mm-out'; setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el); el = null; }, 200); };
+    window.addEventListener('mm-app-ready', done);
     el.addEventListener('click', done);
-    el.addEventListener('touchstart', done, { passive: true });
-    setTimeout(done, 1500);
+    setTimeout(done, 4000);
   })();
 </script>
 `;
+
 /* ─── THE OLD ADDRESS ─────────────────────────────────────────────────
    The app moved from ayserelrifay.github.io/AYSER-s-CV to its own
    domain, and now lives at the root of therealmoments.com. A phone that
@@ -261,7 +240,9 @@ const kiteIntro = `
    straight on to the new one, keeping whatever was after the "?" — a
    trip link, an invite — and before anything else loads. */
 const moveHome = `<script>(function(){try{var h=location.hostname;if(/\\.github\\.io$/i.test(h)){location.replace('https://therealmoments.com/'+location.search+location.hash);}}catch(e){}})();</script>`;
-html = html.replace(/<head([^>]*)>/, (m) => m + moveHome);
+/* dark only when the app will be dark: the choice in Settings, or the phone's own when it is left on auto */
+const bootTheme = `<script>(function(){try{var v=localStorage.getItem('moments.theme');var d=v==='dark'||(v!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.className+=' mm-boot-dark';}catch(e){}})();</script>`;
+html = html.replace(/<head([^>]*)>/, (m) => m + moveHome + bootTheme);
 html = html.replace(/<body([^>]*)>/, (m) => m + kiteIntro);
 /* Without JavaScript (and for a crawler that reads before it renders)
    the page said only "You need to enable JavaScript". Now it says what

@@ -125,7 +125,7 @@ export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t, rtl, lang } = useLang();
-  const { posts, live, refreshing, refresh, prependPost, removePost, patchPost, loadError, settled } = useFeed();
+  const { posts, live, refreshing, refresh, prependPost, removePost, patchPost, loadError, settled, hasMore, loadMore } = useFeed();
 
   /* ── TWO TABS, AND A FEED WITH A DAILY WINDOW ───────────────────────
      Moments: photos and videos (src/lib/actionFeed.js). Reflection: one
@@ -181,7 +181,11 @@ export const HomeScreen = () => {
      the end card under them, it does not lock the feed with time left */
   const feedClosed = !!user && gate.used >= budget;
   const shown = homeTab === 'moments' && !feedClosed ? posts : [];
-  const onEnd = () => { if (homeTab === 'moments' && posts.length && !gate.done) { finishedNow.current = true; setGate(markSeenAll()); } };
+  const onEnd = () => {
+    if (homeTab !== 'moments' || !posts.length) return;
+    if (hasMore) { loadMore(); return; }   // the next 12 first; the day counts as seen only at the real end
+    if (!gate.done) { finishedNow.current = true; setGate(markSeenAll()); }
+  };
 
   /* ── TAP HOME AGAIN: BACK TO THE TOP, AND FRESH ──────────────────────
      Ayser: "لما أنزل لآخر الصفحة وأدوس على البيت تاني يعمل refresh
