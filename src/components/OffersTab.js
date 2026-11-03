@@ -12,7 +12,7 @@ import { searchProfiles } from '../services/social';
 import { giftMembership, endGift, giftList } from '../services/gifts';
 import { ownerDrops, ownerDropSave, ownerDropLevel } from '../services/mvp';
 import { ownerContacts } from '../services/contact';
-import { ownerHostWallets, ownerHostRate, ownerHostPayout, ownerAssignHost } from '../services/hub';
+import { ownerHostWallets, ownerHostRate, ownerHostPayout, ownerAssignHost, ownerOfferPoint } from '../services/hub';
 
 // the event page, as its host sees it: write the pin, open or end the workshop room
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -247,6 +247,11 @@ const DropsBox = () => {
       neighborhood_ar: f.neighborhood_ar, vibe: f.vibe, vibe_ar: f.vibe_ar, city: f.city, starts_at: at, seats: f.seats, venue_name: f.venue_name, map_url: f.map_url, status: f.status,
       category: f.category || 'tables', price: f.price, member_price: null, video_url: f.video_url });
     if (r && r.ok && f.category === 'roam') await ownerDropLevel(r.id, f.min_level || null);   // members-only trips: the level to apply
+    // the exact spot for the Arrival Radar, when the map link is a short one that cannot be read
+    if (r && r.ok && String(f.spot || '').trim()) {
+      const m = String(f.spot).match(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+      if (m) await ownerOfferPoint(r.id, Number(m[1]), Number(m[2]));
+    }
     if (r && r.ok) { tapSuccess(); setNote('Saved — it is on Home now.'); setF(null); load(); }
     else setNote(r && r.reason === 'incomplete' ? 'The neighbourhood and the time are needed.' : r && r.reason === 'video' ? 'The video link has to start with https://' : 'Could not save — owner only.');
   };
@@ -272,6 +277,7 @@ const DropsBox = () => {
           <Field label="City" value={f.city} onChange={set('city')} ph="Cairo" />
           <Field label="Café (hidden until 12h before)" value={f.venue_name} onChange={set('venue_name')} ph="Café name" />
           <Field label="Map link (https://…)" value={f.map_url} onChange={set('map_url')} ph="https://maps.app.goo.gl/…" />
+          <Field label="Exact spot for the Arrival Radar (lat, lng) — only if the map link is a short one" value={f.spot || ''} onChange={set('spot')} ph="30.0626, 31.2197" />
           {f.category === 'roam' ? (
             <>
               <Field label="Trip price (EGP) — one price, members apply" value={f.price} onChange={set('price')} ph="3000" />

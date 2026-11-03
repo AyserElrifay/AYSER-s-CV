@@ -55,6 +55,7 @@ import { lazyOverlay } from './src/lib/lazyScreen';
 /* the Studio's code is fetched only once the owner check has passed —
    nobody else's phone ever downloads it */
 const StudioLock = lazyOverlay(() => import('./src/components/StudioLock').then((m) => ({ default: m.StudioLock })));
+const RadarWatcher = lazyOverlay(() => import('./src/components/ArrivalRadar').then((m) => ({ default: m.RadarWatcher })));
 const FirstTour = lazyOverlay(() => import('./src/components/FirstTour').then((m) => ({ default: m.FirstTour })));
 /* ── MEMBERS ONLY ── (RUN_ME.sql, "TWO TIERS"). Signed in without a
    membership, the gateway is the only thing on screen, the app blurred
@@ -305,6 +306,8 @@ const Root = () => {
       <MemberGate />
       <SafetyGate />
       <CardGate />
+      {/* Smart Arrival Radar: 300 m, the heartbeat, Arrival Mode (src/components/ArrivalRadar.js) */}
+      <RadarWatcher />
       <StampGate />
     </View>
   );

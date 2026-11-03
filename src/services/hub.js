@@ -29,3 +29,4 @@ export const hereNow = () => new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition((p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }), () => resolve(null), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
   } catch (e) { resolve(null); }
 });
+export const ownerOfferPoint = (offer, lat, lng) => rpc('owner_offer_point', { p_offer: offer, p_lat: lat, p_lng: lng });

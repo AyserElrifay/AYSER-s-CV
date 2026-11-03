@@ -23,6 +23,7 @@ import { SeatBadge, seatLabel, SeatPeek, SparksDeck } from './SeatCard';
 import { tableSeats, askCard } from '../services/card';
 import { VoiceButton, VoicePlayer, voiceSeconds } from './VoiceNote';
 import { PingHostBar, RateEvent, OrganizerHub } from './OrganizerHub';   // the same chunk (LiveKit)
+import { ArrivalTicket } from './ArrivalTicket';
 
 /* ─── THE EVENT PAGE ──────────────────────────────────────────────────
    Ayser: "No endless chatting — subscribe, book a seat, and meet in real
@@ -209,7 +210,7 @@ const Walkie = ({ lang, id, onOut }) => {
   );
 };
 
-export const EventRoom = ({ kind, id, lang, onClose }) => {
+export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -224,6 +225,7 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
   const [scan, setScan] = useState(false);
   const [hostQr, setHostQr] = useState(false);
   const [hub, setHub] = useState(false);
+  const [arrivalMode, setArrivalMode] = useState(!!arrival);   // Smart Arrival Radar: the ticket on top, the chat under it
   const [here, setHere] = useState(null);         // who pinged "I've arrived"
   const [pinged, setPinged] = useState(false);
   const [beacon, setBeacon] = useState(false);     // the host's phone as the table's flag
@@ -307,7 +309,10 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
           ) : null}
         </View>
         {/* the host's pinned note, always on top, with the exact pin */}
-        {r && r.ok && !r.online ? (
+        {arrivalMode && r && r.ok && !r.online && !r.is_host ? (
+          <ArrivalTicket kind={kind} id={id} lang={lang} room={r} onScan={() => setScan(true)} onClose={() => setArrivalMode(false)}
+            seat={(() => { const s = (seats || []).find((x) => user && x.uid === user.id); return s ? (lang === 'ar' ? 'كرسي #' : 'Seat #') + String(s.seat || 0).padStart(2, '0') : null; })()} />
+        ) : r && r.ok && !r.online ? (
           <View testID="host-banner" style={{ marginHorizontal: 16, marginTop: 10, borderRadius: 16, backgroundColor: C.text, padding: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="megaphone-outline" size={14} color={C.bg} />
@@ -343,7 +348,7 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
               </View>
             ) : null}
             {/* Ayser: "وصلت ومش لاقي الترابيزة" — one tap to the organizer, and an SOS that also reaches the team */}
-            {r.arrival && r.arrival.open && !r.is_host ? <PingHostBar kind={kind} id={id} lang={lang} /> : null}
+            {r.arrival && r.arrival.open && !r.is_host ? <PingHostBar kind={kind} id={id} lang={lang} onLost={() => setArrivalMode(true)} /> : null}
             {r.arrival && r.arrival.open && r.host_tel ? (
               <Pressable onPress={() => { tapLight(); Linking.openURL('tel:' + r.host_tel).catch(() => {}); }} accessibilityRole="link" hitSlop={8} style={{ marginTop: 10, alignSelf: 'center' }}>
                 <Text style={{ color: C.bg, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' }}>{tbw(lang, 'callPhone')}</Text>

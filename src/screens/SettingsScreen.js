@@ -17,6 +17,7 @@ import { countMyReferrals, fetchMyReferralBreakdown } from '../services/broker';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { getPrefs, setPref, subscribePrefs } from '../services/prefs';
 import { DATA_MODES, DEFAULT_DATA_MODE } from '../lib/dataSaver';
+import { radarOn, setRadarOn } from '../lib/radar';
 import { Chip } from '../components/Chip';
 import { GestureTour } from '../components/GestureTour';
 import { Glass } from '../components/Glass';
@@ -63,6 +64,22 @@ const Toggle = ({ on, onToggle }) => (
 /* ─── SETTINGS — the app drawer, opened from Your Space ───
    Wallet lives here now (moved out of the profile), alongside the
    iOS-style settings list and the super-app tools. */
+
+/* ✦ Arrival Radar: the sound and touch that guide you to your table (one tap off) */
+const RadarRow = ({ lang }) => {
+  const [on, setOn] = React.useState(radarOn());
+  const ar = lang === 'ar';
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{ar ? '✦ رادار الوصول (اهتزاز وصوت)' : '✦ Arrival Radar (Proximity Haptics & Sound)'}</Text>
+        <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, lineHeight: 16 }}>{ar ? 'من ساعة قبل ترابيزتك وإنت فاتح مومنتس: بيقولّك لما تقرّب ٣٠٠ متر، وبيرشدك لحد الترابيزة. اقفله لو عايز توفّر البطارية أو تبقى ساكت.' : 'From an hour before your table, while Moments is open: tells you at 300 m and guides you in. Turn it off to save battery or stay silent.'}</Text>
+      </View>
+      <Switch testID="settings-radar" value={on} onValueChange={(v) => { tapSelection(); setOn(v); setRadarOn(v); }} accessibilityLabel="Arrival Radar"
+        trackColor={{ false: C.glassHi, true: C.purple }} thumbColor="#FFF" ios_backgroundColor={C.glassHi} />
+    </View>
+  );
+};
 
 export const SettingsScreen = ({ onClose }) => {
   const insets = useSafeAreaInsets();
@@ -251,6 +268,8 @@ export const SettingsScreen = ({ onClose }) => {
                   trackColor={{ false: C.glassHi, true: C.purple }} thumbColor="#FFF" ios_backgroundColor={C.glassHi} />
               </View>
             ) : null}
+            {/* Smart Arrival Radar — on unless turned off (src/lib/radar.js) */}
+            <RadarRow lang={lang} />
           </View>
 
           {/* ── DATA SAVER ────────────────────────────────────────────

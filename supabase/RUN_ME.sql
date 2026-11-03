@@ -27393,6 +27393,73 @@ revoke execute on function public.owner_assign_host(uuid, uuid, boolean) from pu
 grant execute on function public.owner_assign_host(uuid, uuid, boolean) to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  SMART ARRIVAL RADAR · AND WHAT AN ORGANIZER EARNS
+--  Ayser, November 2026: walking to a Drop, the app knows where the table
+--  is — the venue's exact spot (an offer's lat/lng, or read from its
+--  Google Maps link) and, once the organizer pressed "I'm here", their
+--  pin. Only for people with a seat, only from an hour before until the
+--  end; the organizer's pin is never sent outside that window.
+--  The organizer's pay: 15 EGP per person who really checked in (the
+--  figure agreed for the escrow), set once here; the owner can change it
+--  in the Studio. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+insert into public.app_settings (key, value) values ('host_rate_egp', '15') on conflict (key) do nothing;
+
+-- coordinates out of a Google Maps link: …/@30.05,31.22,… · ?q=30.05,31.22 · !3d30.05!4d31.22
+create or replace function public.map_point(u text)
+returns double precision[] language plpgsql immutable as $$
+declare m text[];
+begin
+  if u is null then return null; end if;
+  m := regexp_match(u, '!3d(-?[0-9]{1,2}\.[0-9]+)!4d(-?[0-9]{1,3}\.[0-9]+)');
+  if m is null then m := regexp_match(u, '[?&](?:q|query|ll|destination|center)=(-?[0-9]{1,2}\.[0-9]+)(?:,|%2C)\s*(-?[0-9]{1,3}\.[0-9]+)'); end if;
+  if m is null then m := regexp_match(u, '@(-?[0-9]{1,2}\.[0-9]+),(-?[0-9]{1,3}\.[0-9]+)'); end if;
+  if m is null then return null; end if;
+  if abs(m[1]::double precision) > 90 or abs(m[2]::double precision) > 180 then return null; end if;
+  return array[m[1]::double precision, m[2]::double precision];
+end $$;
+
+create or replace function public.offer_point(p_offer uuid)
+returns double precision[] language sql stable security definer set search_path = public as $$
+  select coalesce(case when o.lat is not null and o.lng is not null then array[o.lat, o.lng] end,
+                  (select public.map_point(v.map_url) from public.drop_venues v where v.offer_id = o.id),
+                  public.map_point(o.host_map_url))
+    from public.offers o where o.id = p_offer;
+$$;
+revoke all on function public.offer_point(uuid) from public, anon, authenticated;
+
+-- the Studio pins a Drop exactly, when its map link is a short one
+create or replace function public.owner_offer_point(p_offer uuid, p_lat double precision, p_lng double precision)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not coalesce(public.trips_ok(), false) then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if (p_lat is null) <> (p_lng is null) or abs(coalesce(p_lat, 0)) > 90 or abs(coalesce(p_lng, 0)) > 180 then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
+  update public.offers set lat = p_lat, lng = p_lng where id = p_offer;
+  return jsonb_build_object('ok', found);
+end $$;
+revoke execute on function public.owner_offer_point(uuid, double precision, double precision) from public, anon;
+grant execute on function public.owner_offer_point(uuid, double precision, double precision) to authenticated;
+
+-- my tables in their arrival window (an hour before → the end): where to walk to
+create or replace function public.radar_targets()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('ok', auth.uid() is not null, 'now', now(), 'targets', coalesce(jsonb_agg(x order by x ->> 'starts_at'), '[]'::jsonb)) from (
+    select jsonb_build_object('kind', 'offer', 'id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'starts_at', o.starts_at,
+             'ends_at', coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour'),
+             'table_no', o.table_no, 'category', o.drop_category,
+             'venue', (select jsonb_build_object('name', v.name) from public.drop_venues v where v.offer_id = o.id),
+             'point', public.offer_point(o.id),
+             'host', (select jsonb_build_object('lat', h.lat, 'lng', h.lng, 'at', h.at) from public.host_here h
+                       where h.kind = 'offer' and h.event_id = o.id and h.lat is not null and h.at > now() - interval '6 hours' order by h.at desc limit 1)) x
+      from public.offers o
+     where o.starts_at is not null and not coalesce(o.online, false)
+       and now() between o.starts_at - interval '1 hour' and coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour')
+       and exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = auth.uid() and b.status in ('reserved','paid','attended'))) t;
+$$;
+revoke execute on function public.radar_targets() from public, anon;
+grant execute on function public.radar_targets() to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

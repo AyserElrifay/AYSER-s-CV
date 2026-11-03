@@ -23,7 +23,7 @@ const W = {
   en: {
     title: 'Organizer Hub', events: 'Your events', wallet: 'Wallet', none: 'Nothing to run yet. When the team puts you on a Drop or a trip, it shows here.',
     going: 'coming', paid: 'paid', arrived: 'arrived', checked: 'checked in', stars: 'rating',
-    here: "I'm here", hereDone: "You're marked here", hereWhy: 'Tells the people coming that you are at the table. Your location goes to the Moments team only.',
+    here: "I'm here", hereDone: "You're marked here", hereWhy: 'Tells the people coming that you are at the table, and guides them to your pin (from an hour before until the end). Nobody sees it after.',
     qr: 'Show the table QR', pings: 'Pings', noPings: 'No pings.', done: 'Done', people: 'People', noPeople: 'Nobody yet.',
     lost: "can't find the table", late: 'is running late', sos: 'SOS — needs help now',
     statusPaid: 'Paid', statusReserved: 'Reserved', statusJoined: 'Joined', statusAttended: 'Attended', arrivedTag: 'Arrived',
@@ -36,7 +36,7 @@ const W = {
   ar: {
     title: 'لوحة المنظّم', events: 'فعالياتك', wallet: 'المحفظة', none: 'لسه مفيش حاجة تنظّمها. لما الفريق يحطّك على Drop أو رحلة، هتظهر هنا.',
     going: 'جايين', paid: 'دفعوا', arrived: 'وصلوا', checked: 'سجّلوا حضور', stars: 'التقييم',
-    here: 'أنا وصلت', hereDone: 'متسجّل إنك وصلت', hereWhy: 'بيعرّف اللي جايين إنك على الترابيزة. مكانك بيروح لفريق مومنتس بس.',
+    here: 'أنا وصلت', hereDone: 'متسجّل إنك وصلت', hereWhy: 'بيعرّف اللي جايين إنك على الترابيزة، وبيرشدهم لمكانك (من ساعة قبل لحد ما تخلص). محدّش بيشوفه بعدها.',
     qr: 'اعرض QR الترابيزة', pings: 'التنبيهات', noPings: 'مفيش تنبيهات.', done: 'تمام', people: 'الناس', noPeople: 'لسه محدّش.',
     lost: 'مش لاقي الترابيزة', late: 'هيتأخر', sos: 'SOS — محتاج مساعدة دلوقتي',
     statusPaid: 'دفع', statusReserved: 'حاجز', statusJoined: 'منضم', statusAttended: 'حضر', arrivedTag: 'وصل',
@@ -257,7 +257,7 @@ const P = {
   ar: { hereYes: 'المنظّم على الترابيزة', hereNo: 'المنظّم لسه ماوصلش', lost: 'وصلت ومش لاقي الترابيزة', late: 'هتأخر شوية', sos: 'SOS', sent: 'اتبعت للمنظّم.', sosSent: 'اتبعت للمنظّم ولفريق مومنتس.', slow: 'لسه باعت — استنى دقيقة.', sosAsk: 'تبعت SOS للمنظّم ولفريق مومنتس؟', yes: 'ابعت SOS', no: 'إلغاء' },
 };
 const pw2 = (lang, k) => P[lang === 'ar' ? 'ar' : 'en'][k];
-export const PingHostBar = ({ kind, id, lang, ink = C.bg }) => {
+export const PingHostBar = ({ kind, id, lang, ink = C.bg, onLost }) => {
   const [here, setHere] = useState(null);
   const [msg, setMsg] = useState(null);
   const [ask, setAsk] = useState(false);
@@ -266,7 +266,7 @@ export const PingHostBar = ({ kind, id, lang, ink = C.bg }) => {
     tapMedium(); setAsk(false);
     const r = await pingHost(kind, id, reason);
     setMsg(r && r.ok ? pw2(lang, reason === 'sos' ? 'sosSent' : 'sent') : r && r.reason === 'slow_down' ? pw2(lang, 'slow') : hw(lang, 'err'));
-    if (r && r.ok) tapSuccess();
+    if (r && r.ok) { tapSuccess(); if (reason === 'lost' && onLost) onLost(); }
   };
   return (
     <View testID="ping-host" style={{ marginTop: 12 }}>
