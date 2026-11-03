@@ -68,6 +68,10 @@ jobs:
       # night, never "1 going"; and the map search never finds a person.
       - name: Check Squad Pins keep their promises
         run: node scripts/check-squad-pins.mjs
+      # A policy that calls a function closed to signed-in people refuses
+      # every insert — that is how every chat message failed in Nov 2026.
+      - name: Check policies only call what the caller may call
+        run: node scripts/check-policy-functions.mjs
       # A reel is three minutes; a long-form video is not. The cap was
       # applied to both, so anything longer was re-encoded in real time
       # and cut — or refused with a reel's message. Catching that used

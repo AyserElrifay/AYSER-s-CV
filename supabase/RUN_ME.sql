@@ -26789,14 +26789,23 @@ drop trigger if exists messages_voice_guard on public.messages;
 create trigger messages_voice_guard before insert on public.messages for each row execute function public.messages_voice_guard();
 
 -- a Drop's table chat: the 3-photo card first (its host is always in)
+-- Ayser, November 2026 ("It did not go through"): the policy used to call
+-- card_ready() and table_host() directly. Both are closed to the app, and
+-- Postgres checks that permission for every function in a policy even when
+-- squad_id is null — so EVERY message (DMs too) was refused. One gate,
+-- security definer, open to signed-in people, asks both on their behalf.
+create or replace function public.table_chat_ok(p_squad uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select p_squad is null
+    or not exists (select 1 from public.offers o where o.squad_id = p_squad and o.is_drop)
+    or public.card_ready(auth.uid())
+    or exists (select 1 from public.offers o where o.squad_id = p_squad and public.table_host(o.id) = auth.uid());
+$$;
+revoke all on function public.table_chat_ok(uuid) from public, anon;
+grant execute on function public.table_chat_ok(uuid) to authenticated;
 drop policy if exists "a table chat needs the card" on public.messages;
 create policy "a table chat needs the card" on public.messages as restrictive for insert to authenticated
-  with check (
-    squad_id is null
-    or not exists (select 1 from public.offers o where o.squad_id = messages.squad_id and o.is_drop)
-    or public.card_ready(auth.uid())
-    or exists (select 1 from public.offers o where o.squad_id = messages.squad_id and public.table_host(o.id) = auth.uid())
-  );
+  with check (public.table_chat_ok(squad_id));
 
 -- ═══════════════════════════════════════════════════════════════════════
 --  KARAOKE FROM YOUTUBE
