@@ -32,6 +32,7 @@ import { buildAvatarUrl, buildStandingUrl } from '../services/avatarBuilder';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
 import { publicMedia } from '../lib/publicMedia';
+import { listSquadPins, myCheckins, SQUAD_KINDS, SQUAD_UNLOCK } from '../services/squadPins';
 import { openPartner as openPartnerPage } from '../lib/partnerLink';
 import { openTrip, openPlan } from '../lib/tripLink';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
@@ -81,6 +82,7 @@ import { lazyOverlay } from '../lib/lazyScreen';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
 const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((mod) => ({ default: mod.CountrySheet })));
+const SquadPinSheet = lazyOverlay(() => import('../components/SquadPinSheet').then((mod) => ({ default: mod.SquadPinSheet })));
 const GoNowSheet = lazyOverlay(() => import('../components/GoNowSheet').then((mod) => ({ default: mod.GoNowSheet })));
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((mod) => ({ default: mod.GreenSheet })));
 const ComposeModal = lazyOverlay(() => import('../components/ComposeModal').then((mod) => ({ default: mod.ComposeModal })));
@@ -91,7 +93,7 @@ const ComposeModal = lazyOverlay(() => import('../components/ComposeModal').then
 const LENS_KINDS = {
   all: null,
   places: ['place', 'venue', 'dest', 'event'],
-  activities: ['activity', 'fire', 'trip'],
+  activities: ['activity', 'fire', 'trip', 'squad'],
   people: ['person', 'fire'],
   stories: ['story', 'moment', 'note'],
   trips: ['trip', 'dest'],
@@ -140,6 +142,12 @@ const normalizeCampfire = (row) => ({
 });
 
 const VENUE_KINDS = ['Sport', 'Stay', 'Food', 'Experience'];
+
+/* a place in greater Cairo (Ayser, November 2026): no flights, no country room */
+const isLocalPlace = (d) => !!d && d.lat != null && Math.abs(d.lat - 30.05) < 0.6 && Math.abs(d.lng - 31.35) < 0.7;
+/* the kinds of places worth showing next to a place: where people meet */
+const CURATED_NEAR = /sport|padel|football|caf|coffee|food|community|music|night|meetpoint|group|work|study/i;
+const curated = (d) => CURATED_NEAR.test((d.tags || []).join(' ') + ' ' + d.name);
 
 export const MapScreen = () => {
   const insets = useSafeAreaInsets();
@@ -198,6 +206,23 @@ export const MapScreen = () => {
   const [greenOpen, setGreenOpen] = useState(false);
   const [startWhat, setStartWhat] = useState(null);   // a plan started from the search: { kind, title }
   const [goNow, setGoNow] = useState(false);
+  /* Squad Pins (services/squadPins.js): live micro-hangouts; the sheet
+     is null | { mode: 'teaser', n } | { mode: 'create' } | { mode: 'pin', pin } */
+  const [squadPins, setSquadPins] = useState([]);
+  const [squadSheet, setSquadSheet] = useState(null);
+  const loadSquads = () => { if (SUPABASE_READY && user) listSquadPins().then(setSquadPins).catch(() => {}); };
+  useEffect(() => {
+    loadSquads();
+    const iv = setInterval(loadSquads, 120000);
+    return () => clearInterval(iv);
+  }, [user && user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openSquadButton = async () => {
+    tapLight();
+    if (!SUPABASE_READY || !user) { setSquadSheet({ mode: 'teaser', n: 0 }); return; }
+    let n = 0;
+    try { n = await myCheckins(); } catch (e) { n = 0; }
+    setSquadSheet(n >= SQUAD_UNLOCK ? { mode: 'create' } : { mode: 'teaser', n });
+  };
   const [view, setView] = useState(null);          // what the map is showing, for "in this area"
   const [actKind, setActKind] = useState(null);    // the kind chips on Things to join
   const [joiningG, setJoiningG] = useState({});
@@ -408,8 +433,17 @@ export const MapScreen = () => {
       id: 'tp_' + tp.id, srcId: tp.id, kind: 'trip', lat: tp.lat, lng: tp.lng,
       emoji: tp.girls_only ? '👩' : '🧳', label: tp.title,
     }));
+    // squad pins: what is still needed, never how few have come
+    const nowMs = Date.now();
+    squadPins.forEach((sp) => {
+      if (new Date(sp.ends_at).getTime() <= nowMs) return;
+      const k = SQUAD_KINDS[sp.kind] || SQUAD_KINDS.padel;
+      const left = Number(sp.left) || 0;
+      out.push({ id: 'sq_' + sp.id, srcId: sp.id, kind: 'squad', lat: sp.lat, lng: sp.lng, sq: sp.kind,
+        label: (lang === 'ar' ? k.ar : k.en) + ' · ' + (left > 0 ? (lang === 'ar' ? 'محتاجين ' + left.toLocaleString('ar-EG') : 'Need ' + left) : (lang === 'ar' ? 'كملت' : 'Full')) });
+    });
     return out;
-  }, [people, campfires, realVenues, realPlaces, realNotes, momentPins, storyPins, trips, gatherings, lang]);
+  }, [people, campfires, realVenues, realPlaces, realNotes, momentPins, storyPins, trips, gatherings, squadPins, lang]);
 
   /* Which pins belong to the lens you're looking through. */
   const shownMarkers = useMemo(() => {
@@ -440,8 +474,17 @@ export const MapScreen = () => {
      far enough to show the nearest few as real pins */
   const around = useMemo(() => {
     const at = myCoords || { latitude: 30.0444, longitude: 31.2357 };
-    return DESTINATIONS.map((d) => ({ d, k: kmBetween(at, { latitude: d.lat, longitude: d.lng }) })).sort((a, b) => a.k - b.k).slice(0, 12);
-  }, [myCoords]);
+    /* Ayser, November 2026: the rail is for meeting people — partner cafés
+       first, then sports hubs, food and night spots near you. A petrified
+       forest is a day trip, not a place to meet tonight; it stays in search
+       and in "See all". Far from any of these, the nearest places show. */
+    const all = DESTINATIONS.map((d) => ({ d, k: kmBetween(at, { latitude: d.lat, longitude: d.lng }) })).sort((a, b) => a.k - b.k);
+    const partners = (SUPABASE_READY ? realVenues : []).filter((v) => v.lat != null && v.lng != null)
+      .map((v) => ({ d: { ...v, photo: null, emoji: v.emoji || '📍' }, k: kmBetween(at, { latitude: v.lat, longitude: v.lng }), venue: v }))
+      .filter((x) => x.k <= 40).sort((a, b) => a.k - b.k).slice(0, 6);
+    const near = all.filter((x) => curated(x.d) && x.k <= 60);
+    return near.length + partners.length ? [...partners, ...near].slice(0, 12) : all.slice(0, 12);
+  }, [myCoords, realVenues]);
   useEffect(() => {
     if (lens !== 'places' || !around.length) return;
     const r = Math.max(2, (around[Math.min(5, around.length - 1)] || around[0]).k);
@@ -480,6 +523,7 @@ export const MapScreen = () => {
     else if (m.kind === 'fire') { const c = campfires.find((x) => x.id === m.srcId); if (c) joinFire(c); }
     else if (m.kind === 'place') { const pl = realPlaces.find((x) => x.id === m.srcId); if (pl) setPlaceOpen(pl); }
     else if (m.kind === 'dest') { const d = DESTINATIONS.find((x) => x.id === m.srcId); if (d) openDest(d); }
+    else if (m.kind === 'squad') { const sp = squadPins.find((x) => x.id === m.srcId); if (sp) setSquadSheet({ mode: 'pin', pin: sp }); }
     else if (m.kind === 'note') { const n = realNotes.find((x) => x.id === m.srcId); if (n) setNoteOpen(n); }
     else if (m.kind === 'moment') { const p = momentPins.find((x) => x.id === m.srcId); if (p) openMomentPin(p); }
     else if (m.kind === 'story') { const st = storyPins.find((x) => x.id === m.srcId); if (st) openStoryPin(st); }
@@ -536,7 +580,7 @@ export const MapScreen = () => {
   const [tripSent, setTripSent] = useState(false);
 
   const openDest = (d) => {
-    setDestOpen(d); setDestReviews(null); setRevStars(0); setRevText(''); setRevErr(null); setRevSaved(false);
+    setDestOpen(d); setRateOpen(false); setDestReviews(null); setRevStars(0); setRevText(''); setRevErr(null); setRevSaved(false);
     setTripOpen(false); setTripErr(null); setTripSent(false);
     if (SUPABASE_READY) fetchDestReviews(d.id).then(setDestReviews).catch(() => setDestReviews([]));
     else setDestReviews([]);
@@ -741,11 +785,9 @@ export const MapScreen = () => {
         out.push({ id: 'sp_' + pl.id, kind: 'place', name: pl.name, sub: pl.category + (pl.address ? ' · ' + pl.address : ''), emoji: pl.emoji, lat: pl.lat, lng: pl.lng, src: pl });
       }
     });
-    nearbyPeople.forEach((p) => {
-      if ((p.name || '').toLowerCase().includes(q)) {
-        out.push({ id: 'su_' + p.id, kind: 'person', name: p.name, sub: personWhere(p, t), emoji: p.doing || p.emoji || '🧿', lat: p.coords && p.coords.latitude, lng: p.coords && p.coords.longitude, src: p });
-      }
-    });
+    /* Ayser, November 2026: the map searches places and drops, never
+       people — nobody should be able to type a name and find where a
+       person is standing. */
     campfires.forEach((c) => {
       if ((c.title || '').toLowerCase().includes(q)) {
         out.push({ id: 'sf_' + c.id, kind: 'fire', name: c.title, sub: 'Live campfire · ' + ((c.host && c.host.name) || 'someone') + ' hosting', emoji: '🔥', lat: c.coords && c.coords.latitude, lng: c.coords && c.coords.longitude, src: c });
@@ -801,6 +843,7 @@ export const MapScreen = () => {
      the map from you to them, with an honest distance + time estimate
      (walking ≤3km, otherwise driving pace). ── */
   const [routeTo, setRouteTo] = useState(null);
+  const [rateOpen, setRateOpen] = useState(false);   // the rating form, behind one pill
   const meetUp = async (p) => {
     tapLight();
     /* a route only to somebody really there now, from where you really
@@ -1050,6 +1093,16 @@ export const MapScreen = () => {
         )}
       </View>
 
+      {/* ── SQUAD PIN ── a padel match, a 5v5 or a study table; opens
+          after three Moments tables (the server counts them) */}
+      <Pressable testID="squad-pin-btn" onPress={openSquadButton} accessibilityRole="button" accessibilityLabel="Squad Pin"
+        style={{ position: 'absolute', left: 14, bottom: aboveBottom, display: panelUp ? 'none' : 'flex' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 15, height: 44, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
+          <Ionicons name="flash" size={15} color={C.bg} />
+          <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '900', marginStart: 6 }}>{lang === 'ar' ? '+ سكواد بن' : '+ Squad Pin'}</Text>
+        </View>
+      </Pressable>
+
       {/* ── the tools, folded away ──────────────────────────────────
           Five circles stacked down the side of the map hid a third of
           Egypt. Only the two you reach for constantly stay out; the
@@ -1147,8 +1200,8 @@ export const MapScreen = () => {
           </Pressable>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16 }}>
-          {around.map(({ d, k }) => (
-            <Pressable key={d.id} onPress={() => { tapLight(); setMapFocus({ lat: d.lat, lng: d.lng, zoom: 14, ts: Date.now() }); openDest(d); }} accessibilityRole="button" accessibilityLabel={d.name}
+          {around.map(({ d, k, venue }) => (
+            <Pressable key={(venue ? 'v' : '') + d.id} onPress={() => { tapLight(); setMapFocus({ lat: d.lat, lng: d.lng, zoom: 14, ts: Date.now() }); if (venue) { setRail('book'); setBookingVenue(venue); } else openDest(d); }} accessibilityRole="button" accessibilityLabel={d.name}
               style={{ width: 150, height: 120, marginEnd: 10, borderRadius: 18, overflow: 'hidden', backgroundColor: C.floatSolid, borderWidth: 1, borderColor: C.line }}>
               {d.photo ? <Image source={{ uri: publicMedia(d.photo) }} style={{ position: 'absolute', width: 150, height: 120 }} />
                 : <View style={{ position: 'absolute', width: 150, height: 120, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 40 }}>{d.emoji}</Text></View>}
@@ -1442,6 +1495,15 @@ export const MapScreen = () => {
             <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '700', lineHeight: 18 }}>{mapNote}</Text>
           </View>
         </View>
+      ) : null}
+
+      {squadSheet ? (
+        <SquadPinSheet
+          mode={squadSheet.mode} checkins={squadSheet.n} pin={squadSheet.pin}
+          center={view ? { lat: (view.n + view.s) / 2, lng: (view.e + view.w) / 2, wide: view.n - view.s > 0.6 } : (myCoords ? { lat: myCoords.latitude, lng: myCoords.longitude } : null)}
+          onClose={() => setSquadSheet(null)} onChanged={loadSquads}
+          onRoute={(sp) => { setRouteTo({ lat: sp.lat, lng: sp.lng, ts: Date.now() }); setMapFocus({ lat: sp.lat, lng: sp.lng, zoom: 15, ts: Date.now() }); }}
+        />
       ) : null}
 
       {/* SOS confirm sheet */}
@@ -1917,23 +1979,38 @@ export const MapScreen = () => {
                 const fix = located ? myCoords : null;
                 const at = { latitude: destOpen.lat, longitude: destOpen.lng };
                 const away = fix ? kmBetween(fix, at) : null;
-                const near = DESTINATIONS.filter((d) => d.id !== destOpen.id)
+                /* Ayser, November 2026: nearby means places to meet — partner cafés,
+                   sports hubs, food and community spots — not a petrified forest
+                   next to a padel court */
+                const near = DESTINATIONS.filter((d) => d.id !== destOpen.id && curated(d))
                   .map((d) => ({ d, k: kmBetween(at, { latitude: d.lat, longitude: d.lng }) }))
                   .filter((x) => x.k <= 30).sort((a, b) => a.k - b.k).slice(0, 8);
+                const partners = (realVenues || []).filter((v) => v.lat != null && v.lng != null)
+                  .map((v) => ({ v, k: kmBetween(at, { latitude: v.lat, longitude: v.lng }) }))
+                  .filter((x) => x.k <= 15).sort((a, b) => a.k - b.k).slice(0, 6);
                 const fmt = (k) => (k < 1 ? Math.round(k * 1000) + ' m' : (k < 10 ? k.toFixed(1) : Math.round(k)) + ' km');
                 return (
                   <View>
                     {away != null ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 10 }}>{'🧭 ' + t('pd_from_you').replace('{d}', fmt(away))}</Text> : null}
-                    {near.length ? (
+                    {near.length || partners.length ? (
                       <View style={{ marginTop: 14 }}>
                         <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>{t('pd_nearby').toUpperCase()}</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                          {partners.map(({ v, k }) => (
+                            <Pressable key={'v' + v.id} onPress={() => { tapLight(); setDestOpen(null); setRail('book'); setBookingVenue(v); }} accessibilityRole="button" style={{ marginRight: 8 }}>
+                              <View style={{ width: 150, borderRadius: 14, borderWidth: 1, borderColor: C.text, backgroundColor: C.glass, padding: 10 }}>
+                                <Ionicons name="cafe-outline" size={18} color={C.text} />
+                                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 4 }} numberOfLines={2}>{v.name}</Text>
+                                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{fmt(k) + ' · ' + (lang === 'ar' ? 'شريك' : 'Partner')}</Text>
+                              </View>
+                            </Pressable>
+                          ))}
                           {near.map(({ d, k }) => (
                             <Pressable key={d.id} onPress={() => { tapLight(); openDest(d); }} accessibilityRole="button" style={{ marginRight: 8 }}>
                               <View style={{ width: 150, borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 10 }}>
                                 <Text style={{ fontSize: 20 }}>{d.emoji}</Text>
                                 <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 4 }} numberOfLines={2}>{d.name}</Text>
-                                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{fmt(k) + ((d.tags || [])[0] ? ' · ' + d.tags[0] : '')}</Text>
+                                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{fmt(k) + ((d.tags || []).find((g) => CURATED_NEAR.test(g)) ? ' · ' + (d.tags || []).find((g) => CURATED_NEAR.test(g)) : '')}</Text>
                               </View>
                             </Pressable>
                           ))}
@@ -1944,7 +2021,10 @@ export const MapScreen = () => {
                 );
               })()}
 
-              {/* Flights, a bed and a car — the real searches, one tap. */}
+              {/* Flights, a bed and a car — the real searches, one tap. Never for a
+                  place in Cairo itself (Ayser, November 2026: a padel court across
+                  town does not need a flight) */}
+              {isLocalPlace(destOpen) ? null : (
               <Pressable onPress={() => { tapLight(); const to = destOpen.name; setDestOpen(null); setTravelTo(to); }}>
                 <View style={{
                   flexDirection: 'row', alignItems: 'center', marginTop: 14,
@@ -1961,13 +2041,14 @@ export const MapScreen = () => {
                   <Ionicons name="chevron-forward" size={18} color={C.purple} />
                 </View>
               </Pressable>
+              )}
 
               {/* ── AND IF YOU ARE NOT VISITING BUT MOVING ────────────
                   The row above is for a trip. This one is for the
                   person who landed on Tuesday and has thirty days to
                   register an address, find a doctor and open a bank
                   account in a language they do not speak yet. */}
-              {euCode(destOpen.country) ? (
+              {euCode(destOpen.country) && !isLocalPlace(destOpen) ? (
                 <Pressable onPress={() => { tapLight(); const d = destOpen; setDestOpen(null); setLandingAt({ country: euCode(d.country), city: cityOf(d), place: cityOf(d) }); }}>
                   <View style={{
                     flexDirection: 'row', alignItems: 'center', marginTop: 10,
@@ -1992,7 +2073,7 @@ export const MapScreen = () => {
                   three customs are what make the first week easier.
                   Only offered for a country the room actually covers —
                   an empty room is worse than no row. */}
-              {ROOM_CODES.has(destOpen.country) ? (
+              {ROOM_CODES.has(destOpen.country) && !isLocalPlace(destOpen) ? (
                 <Pressable onPress={() => { tapLight(); const d = destOpen; setDestOpen(null); setCountryRoom(ROOM_CODES.get(d.country)); }}>
                   <View style={{
                     flexDirection: 'row', alignItems: 'center', marginTop: 10,
@@ -2020,23 +2101,32 @@ export const MapScreen = () => {
                         📍 {km < 1 ? 'Right next to you' : Math.round(km) + ' km from you'}
                       </Text>
                     ) : null}
-                    <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                      {nearEnough ? (
-                        <Pressable onPress={() => uberTo(destOpen)} style={{ flex: 1, marginRight: 10 }}>
-                          <View style={{ backgroundColor: '#111827', borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('uber_there')}</Text>
+                    {/* Ayser, November 2026: the Moments route first (drawn on this map), a ride or the pin second */}
+                    <Pressable testID="dest-route" onPress={() => { tapLight(); const d = destOpen; setDestOpen(null); setRouteTo({ lat: d.lat, lng: d.lng, ts: Date.now() }); setMapFocus({ lat: d.lat, lng: d.lng, zoom: 14, ts: Date.now() }); }} accessibilityRole="button" style={{ marginTop: 10 }}>
+                      <View style={{ backgroundColor: C.text, borderRadius: 14, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="navigate" size={16} color={C.bg} />
+                        <Text style={{ color: C.bg, fontSize: 14, fontWeight: '900', marginStart: 6 }}>{lang === 'ar' ? 'طريق مومنتس' : 'Moments route'}</Text>
+                      </View>
+                    </Pressable>
+                    <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                      {nearEnough || isLocalPlace(destOpen) ? (
+                        <Pressable onPress={() => uberTo(destOpen)} style={{ flex: 1, marginRight: 8 }}>
+                          <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="car-outline" size={15} color={C.text} />
+                            <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'عربية' : 'Ride'}</Text>
                           </View>
                         </Pressable>
                       ) : (
-                        <Pressable onPress={() => { tapLight(); setTripOpen((o) => !o); }} style={{ flex: 1, marginRight: 10 }}>
-                          <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('book_this_trip')}</Text>
+                        <Pressable onPress={() => { tapLight(); setTripOpen((o) => !o); }} style={{ flex: 1, marginRight: 8 }}>
+                          <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 11, alignItems: 'center' }}>
+                            <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{t('book_this_trip')}</Text>
                           </View>
                         </Pressable>
                       )}
-                      <Pressable onPress={() => directionsTo(destOpen)} style={{ width: 132 }}>
-                        <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                          <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('directions_label')}</Text>
+                      <Pressable onPress={() => { tapLight(); const txt = destOpen.lat + ',' + destOpen.lng; try { navigator.clipboard.writeText(txt); note(lang === 'ar' ? 'اتنسخ المكان' : 'Pin copied'); } catch (e) {} }} style={{ flex: 1 }}>
+                        <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                          <Ionicons name="copy-outline" size={15} color={C.text} />
+                          <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'انسخ المكان' : 'Copy pin'}</Text>
                         </View>
                       </Pressable>
                     </View>
@@ -2092,6 +2182,14 @@ export const MapScreen = () => {
                   : ''}
               </Text>
 
+              {!rateOpen ? (
+                <Pressable testID="dest-rate" onPress={() => { tapLight(); setRateOpen(true); }} accessibilityRole="button" style={{ alignSelf: 'flex-start' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 9 }}>
+                    <Ionicons name="star-outline" size={15} color={C.text} />
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'قيّم المكان' : 'Rate this spot'}</Text>
+                  </View>
+                </Pressable>
+              ) : (
               <Glass style={{ padding: 12 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 8 }}>
                   {[1, 2, 3, 4, 5].map((s) => (
@@ -2115,12 +2213,11 @@ export const MapScreen = () => {
                   </View>
                 </Pressable>
               </Glass>
+              )}
 
               {destReviews === null ? (
                 <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', paddingVertical: 14 }}>{t('loading_reviews')}</Text>
-              ) : destReviews.length === 0 ? (
-                <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', paddingVertical: 14 }}>{t('no_feedback')}</Text>
-              ) : (
+              ) : destReviews.length === 0 ? null : (
                 destReviews.slice(0, 8).map((r) => (
                   <View key={r.id} style={{ flexDirection: 'row', marginTop: 12 }}>
                     <Image source={{ uri: (r.user && r.user.avatar_url) || AV_NEUTRAL }} style={{ width: 32, height: 32, borderRadius: 16 }} />

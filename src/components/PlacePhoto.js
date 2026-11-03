@@ -42,15 +42,32 @@ const Gallery = ({ place, height }) => {
    with one is first opened (kept out of the first download) */
 let creditsP = null;
 const credits = () => (creditsP = creditsP || fetch(publicMedia('places/credits.json')).then((r) => (r.ok ? r.json() : {})).catch(() => ({})));
+/* Ayser, November 2026: the credit no longer sits as a line under every
+   photo — a small (i) on the photo shows it when tapped. The photographer
+   and the licence stay one tap away, as the licence asks. */
+const CreditDot = ({ text, url }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', maxWidth: '90%' }}>
+      {open ? (
+        <Pressable onPress={() => { try { Linking.openURL(url); } catch (e) {} }} accessibilityRole="link" style={{ borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, marginEnd: 6, flexShrink: 1 }}>
+          <Text style={{ color: '#FFF', fontSize: 10.5 }} numberOfLines={2}>{text}</Text>
+        </Pressable>
+      ) : null}
+      <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityLabel="photo credit" hitSlop={8}>
+        <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>i</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+};
+
 const CommonsCredit = ({ id, t }) => {
   const [c, setC] = useState(null);
   useEffect(() => { let alive = true; credits().then((all) => { if (alive) setC(all[id] || null); }); return () => { alive = false; }; }, [id]);
   if (!c) return null;
-  return (
-    <Pressable onPress={() => { try { Linking.openURL(c.p); } catch (e) {} }} accessibilityRole="link" style={{ marginTop: 5 }}>
-      <Text style={{ color: C.faint, fontSize: 10.5 }} numberOfLines={1}>{t('photo_credit').replace('{who}', c.a || t('photo_someone')).replace('{license}', c.l)}</Text>
-    </Pressable>
-  );
+  return <CreditDot url={c.p} text={t('photo_credit').replace('{who}', c.a || t('photo_someone')).replace('{license}', c.l)} />;
 };
 
 export const PlacePhoto = ({ place, height = 180 }) => {
@@ -88,11 +105,7 @@ export const PlacePhoto = ({ place, height = 180 }) => {
   return (
     <View style={{ marginBottom: 12 }}>
       <Image source={{ uri: photo.url }} accessibilityLabel={photo.title} style={{ width: '100%', height, borderRadius: 16, backgroundColor: C.glassHi }} />
-      <Pressable onPress={() => { try { Linking.openURL(photo.page); } catch (e) {} }} accessibilityRole="link" style={{ marginTop: 5 }}>
-        <Text style={{ color: C.faint, fontSize: 10.5 }} numberOfLines={1}>
-          {t('photo_credit').replace('{who}', photo.artist || t('photo_someone')).replace('{license}', photo.license)}
-        </Text>
-      </Pressable>
+      <CreditDot url={photo.page} text={t('photo_credit').replace('{who}', photo.artist || t('photo_someone')).replace('{license}', photo.license)} />
     </View>
   );
 };

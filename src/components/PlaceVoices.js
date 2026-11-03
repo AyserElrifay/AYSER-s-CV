@@ -121,9 +121,7 @@ export const PlaceVoices = ({ place, onShare, onOpenPerson }) => {
         </>
       ) : null}
 
-      {posts && !photos.length && !words.length && !stories.length ? (
-        <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', marginTop: 16 }}>{t('pv_none')}</Text>
-      ) : null}
+      {/* nothing shared yet: no sad line, only the button below (Ayser, November 2026) */}
 
       {onShare ? (
         <Pressable onPress={() => { tapLight(); onShare(place); }} accessibilityRole="button"

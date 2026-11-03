@@ -33,6 +33,6 @@ const lib = fs.readFileSync('src/lib/commonsPhoto.js', 'utf8');
 const map = fs.readFileSync('src/screens/MapScreen.js', 'utf8') + fs.readFileSync('src/components/PlacePhoto.js', 'utf8');
 is('only free images are asked for', /pilicense=free/.test(lib), true);
 is('asked only when a place is opened, and kept a month', /MONTH = 30 \* 24 \* 3600 \* 1000/.test(lib) && /placePhoto\(/.test(map), true);
-is('the photo is shown with its credit and a link to its page', /photo_credit/.test(map) && /openURL\(photo\.page\)/.test(map) && /<PlacePhoto place=\{placeOpen\}/.test(map) && /<PlacePhoto place=\{destOpen\}/.test(map), true);
+is('the photo is shown with its credit and a link to its page (behind the small i, Nov 2026)', /photo_credit/.test(map) && (/openURL\(photo\.page\)/.test(map) || (/url=\{photo\.page\}/.test(map) && /openURL\(url\)/.test(map))) && /<PlacePhoto place=\{placeOpen\}/.test(map) && /<PlacePhoto place=\{destOpen\}/.test(map), true);
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nA public place shows a photo only when a free one of THAT place exists, and says whose it is.');

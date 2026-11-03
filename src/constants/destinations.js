@@ -174,7 +174,7 @@ export const DESTINATIONS = [
     lat: 30.0167, lng: 31.4667, tags: ['Hiking', 'Photo'],
     desc: 'Million-year-old tree trunks turned to stone, right by the Fifth Settlement. The fastest real escape from east Cairo — strange geology, great frames.' },
   { id: 'eg_padel_east', country: 'Egypt', flag: '🇪🇬', emoji: '🎾', name: 'Padel Hubs · East Cairo', area: 'New Cairo',
-    lat: 30.0270, lng: 31.4913, tags: ['Sport', 'Community'],
+    lat: 30.0270, lng: 31.4913, tags: ['Sport', 'Community'], photo: 'act-padel-2.jpg',
     desc: 'The open padel compounds of east Cairo — matches, lounges, and an energetic sports crowd. Play a set, meet your next crew.' },
   { id: 'eg_sinai_trail', country: 'Egypt', flag: '🇪🇬', emoji: '🥾', name: 'Sinai Trail (start)', area: 'Ras Shetan',
     lat: 29.0410, lng: 34.6250, tags: ['Hiking', 'Culture'],

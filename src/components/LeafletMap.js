@@ -461,6 +461,17 @@ const pinHtml = (m) => {
     );
   }
 
+  /* A Squad Pin: a black pill with a bolt and what is still needed
+     ("Padel · Need 2") — never how few have joined. */
+  if (m.kind === 'squad') {
+    return (
+      '<div class="mm-float" style="display:flex;justify-content:center;width:150px">' +
+      '<div style="display:inline-flex;align-items:center;gap:5px;background:#1A1A1A;color:#fff;border:2px solid #fff;border-radius:999px;padding:5px 10px;font:800 12px/1.1 system-ui,-apple-system,sans-serif;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.3)">' +
+      '<svg width="11" height="13" viewBox="0 0 11 13" aria-hidden="true"><path d="M6.5 0 0 7.5h4.2L3.5 13 11 4.8H6.6z" fill="#fff"/></svg>' +
+      esc(m.label) + '</div></div>'
+    );
+  }
+
   // Real going-out places (cafés, restaurants…): a plain, tiny amber
   // dot — NO emoji, so a busy street stays clean and uncluttered.
   if (m.kind === 'place') {
@@ -1034,6 +1045,7 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       const isTrip = m.kind === 'trip';
       const isShot = m.kind === 'moment' || m.kind === 'story';
       const isAct = m.kind === 'activity' || m.kind === 'fire';
+      const isSquad = m.kind === 'squad';
       /* A person standing on the map is a taller thing than a person in
          a teardrop, and it was being declared as the same size — 52×66
          for content that measures 74×120, anchored at [26,33]. The
@@ -1044,13 +1056,13 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
          100px down — anchor there and they stand where they are. */
       const icon = L.divIcon({
         html: pinHtml(m), className: '',
-        iconSize: isAct ? [104, 96] : isShot ? [62, 74] : isPerson ? (m.standing ? [74, 120] : [52, 66]) : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent || isTrip ? [66, 50] : [16, 16],
-        iconAnchor: isAct ? [52, 66] : isShot ? [31, 70] : isPerson ? (m.standing ? [37, 100] : [26, 33]) : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent || isTrip ? [33, 40] : [8, 8],
+        iconSize: isSquad ? [150, 30] : isAct ? [104, 96] : isShot ? [62, 74] : isPerson ? (m.standing ? [74, 120] : [52, 66]) : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent || isTrip ? [66, 50] : [16, 16],
+        iconAnchor: isSquad ? [75, 15] : isAct ? [52, 66] : isShot ? [31, 70] : isPerson ? (m.standing ? [37, 100] : [26, 33]) : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent || isTrip ? [33, 40] : [8, 8],
       });
       // a live story sits above everything else — it's the freshest thing there
-      const z = m.kind === 'story' ? 700 : m.kind === 'moment' ? 600 : isAct ? 550 : isPerson ? 500 : isDest ? 300 : 0;
+      const z = isSquad ? 650 : m.kind === 'story' ? 700 : m.kind === 'moment' ? 600 : isAct ? 550 : isPerson ? 500 : isDest ? 300 : 0;
       const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: z });
-      if (m.label && !isPerson && !isDest && !isShot && !isTrip && !isAct) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
+      if (m.label && !isPerson && !isDest && !isShot && !isTrip && !isAct && !isSquad) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
       mk.on('click', () => onPressRef.current && onPressRef.current(m));
       track(mk, isDest ? (m.hero ? 'dest-hero' : 'dest') : isNote ? 'note' : 'other');
     });

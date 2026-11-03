@@ -27625,6 +27625,147 @@ do $do$ begin
 exception when undefined_table or undefined_column then null;
 end $do$;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  SQUAD PINS · a small game or a study table, after three real tables
+--  Ayser, November 2026: "3+ check-ins Squad Pin". Somebody who has been
+--  to three Moments tables (three QR check-ins, counted here, not on the
+--  phone) can drop one pin on the map: padel (needs 1–3), five-a-side
+--  football (needs up to 9) or a study / work table (needs 1–3).
+--    · the pin disappears by itself when the match is over
+--    · it never says "1 going" — it says how many are still needed
+--    · Thursday and Friday 7 pm – midnight (Cairo) belong to the weekly
+--      tables, so a pin cannot sit on top of them
+--    · one live pin per person, at most two days ahead
+--  The tables are closed; everything goes through the functions below.
+-- ═══════════════════════════════════════════════════════════════════════
+create table if not exists public.squad_pins (
+  id         uuid primary key default gen_random_uuid(),
+  host_id    uuid not null references public.profiles(id) on delete cascade,
+  kind       text not null check (kind in ('padel','football','study')),
+  need       int  not null check (need between 1 and 9),
+  lat        double precision not null check (lat between -90 and 90),
+  lng        double precision not null check (lng between -180 and 180),
+  place_name text check (char_length(place_name) <= 60),
+  starts_at  timestamptz not null,
+  ends_at    timestamptz not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists squad_pins_live on public.squad_pins (ends_at);
+alter table public.squad_pins enable row level security;
+
+create table if not exists public.squad_pin_joins (
+  pin_id  uuid not null references public.squad_pins(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  at      timestamptz not null default now(),
+  primary key (pin_id, user_id)
+);
+alter table public.squad_pin_joins enable row level security;
+revoke all on public.squad_pins, public.squad_pin_joins from anon, authenticated;
+
+-- how many real tables you have checked in to
+create or replace function public.my_checkins()
+returns int language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.event_checkins where user_id = auth.uid();
+$$;
+revoke execute on function public.my_checkins() from public, anon;
+grant execute on function public.my_checkins() to authenticated;
+
+-- does [a, b) touch Thursday or Friday 19:00–24:00 in Cairo?
+create or replace function public.squad_pin_flagship(a timestamptz, b timestamptz)
+returns boolean language plpgsql stable set search_path = public as $$
+declare la timestamp := a at time zone 'Africa/Cairo'; lb timestamp := b at time zone 'Africa/Cairo'; d date;
+begin
+  d := la::date - 1;
+  while d <= lb::date loop
+    if extract(isodow from d) in (4, 5) and la < (d + 1)::timestamp and lb > d + time '19:00' then return true; end if;
+    d := d + 1;
+  end loop;
+  return false;
+end $$;
+revoke all on function public.squad_pin_flagship(timestamptz, timestamptz) from public, anon, authenticated;
+
+create or replace function public.squad_pin_create(p_kind text, p_need int, p_lat double precision, p_lng double precision, p_place text, p_starts_at timestamptz)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); n int; mins int; e timestamptz; r public.squad_pins;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select count(*) into n from public.event_checkins where user_id = me;
+  if n < 3 then return jsonb_build_object('ok', false, 'reason', 'locked', 'checkins', n); end if;
+  if p_kind not in ('padel','football','study') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  if p_need is null or p_need < 1 or p_need > (case p_kind when 'football' then 9 else 3 end) then
+    return jsonb_build_object('ok', false, 'reason', 'need'); end if;
+  if p_lat is null or p_lng is null or abs(p_lat) > 90 or abs(p_lng) > 180 then return jsonb_build_object('ok', false, 'reason', 'place'); end if;
+  if p_starts_at is null or p_starts_at < now() - interval '5 minutes' or p_starts_at > now() + interval '48 hours' then
+    return jsonb_build_object('ok', false, 'reason', 'time'); end if;
+  mins := case p_kind when 'study' then 180 else 90 end;
+  e := p_starts_at + make_interval(mins => mins);
+  if public.squad_pin_flagship(p_starts_at, e) then return jsonb_build_object('ok', false, 'reason', 'flagship'); end if;
+  if exists (select 1 from public.squad_pins where host_id = me and ends_at > now()) then
+    return jsonb_build_object('ok', false, 'reason', 'one_live'); end if;
+  delete from public.squad_pins where ends_at < now() - interval '7 days';
+  insert into public.squad_pins (host_id, kind, need, lat, lng, place_name, starts_at, ends_at)
+  values (me, p_kind, p_need, p_lat, p_lng, nullif(left(btrim(coalesce(p_place, '')), 60), ''), p_starts_at, e)
+  returning * into r;
+  return jsonb_build_object('ok', true, 'id', r.id, 'ends_at', r.ends_at);
+end $$;
+revoke execute on function public.squad_pin_create(text, int, double precision, double precision, text, timestamptz) from public, anon;
+grant execute on function public.squad_pin_create(text, int, double precision, double precision, text, timestamptz) to authenticated;
+
+-- the live pins: how many are still needed, never how few have come.
+-- A full pin is only shown to the people in it.
+create or replace function public.squad_pin_list()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x->>'starts_at'), '[]'::jsonb) from (
+    select jsonb_build_object(
+      'id', p.id, 'kind', p.kind, 'lat', p.lat, 'lng', p.lng, 'place_name', p.place_name,
+      'starts_at', p.starts_at, 'ends_at', p.ends_at,
+      'left', greatest(p.need - j.n, 0),
+      'host_name', split_part(coalesce(h.name, ''), ' ', 1),
+      'mine', p.host_id = auth.uid(),
+      'in', exists (select 1 from public.squad_pin_joins z where z.pin_id = p.id and z.user_id = auth.uid())) as x
+      from public.squad_pins p
+      join public.profiles h on h.id = p.host_id
+      cross join lateral (select count(*)::int as n from public.squad_pin_joins z where z.pin_id = p.id) j
+     where auth.uid() is not null and p.ends_at > now()
+       and (p.need > j.n or p.host_id = auth.uid()
+            or exists (select 1 from public.squad_pin_joins z where z.pin_id = p.id and z.user_id = auth.uid()))
+     limit 200) s;
+$$;
+revoke execute on function public.squad_pin_list() from public, anon;
+grant execute on function public.squad_pin_list() to authenticated;
+
+create or replace function public.squad_pin_join(p_id uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); p public.squad_pins; n int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into p from public.squad_pins where id = p_id for update;
+  if not found or p.ends_at <= now() then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if p.host_id = me then return jsonb_build_object('ok', false, 'reason', 'host'); end if;
+  if not coalesce(p_on, true) then
+    delete from public.squad_pin_joins where pin_id = p_id and user_id = me;
+    return jsonb_build_object('ok', true, 'in', false);
+  end if;
+  if p.starts_at < now() - interval '30 minutes' then return jsonb_build_object('ok', false, 'reason', 'started'); end if;
+  if exists (select 1 from public.squad_pin_joins where pin_id = p_id and user_id = me) then return jsonb_build_object('ok', true, 'in', true); end if;
+  select count(*) into n from public.squad_pin_joins where pin_id = p_id;
+  if n >= p.need then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  insert into public.squad_pin_joins (pin_id, user_id) values (p_id, me);
+  return jsonb_build_object('ok', true, 'in', true, 'left', p.need - n - 1);
+end $$;
+revoke execute on function public.squad_pin_join(uuid, boolean) from public, anon;
+grant execute on function public.squad_pin_join(uuid, boolean) to authenticated;
+
+create or replace function public.squad_pin_cancel(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.squad_pins where id = p_id and host_id = auth.uid();
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_yours'); end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.squad_pin_cancel(uuid) from public, anon;
+grant execute on function public.squad_pin_cancel(uuid) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

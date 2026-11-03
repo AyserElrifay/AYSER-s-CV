@@ -64,6 +64,10 @@ jobs:
       # whatever the products are renamed to.
       - name: Check each plan opens what was paid for
         run: node scripts/check-ls-plans.mjs
+      # Squad Pins: three real tables to open, never on a Thursday/Friday
+      # night, never "1 going"; and the map search never finds a person.
+      - name: Check Squad Pins keep their promises
+        run: node scripts/check-squad-pins.mjs
       # A reel is three minutes; a long-form video is not. The cap was
       # applied to both, so anything longer was re-encoded in real time
       # and cut — or refused with a reel's message. Catching that used
