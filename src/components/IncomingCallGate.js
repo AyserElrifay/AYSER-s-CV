@@ -6,15 +6,20 @@ import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { subscribeIncomingCalls, joinCall, callPending } from '../services/calls';
-import { CallScreen } from './CallScreen';
+import { lazyOverlay } from '../lib/lazyScreen';
+/* the call screen is fetched when a call is answered, not with the app's first download */
+const CallScreen = lazyOverlay(() => import('./CallScreen').then((m) => ({ default: m.CallScreen })));
 import { tapMedium, tapSuccess } from '../utils/feedback';
 import { startRingtone } from '../utils/sfx';
+import { useLang } from '../context/LanguageContext';
 
 /* Mounted once at the app root: listens on YOUR ring channel, so a call
    from anyone actually rings on your screen wherever you are in the app.
    Accept → a real WebRTC CallScreen opens in callee mode. */
 export const IncomingCallGate = () => {
   const { user } = useAuth();
+  const { lang } = useLang();
+  const ar = lang === 'ar';
   const [ring, setRing] = useState(null);      // { callId, from, video }
   const [active, setActive] = useState(null);  // accepted call
   const ringingRef = useRef(null);
@@ -103,22 +108,22 @@ export const IncomingCallGate = () => {
         <Modal visible transparent animationType="fade" onRequestClose={decline}>
           <View style={{ flex: 1, backgroundColor: 'rgba(8,4,15,0.94)', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
             <Image source={{ uri: (ring.from && ring.from.avatar) || AV_NEUTRAL }} style={{ width: 116, height: 116, borderRadius: 58, borderWidth: 3, borderColor: 'rgba(255,255,255,0.4)' }} />
-            <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '900', marginTop: 18 }}>{(ring.from && ring.from.name) || 'Someone'}</Text>
+            <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '900', marginTop: 18 }}>{(ring.from && ring.from.name) || (ar ? 'حد' : 'Someone')}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14.5, marginTop: 6 }}>
-              {ring.video ? 'Incoming video call 🎥' : 'Incoming call 📞'}
+              {ring.video ? (ar ? 'مكالمة فيديو' : 'Incoming video call') : (ar ? 'بيكلّمك' : 'Incoming call')}
             </Text>
             <View style={{ flexDirection: 'row', marginTop: 46 }}>
               <Pressable onPress={decline} style={{ alignItems: 'center', marginHorizontal: 26 }}>
                 <View style={{ width: 66, height: 66, borderRadius: 33, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center' }}>
                   <Ionicons name="call" size={28} color="#FFF" style={{ transform: [{ rotate: '135deg' }] }} />
                 </View>
-                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 8 }}>Decline</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 8 }}>{ar ? 'رفض' : 'Decline'}</Text>
               </Pressable>
               <Pressable onPress={accept} style={{ alignItems: 'center', marginHorizontal: 26 }}>
                 <View style={{ width: 66, height: 66, borderRadius: 33, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center' }}>
                   <Ionicons name="call" size={28} color="#FFF" />
                 </View>
-                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 8 }}>Accept</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 8 }}>{ar ? 'ردّ' : 'Accept'}</Text>
               </Pressable>
             </View>
           </View>

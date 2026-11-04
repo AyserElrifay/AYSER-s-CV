@@ -257,17 +257,17 @@ export const ProfileModal = ({ user, onClose }) => {
 
 
   const mateLabel =
-    mateState === 'mates' ? 'Mates ✓'
-    : mateState === 'requested' ? 'Requested ✓'
-    : mateState === 'incoming' ? 'Accept request'
-    : '＋ Mate up';
+    mateState === 'mates' ? (lang === 'ar' ? 'صحاب ✓' : 'Mates ✓')
+    : mateState === 'requested' ? (lang === 'ar' ? 'الطلب اتبعت ✓' : 'Requested ✓')
+    : mateState === 'incoming' ? (lang === 'ar' ? 'اقبل الطلب' : 'Accept request')
+    : (lang === 'ar' ? '+ صاحبه' : '＋ Mate up');
 
   // Same three stats as your own space — one unified profile look.
   const likes = posts == null ? null : posts.reduce((s, r) => s + (r.vibesCount || 0), 0);
   const stats = [
-    { n: posts == null ? '—' : posts.length, l: 'Moments' },
-    { n: mates == null ? '—' : mates, l: 'Followers' },
-    { n: likes == null ? '—' : likes, l: 'Likes' },
+    { n: posts == null ? '—' : posts.length, l: lang === 'ar' ? 'لحظات' : 'Moments' },
+    { n: mates == null ? '—' : mates, l: lang === 'ar' ? 'صحاب' : 'Followers' },
+    { n: likes == null ? '—' : likes, l: lang === 'ar' ? 'إعجابات' : 'Likes' },
   ];
 
   return (
@@ -282,7 +282,7 @@ export const ProfileModal = ({ user, onClose }) => {
             <View style={{ flex: 1 }} />
             {onlineNow ? (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.green, marginRight: 6 }} />
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.green, marginEnd: 6 }} />
                 <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '800' }}>{t('pm_online')}</Text>
               </View>
             ) : null}
@@ -322,7 +322,7 @@ export const ProfileModal = ({ user, onClose }) => {
                     borderWidth: mateState === 'mates' ? 1 : 0, borderColor: 'rgba(16,185,129,0.45)',
                   }}>
                     <Text style={{ color: mateState === 'mates' ? C.green : '#FFF', fontSize: 13.5, fontWeight: '900' }}>
-                      {real ? mateLabel : '＋ Mate up'}
+                      {real ? mateLabel : (lang === 'ar' ? '+ صاحبه' : '＋ Mate up')}
                     </Text>
                   </View>
                 </Pressable>
@@ -400,23 +400,27 @@ export const ProfileModal = ({ user, onClose }) => {
                  The database already refuses to hand these rows over —
                  this just explains the silence. */
               <Glass style={{ padding: 22, alignItems: 'center' }}>
-                <Text style={{ fontSize: 30 }}>🔒</Text>
+                <Ionicons name="lock-closed-outline" size={26} color={C.faint} />
                 <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>{t('pm_private')}</Text>
                 <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, textAlign: 'center', lineHeight: 18 }}>
-                  {mateState === 'requested'
+                  {lang === 'ar'
+                    ? (mateState === 'requested' ? 'طلبك مستني — هتشوف لحظاته أول ما يقبل.' : 'صاحب ' + String(user.name || '').split(' ')[0] + ' عشان تشوف لحظاته.')
+                    : mateState === 'requested'
                     ? 'Your request is waiting — you\u2019ll see their moments once they accept.'
                     : 'Mate up with ' + String(user.name || 'them').split(' ')[0] + ' to see their moments and stories.'}
                 </Text>
               </Glass>
             ) : shownPosts.length === 0 ? (
               <Glass style={{ padding: 22, alignItems: 'center' }}>
-                <Text style={{ fontSize: 30 }}>🌱</Text>
+                <Ionicons name="leaf-outline" size={26} color={C.faint} />
                 <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>{t('pm_no_moments')}</Text>
                 <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, textAlign: 'center' }}>
-                  {tab === 'tag' ? 'Nobody has tagged them in a moment yet.'
+                  {lang === 'ar'
+                    ? (tab === 'tag' ? 'محدش عمله تاج لسه.' : tab === 'repost' ? 'لسه ماشاركش حاجة.' : tab === 'reel' ? 'مفيش فيديوهات لسه.' : isMe ? 'شارك أول لحظة ليك من الرئيسية' : 'لسه بيبدأ — قوله أهلاً')
+                    : tab === 'tag' ? 'Nobody has tagged them in a moment yet.'
                     : tab === 'repost' ? 'They haven\u2019t passed anything on yet.'
                     : tab === 'reel' ? 'No reels yet.'
-                    : isMe ? 'Share your first moment from Home ✨' : 'Their story starts soon — wave to say hi 👋'}
+                    : isMe ? 'Share your first moment from Home' : 'Their story starts soon — wave to say hi'}
                 </Text>
               </Glass>
             ) : (

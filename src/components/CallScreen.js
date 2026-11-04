@@ -11,6 +11,7 @@ import { tapMedium, tapLight, tapSuccess } from '../utils/feedback';
 import { startRingback } from '../utils/sfx';
 import { useStable } from '../hooks/useStable';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { useLang } from '../context/LanguageContext';
 
 // the games are only fetched when somebody opens them during a call
 const CallGames = lazyOverlay(() => import('./CallGames').then((m) => ({ default: m.CallGames })));
@@ -36,6 +37,8 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const { user } = useAuth();
+  const { lang } = useLang();
+  const ar = lang === 'ar';   // Ayser, November 2026: the call screen speaks Arabic too
   const canReallyCall = SUPABASE_READY && isWeb && !!user && !!(peer && REAL_ID.test(peer.id || ''));
   const [state, setState] = useState(incoming ? 'connecting' : 'ringing'); // ringing | connecting | live | noanswer | failed | ended
   const [muted, setMuted] = useState(false);
@@ -249,12 +252,12 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
 
   const fmt = (s) => Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
   const statusLine =
-    state === 'ringing' ? 'Ringing…'
-    : state === 'connecting' ? 'Connecting…'
+    state === 'ringing' ? (ar ? 'بيرن…' : 'Ringing…')
+    : state === 'connecting' ? (ar ? 'بيوصل…' : 'Connecting…')
     : state === 'live' ? fmt(secs)
-    : state === 'noanswer' ? (canReallyCall ? 'No answer — they got a missed-call ping 💬' : 'No answer — send them a message 💬')
-    : state === 'failed' ? 'Could not connect — check mic permission & network'
-    : 'Call ended';
+    : state === 'noanswer' ? (canReallyCall ? (ar ? 'محدش ردّ — هيوصله إن فاتته مكالمة' : 'No answer — they got a missed-call ping') : (ar ? 'محدش ردّ — ابعتله رسالة' : 'No answer — send them a message'))
+    : state === 'failed' ? (ar ? 'ماوصلتش — اتأكد من إذن المايك والنت' : 'Could not connect — check mic permission & network')
+    : (ar ? 'المكالمة خلصت' : 'Call ended');
 
   const Ctrl = useStable(({ icon, label, on, danger, onPress }) => (
     <Pressable onPress={() => { tapLight(); onPress && onPress(); }} style={{ alignItems: 'center', marginHorizontal: 10 }}>
@@ -306,18 +309,18 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
           {(state === 'noanswer' || state === 'failed' || state === 'ended') ? (
             <Pressable onPress={hangUp}>
               <View style={{ backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 26, paddingVertical: 13 }}>
-                <Text style={{ color: '#1A1A1A', fontSize: 14, fontWeight: '900' }}>Back to chat 💬</Text>
+                <Text style={{ color: '#1A1A1A', fontSize: 14, fontWeight: '900' }}>{ar ? 'ارجع للشات' : 'Back to chat'}</Text>
               </View>
             </Pressable>
           ) : (
             <>
               <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-                <Ctrl icon={muted ? 'mic-off' : 'mic'} label={muted ? 'Unmute' : 'Mute'} on={muted} onPress={() => setMuted((m) => !m)} />
-                <Ctrl icon={speaker ? 'volume-high' : 'volume-low'} label="Speaker" on={!speaker} onPress={() => setSpeaker((s) => !s)} />
-                {video ? <Ctrl icon={cam ? 'videocam' : 'videocam-off'} label="Camera" on={!cam} onPress={() => setCam((c) => !c)} /> : null}
-                {state === 'live' ? <Ctrl icon="game-controller" label="Games" on={gamesOpen} onPress={() => setGamesOpen((g) => !g)} /> : null}
+                <Ctrl icon={muted ? 'mic-off' : 'mic'} label={muted ? (ar ? 'شغّل المايك' : 'Unmute') : (ar ? 'كتم' : 'Mute')} on={muted} onPress={() => setMuted((m) => !m)} />
+                <Ctrl icon={speaker ? 'volume-high' : 'volume-low'} label={ar ? 'السبيكر' : 'Speaker'} on={!speaker} onPress={() => setSpeaker((s) => !s)} />
+                {video ? <Ctrl icon={cam ? 'videocam' : 'videocam-off'} label={ar ? 'الكاميرا' : 'Camera'} on={!cam} onPress={() => setCam((c) => !c)} /> : null}
+                {state === 'live' ? <Ctrl icon="game-controller" label={ar ? 'ألعاب' : 'Games'} on={gamesOpen} onPress={() => setGamesOpen((g) => !g)} /> : null}
               </View>
-              <Ctrl icon="call" label="End" danger onPress={hangUp} />
+              <Ctrl icon="call" label={ar ? 'إنهاء' : 'End'} danger onPress={hangUp} />
             </>
           )}
         </View>
