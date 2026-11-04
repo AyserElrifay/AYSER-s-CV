@@ -1,3 +1,4 @@
+import { placeAr } from '../lib/placeAr';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -345,7 +346,7 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
           ) : null}
         </View>
         <View style={{ padding: 18 }}>
-          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>{flagOf(o.country) + (kindLabel(o, t) + (o.city ? ' · ' + o.city : '')).toUpperCase()}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>{flagOf(o.country) + (kindLabel(o, t) + (o.city ? ' · ' + placeAr(o.city, lang) : '')).toUpperCase()}</Text>
           {o.ages ? <Text style={{ color: '#B45309', fontSize: 13.5, fontWeight: '800', marginTop: 6 }}>{'🧸 ' + t('ws_ages').replace('{ages}', o.ages)}</Text> : null}
           <Text style={{ color: C.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.3, marginTop: 4 }}>{pick(o, 'title', lang)}</Text>
           {o.partner || o.operator ? <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 3 }}>{t('bk_by').replace('{name}', o.partner || o.operator)}</Text> : null}
@@ -665,7 +666,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
                           {o.video ? <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>▶ video</Text></View> : null}
                           <View style={{ padding: 14 }}>
                             <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1 }}>
-                              {flagOf(o.country) + (kindLabel(o, t) + (o.city ? ' · ' + o.city : '') + (o.starts_at ? ' · ' + when(o.starts_at, lang) : '')).toUpperCase()}
+                              {flagOf(o.country) + (kindLabel(o, t) + (o.city ? ' · ' + placeAr(o.city, lang) : '') + (o.starts_at ? ' · ' + when(o.starts_at, lang) : '')).toUpperCase()}
                             </Text>
                             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginTop: 3 }} numberOfLines={2}>{pick(o, 'title', lang)}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>

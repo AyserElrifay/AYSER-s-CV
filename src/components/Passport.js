@@ -10,6 +10,7 @@ import { fetchShowedUp, creatorRecord } from '../services/green';
 import { tapLight } from '../utils/feedback';
 import { myMomentsLevel, passLevel } from '../services/loop';
 import { hobbyLabel } from '../lib/hobbyWords';
+import { placeAr } from '../lib/placeAr';
 import { tw as trackWord } from '../constants/trackWords';
 
 /* ─── THE LOCAL PASS ──────────────────────────────────────────────────
@@ -52,9 +53,8 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
   }, [own, p.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const tone = STAMP[track ? Math.min(STAMP.length - 1, track - 1) : lv.index] || STAMP[0];
   /* the city in the reader's language for the places Moments runs in; anything else as typed */
-  const CITY_AR = { cairo: 'القاهرة', giza: 'الجيزة', alexandria: 'الإسكندرية', dahab: 'دهب', 'new cairo': 'القاهرة الجديدة', tallinn: 'تالين', budapest: 'بودابست', berlin: 'برلين', 'timișoara': 'تيميشوارا', timisoara: 'تيميشوارا' };
   const rawPlace = p.city || p.cover_place || null;
-  const place = rawPlace && lang === 'ar' ? (CITY_AR[String(rawPlace).trim().toLowerCase()] || rawPlace) : rawPlace;
+  const place = placeAr(rawPlace, lang);
   const langs = split(p.speaks_language);
   const loves = split(p.hobbies);
   const visited = Array.isArray(p.visited_countries) ? p.visited_countries.filter((c) => /^[A-Z]{2}$/i.test(c)) : [];

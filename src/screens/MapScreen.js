@@ -1,3 +1,5 @@
+import { placeAr, countryOfFlag } from '../lib/placeAr';
+import { hobbyLabel } from '../lib/hobbyWords';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { reportProblem } from '../lib/problems';
 import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking, ActivityIndicator, StyleSheet } from 'react-native';
@@ -777,7 +779,7 @@ export const MapScreen = () => {
     const out = [];
     DESTINATIONS.forEach((d) => {
       if (d.name.toLowerCase().includes(q) || (d.country || '').toLowerCase().includes(q) || (d.desc || '').toLowerCase().includes(q)) {
-        out.push({ id: 'sd_' + d.id, kind: 'dest', name: d.name, sub: (d.flag ? d.flag + ' ' : '') + (d.country || 'Destination'), emoji: d.emoji || '🌍', lat: d.lat, lng: d.lng, src: d });
+        out.push({ id: 'sd_' + d.id, kind: 'dest', name: d.name, sub: (d.flag ? d.flag + ' ' : '') + (lang === 'ar' ? countryOfFlag(d.flag, lang, d.country) : (d.country || 'Destination')), emoji: d.emoji || '🌍', lat: d.lat, lng: d.lng, src: d });
       }
     });
     realPlaces.forEach((pl) => {
@@ -804,7 +806,7 @@ export const MapScreen = () => {
       try { when = new Date(g.starts_at).toLocaleDateString(undefined, { weekday: 'short' }) + ' ' + new Date(g.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); } catch (e) {}
       out.unshift({ id: 'sg_' + g.id, kind: 'plan', name: g.title, sub: [when, g.place_name || g.city].filter(Boolean).join(' · '), emoji: (act && act.emoji) || '🤝', lat: g.lat != null ? Number(g.lat) : null, lng: g.lng != null ? Number(g.lng) : null, src: g });
     });
-    if (act) { const label = act.id.charAt(0).toUpperCase() + act.id.slice(1); out.push({ id: 'ss_' + act.id, kind: 'start', name: t('ms_start').replace('{what}', act.emoji + ' ' + label), sub: t('ms_start_sub'), emoji: '＋', title: label, src: act }); }
+    if (act) { const label = lang === 'ar' ? hobbyLabel(act.id, lang) : act.id.charAt(0).toUpperCase() + act.id.slice(1); out.push({ id: 'ss_' + act.id, kind: 'start', name: t('ms_start').replace('{what}', act.emoji + ' ' + label), sub: t('ms_start_sub'), emoji: '＋', title: label, src: act }); }
     venues.forEach((v) => {
       if ((v.name || '').toLowerCase().includes(q)) {
         out.push({ id: 'sv_' + v.id, kind: 'venue', name: v.name, sub: v.sub || 'Bookable on Moments', emoji: v.emoji || '📍', lat: v.lat, lng: v.lng, src: v });
@@ -1958,7 +1960,7 @@ export const MapScreen = () => {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{destOpen.name} {destOpen.flag}</Text>
-                  <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{destOpen.area} · {destOpen.country}</Text>
+                  <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{placeAr(destOpen.area, lang)} · {lang === 'ar' ? countryOfFlag(destOpen.flag, lang, destOpen.country) : destOpen.country}</Text>
                   <View style={{ flexDirection: 'row', marginTop: 5 }}>
                     {(destOpen.tags || []).map((t) => (
                       <View key={t} style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginRight: 6 }}>
