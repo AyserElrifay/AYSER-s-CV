@@ -84,9 +84,10 @@ ok('choosing a new cover drops the guess', /forgetPoster\(post\.id\); onSetCover
 
 console.log('\nthe grid on your profile');
 const prof = fs.readFileSync('src/screens/ProfileScreen.js', 'utf8');
-ok('tiles derive a still as well', /derivePoster\(item\.id, item\.media\)/.test(prof));
-ok('an empty tile is tinted, not near-black', /backgroundColor: posterTint\(item\.id\)/.test(prof));
-ok('and #1B1B21 is gone from it', !/#1B1B21/.test(prof));
+const tile = fs.readFileSync('src/components/ProfileGrid.js', 'utf8');   // the tile every profile uses (Space and others')
+ok('tiles derive a still as well', /derivePoster\(item\.id, item\.media\)/.test(tile));
+ok('an empty tile is tinted, not near-black', /backgroundColor: posterTint\(item\.id\)/.test(tile));
+ok('and #1B1B21 is gone from it', !/#1B1B21/.test(tile));
 
 console.log('\nand the person who posted it can change the cover');
 ok('from the feed', /onSetCover=\{onSetCover\}/.test(fs.readFileSync('src/screens/HomeScreen.js', 'utf8')));

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, Image, Modal, Dimensions } from 'react-native';
+import { View, Text, ScrollView, Pressable, Image, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
@@ -9,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { isNeedUnlock } from '../lib/unlockBus';
 import { Passport, ShowedUp } from './Passport';
+import { GAP, COL, GridCell, gridItem } from './ProfileGrid';
 import { HostCard } from './HostCard';
 import { useLang } from '../context/LanguageContext';
 import { fetchMyMoments, fetchRepostsByUser } from '../services/posts';
@@ -44,16 +44,12 @@ const StoryViewer = lazyOverlay(() => import('./StoryViewer').then((m) => ({ def
 const BuddiesSheet = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.BuddiesSheet })));
 const MemoryHighlights = lazyOverlay(() => import('./MemoryBook').then((m) => ({ default: m.MemoryHighlights })));
 
-const { width: W } = Dimensions.get('window');
-const CELL = (W - 48) / 3;
 
 /* ─── SOMEONE ELSE'S PROFILE ──────────────────────────────────────
    Organized exactly like your own space: header, stats, actions,
    then their REAL recent moments (their actual posts — never stock
    photos). Mate up sends a real friend request; Message sends a
    real DM. Honest empty states everywhere. */
-
-const isVideoUri = (u) => typeof u === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i.test(u);
 
 // the line on a profile a Moments+ member opens
 const VIP_PROFILE = { en: 'Full profiles are part of Moments Black', ar: 'البروفايل الكامل جزء من Moments Black', cs: 'Celé profily jsou součástí Moments Black', es: 'Los perfiles completos son parte de Moments Black', et: 'Täisprofiilid on Moments Black-i osa', fr: 'Les profils complets font partie de Moments Black', hi: 'पूरी प्रोफ़ाइल Moments Black का हिस्सा है', it: 'I profili completi fanno parte di Moments Black', ja: 'プロフィールの全体表示は Moments Black の機能です', ko: '전체 프로필은 Moments Black 기능이에요', nl: 'Volledige profielen horen bij Moments Black', pt: 'Os perfis completos fazem parte do Moments Black', ro: 'Profilurile complete fac parte din Moments Black', ru: 'Полные профили — часть Moments Black', tr: 'Tam profiller Moments Black’un parçası', uk: 'Повні профілі — частина Moments Black', zh: '完整个人资料是 Moments Black 的功能' };
@@ -84,8 +80,17 @@ export const ProfileModal = ({ user, onClose }) => {
     if (tab === 'reel') return all.filter((p) => p.type === 'reel');
     if (tab === 'tag') return taggedPosts;
     if (tab === 'repost') return repostedPosts;
-    return all.filter((p) => p.type !== 'reel');
+    if (tab === 'posts') return all.filter((p) => !p.media_url);
+    return all;
   }, [posts, tab, taggedPosts, repostedPosts]);
+  /* the tabs your Space shows: a tab appears only when it has something in it */
+  const profileTabs = [
+    { k: 'grid', icon: 'grid-outline', on: true },
+    { k: 'posts', icon: 'chatbox-ellipses-outline', on: (posts || []).some((p) => !p.media_url) },
+    { k: 'reel', icon: 'play-outline', on: (posts || []).some((p) => p.type === 'reel') },
+    { k: 'tag', icon: 'pricetag-outline', on: taggedPosts.length > 0 },
+  ].filter((x) => x.on);
+  useEffect(() => { if (!profileTabs.some((x) => x.k === tab)) setTab('grid'); }, [profileTabs.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Opening someone's moment from their profile used to be a dead end:
      star, laugh, repost and share were all empty functions. They run
@@ -317,18 +322,18 @@ export const ProfileModal = ({ user, onClose }) => {
               <View style={{ flexDirection: 'row', marginTop: 14 }}>
                 <Pressable onPress={doMateUp} style={{ flex: 1 }}>
                   <View style={{
-                    borderRadius: 14, paddingVertical: 13, alignItems: 'center',
-                    backgroundColor: mateState === 'mates' ? C.greenSoft : C.purple,
-                    borderWidth: mateState === 'mates' ? 1 : 0, borderColor: 'rgba(16,185,129,0.45)',
+                    borderRadius: 999, paddingVertical: 13, alignItems: 'center',
+                    backgroundColor: mateState === 'mates' ? 'transparent' : C.text,
+                    borderWidth: mateState === 'mates' ? 1.5 : 0, borderColor: C.line,
                   }}>
-                    <Text style={{ color: mateState === 'mates' ? C.green : '#FFF', fontSize: 13.5, fontWeight: '900' }}>
+                    <Text style={{ color: mateState === 'mates' ? C.text : C.bg, fontSize: 13.5, fontWeight: '900' }}>
                       {real ? mateLabel : (lang === 'ar' ? '+ صاحبه' : '＋ Mate up')}
                     </Text>
                   </View>
                 </Pressable>
                 {mateState === 'mates' ? (
                   <Pressable testID="pm-message" onPress={() => { tapLight(); setChatOpen(true); }} accessibilityRole="button" style={{ flex: 1, marginStart: 10 }}>
-                    <View style={{ borderRadius: 14, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', backgroundColor: C.text }}>
+                    <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', backgroundColor: C.text }}>
                       <Ionicons name="chatbubble-outline" size={16} color={C.bg} />
                       <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '900', marginStart: 6 }}>{lang === 'ar' ? 'رسالة' : 'Message'}</Text>
                     </View>
@@ -380,18 +385,15 @@ export const ProfileModal = ({ user, onClose }) => {
             {/* their REAL moments — same grid as your own profile */}
             {/* the same tab row your own space has, so a profile looks
                 like a profile whoever it belongs to */}
+            {profileTabs.length > 1 ? (
             <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.line, marginTop: 22 }}>
-              {[
-                { k: 'grid', icon: 'grid-outline' },
-                { k: 'reel', icon: 'play-outline' },
-                { k: 'repost', icon: 'repeat-outline' },
-                { k: 'tag', icon: 'pricetag-outline' },
-              ].map((t) => (
-                <Pressable key={t.k} onPress={() => { tapLight(); setTab(t.k); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: tab === t.k ? C.text : 'transparent' }}>
-                  <Ionicons name={t.icon} size={20} color={tab === t.k ? C.text : C.faint} />
+              {profileTabs.map((x) => (
+                <Pressable key={x.k} onPress={() => { tapLight(); setTab(x.k); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: tab === x.k ? C.text : 'transparent' }}>
+                  <Ionicons name={x.icon} size={20} color={tab === x.k ? C.text : C.faint} />
                 </Pressable>
               ))}
             </View>
+            ) : <View style={{ height: 1, backgroundColor: C.line, marginTop: 22, marginBottom: GAP }} />}
             {posts == null ? (
               <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 20 }}>{t('pm_loading')}</Text>
             ) : vipLocked ? null : locked ? (
@@ -424,27 +426,31 @@ export const ProfileModal = ({ user, onClose }) => {
                 </Text>
               </Glass>
             ) : (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
-                {shownPosts.slice(0, 12).map((p) => (
-                  <Pressable key={p.id} onPress={() => openPost(p)} style={{ width: CELL, height: CELL, borderRadius: 14, margin: 4, overflow: 'hidden', backgroundColor: C.glassHi }}>
-                    {p.media_url && !isVideoUri(p.media_url) ? (
-                      <Image source={{ uri: p.media_url }} style={{ width: '100%', height: '100%' }} />
-                    ) : (
-                      <LinearGradient colors={['#EDE9FE', '#FCE7F3']} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 }}>
-                        <Text style={{ color: '#4C1D95', fontSize: 11, fontWeight: '700', textAlign: 'center' }} numberOfLines={4}>
-                          {p.caption || '✨'}
-                        </Text>
-                      </LinearGradient>
-                    )}
-                    {isVideoUri(p.media_url) ? (
-                      <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, padding: 4 }}>
-                        <Ionicons name="play" size={11} color="#FFF" />
+tab === 'posts' ? (
+              /* written moments, as your Space lists them */
+              <View style={{ paddingTop: 6 }}>
+                {shownPosts.map((p) => (
+                  <Pressable key={p.id} onPress={() => openPost(p)}>
+                    <View style={{ flexDirection: 'row', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                      <Image source={{ uri: user.avatar }} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.glassHi }} />
+                      <View style={{ flex: 1, marginStart: 11 }}>
+                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{user.name}</Text>
+                        <Text style={{ color: C.text, fontSize: 15, lineHeight: 22, marginTop: 4 }}>{p.caption}</Text>
                       </View>
-                    ) : null}
+                    </View>
                   </Pressable>
                 ))}
               </View>
-            )}
+            ) : (
+              /* the same tiles as your own Space (src/components/ProfileGrid.js) */
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: GAP }}>
+                {shownPosts.slice(0, 30).map((p, i) => (
+                  <Pressable key={p.id} onPress={() => openPost(p)} style={{ marginRight: (i % COL === COL - 1) ? 0 : GAP, marginBottom: GAP, borderRadius: 4, overflow: 'hidden' }}>
+                    <GridCell item={gridItem(p)} />
+                  </Pressable>
+                ))}
+              </View>
+            ))}
           </View>
         </ScrollView>
 
