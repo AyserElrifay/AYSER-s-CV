@@ -91,14 +91,19 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
   };
 
   const lv = levelOf(loyal ? loyal.xp : 0);
+  /* Arabic letters join, so no letter-spacing and no upper-casing in Arabic */
+  const ar = lang === 'ar';
+  const LS = (n) => (ar ? 0 : n);
+  const UP = (x) => (ar ? x : String(x).toUpperCase());
+  const num = (n) => Number(n || 0).toLocaleString(ar ? 'ar-EG' : 'en-US');
   const waiting = (v) => v === undefined;
 
   const loyaltyTab = () => (
     <View>
       <View style={{ backgroundColor: '#1A1A1A', borderRadius: 22, padding: 18 }}>
-        <Text style={{ color: C.gold, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.6 }}>MOMENTS · {t('rw_loyalty').toUpperCase()}</Text>
+        <Text style={{ color: C.gold, fontSize: 11.5, fontWeight: '900', letterSpacing: LS(1.6) }}>{(ar ? 'Moments · ' : 'MOMENTS · ') + UP(t('rw_loyalty'))}</Text>
         <Text style={{ color: '#F9F9F6', fontSize: 28, fontWeight: '900', marginTop: 8 }}>{t('xp_lvl_' + lv.key)}</Text>
-        <Text style={{ color: '#C9C9D1', fontSize: 14, marginTop: 2, fontVariant: ['tabular-nums'] }}>{lv.xp.toLocaleString()} XP</Text>
+        <Text style={{ color: '#C9C9D1', fontSize: 14, marginTop: 2, fontVariant: ['tabular-nums'] }}>{num(lv.xp) + (ar ? ' نقطة' : ' XP')}</Text>
         {lv.next ? (
           <View style={{ marginTop: 12 }}>
             <View style={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' }}>
@@ -109,18 +114,18 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
         ) : null}
         {loyal && loyal.streak > 0 ? (
           <Text style={{ color: '#F9F9F6', fontSize: 14, fontWeight: '800', marginTop: 12 }}>
-            {'🔥 ' + (loyal.streak === 1 ? t('rw_streak_one') : t('rw_streak_n').replace('{n}', String(loyal.streak)))}
+            <Ionicons name="flame-outline" size={15} color={C.gold} />{' ' + (loyal.streak === 1 ? t('rw_streak_one') : t('rw_streak_n').replace('{n}', String(loyal.streak)))}
           </Text>
         ) : null}
       </View>
 
-      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 18 }}>{t('rw_earn').toUpperCase()}</Text>
+      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: LS(1.2), marginTop: 18 }}>{UP(t('rw_earn'))}</Text>
       <Rule icon="location-outline" text={t('rw_earn_checkin')} />
       <Rule icon="leaf-outline" text={t('rw_earn_cleanup')} />
       <Rule icon="flag-outline" text={t('rw_earn_host')} />
       <Rule icon="people-outline" text={t('rw_earn_invite')} />
 
-      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 20 }}>{t('rw_levels').toUpperCase()}</Text>
+      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: LS(1.2), marginTop: 20 }}>{UP(t('rw_levels'))}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
         {LEVELS.map((l, i) => {
           const reached = lv.index >= i;
@@ -133,7 +138,7 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
         })}
       </View>
 
-      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 18 }}>{t('rw_perks').toUpperCase()}</Text>
+      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: LS(1.2), marginTop: 18 }}>{UP(t('rw_perks'))}</Text>
       {waiting(loyal) ? <ActivityIndicator color={C.dim} style={{ marginTop: 12 }} /> : loyal && loyal.perks && loyal.perks.length ? loyal.perks.map((p) => (
         <View key={p.id} style={{ marginTop: 10, borderRadius: 16, borderWidth: 1, borderColor: p.unlocked ? C.gold : C.line, backgroundColor: p.unlocked ? C.goldSoft : C.glass, padding: 14, opacity: p.unlocked ? 1 : 0.75 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -157,15 +162,15 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
   /* what your XP can become — and the training and grant come back as sessions for others */
   const rewardsBlock = () => (
     <View>
-      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 22 }}>{t('rd_title').toUpperCase()}</Text>
+      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: LS(1.2), marginTop: 22 }}>{UP(t('rd_title'))}</Text>
       <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, marginTop: 4 }}>{t('rd_sub')}</Text>
       {(rewards && rewards.options ? rewards.options : []).map((o) => (
         <View key={o.kind} style={{ marginTop: 10, borderRadius: 16, borderWidth: 1, borderColor: o.ok ? C.purple : C.line, backgroundColor: o.ok ? 'rgba(124,58,237,0.06)' : C.glass, padding: 14 }}>
           <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{t('rd_' + o.kind)}</Text>
           <Text style={{ color: C.dim, fontSize: 13, lineHeight: 18, marginTop: 3 }}>{t('rd_' + o.kind + '_sub')}</Text>
-          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginTop: 6 }}>{o.need.toLocaleString() + ' XP'}</Text>
-          {o.status === 'pending' ? <Text style={{ color: C.gold, fontSize: 13, fontWeight: '800', marginTop: 8 }}>{'⏳ ' + t('rd_pending')}</Text>
-            : o.status === 'approved' || o.status === 'done' ? <Text style={{ color: C.green, fontSize: 13, fontWeight: '800', marginTop: 8 }}>{'✓ ' + t('rd_approved')}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginTop: 6 }}>{num(o.need) + (ar ? ' نقطة' : ' XP')}</Text>
+          {o.status === 'pending' ? <Text style={{ color: C.gold, fontSize: 13, fontWeight: '800', marginTop: 8 }}><Ionicons name="time-outline" size={14} color={C.gold} />{' ' + t('rd_pending')}</Text>
+            : o.status === 'approved' || o.status === 'done' ? <Text style={{ color: C.green, fontSize: 13, fontWeight: '800', marginTop: 8 }}><Ionicons name="checkmark" size={14} color={C.green} />{' ' + t('rd_approved')}</Text>
             : o.ok ? (askFor === o.kind ? (
               <View style={{ marginTop: 8 }}>
                 <TextInput value={why} onChangeText={setWhy} maxLength={400} placeholder={t('rd_why')} placeholderTextColor={C.faint}
@@ -215,7 +220,7 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
         </View>
       ) : null}
 
-      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 18 }}>{t('rw_how').toUpperCase()}</Text>
+      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: LS(1.2), marginTop: 18 }}>{UP(t('rw_how'))}</Text>
       <Rule icon="link-outline" text={t('rw_inv_r1')} />
       <Rule icon="location-outline" text={t('rw_inv_r2')} />
       <Rule icon="star-outline" text={t('rw_inv_plus') + (refs && refs.plus_days ? ' · ' + t('rw_inv_plus_n').replace('{n}', String(refs.plus_days)) : '')} />
@@ -250,7 +255,7 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
         </View>
         {onStartPlan ? <Button label={t('rw_cr_start')} icon="add" onPress={() => { tapLight(); onStartPlan(); }} /> : null}
 
-        <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 18 }}>{t('rw_cr_get').toUpperCase()}</Text>
+        <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: LS(1.2), marginTop: 18 }}>{UP(t('rw_cr_get'))}</Text>
         <Rule icon="flag-outline" text={t('rw_cr_g1')} />
         <Rule icon="notifications-outline" text={t('rw_cr_g2')} />
         <Rule icon="star-outline" text={t('rw_cr_g3')} />
