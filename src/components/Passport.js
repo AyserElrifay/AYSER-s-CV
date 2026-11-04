@@ -110,9 +110,8 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
           </>
         ) : (
           <>
-            <Text style={{ color: tone, fontSize: t('xp_lvl_' + lv.key).length > 7 ? 8.5 : 10.5, fontWeight: '900', letterSpacing: 0.4, maxWidth: 70, textAlign: 'center' }} numberOfLines={1}>{t('xp_lvl_' + lv.key).toUpperCase()}</Text>
-            <Text style={{ color: tone, fontSize: 16, fontWeight: '900', marginTop: 1, fontVariant: ['tabular-nums'] }}>{lv.xp.toLocaleString()}</Text>
-            <Text style={{ color: tone, fontSize: 9.5, fontWeight: '900', letterSpacing: 1.2 }}>XP</Text>
+            <Text style={{ color: tone, fontSize: 9.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.2 }}>{lang === 'ar' ? 'مستوى' : 'LEVEL'}</Text>
+            <Text style={{ color: tone, fontSize: 24, fontWeight: '900', marginTop: -1 }}>–</Text>
           </>
         )}
       </View>

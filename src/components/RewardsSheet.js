@@ -103,7 +103,7 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
       <View style={{ backgroundColor: '#1A1A1A', borderRadius: 22, padding: 18 }}>
         <Text style={{ color: C.gold, fontSize: 11.5, fontWeight: '900', letterSpacing: LS(1.6) }}>{(ar ? 'Moments · ' : 'MOMENTS · ') + UP(t('rw_loyalty'))}</Text>
         <Text style={{ color: '#F9F9F6', fontSize: 28, fontWeight: '900', marginTop: 8 }}>{t('xp_lvl_' + lv.key)}</Text>
-        <Text style={{ color: '#C9C9D1', fontSize: 14, marginTop: 2, fontVariant: ['tabular-nums'] }}>{num(lv.xp) + (ar ? ' نقطة' : ' XP')}</Text>
+        <Text style={{ color: '#C9C9D1', fontSize: 14, marginTop: 2, fontVariant: ['tabular-nums'] }}>{num(lv.xp) + (ar ? ' نقطة' : ' points')}</Text>
         {lv.next ? (
           <View style={{ marginTop: 12 }}>
             <View style={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' }}>
@@ -168,7 +168,7 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
         <View key={o.kind} style={{ marginTop: 10, borderRadius: 16, borderWidth: 1, borderColor: o.ok ? C.purple : C.line, backgroundColor: o.ok ? 'rgba(124,58,237,0.06)' : C.glass, padding: 14 }}>
           <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{t('rd_' + o.kind)}</Text>
           <Text style={{ color: C.dim, fontSize: 13, lineHeight: 18, marginTop: 3 }}>{t('rd_' + o.kind + '_sub')}</Text>
-          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginTop: 6 }}>{num(o.need) + (ar ? ' نقطة' : ' XP')}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginTop: 6 }}>{num(o.need) + (ar ? ' نقطة' : ' points')}</Text>
           {o.status === 'pending' ? <Text style={{ color: C.gold, fontSize: 13, fontWeight: '800', marginTop: 8 }}><Ionicons name="time-outline" size={14} color={C.gold} />{' ' + t('rd_pending')}</Text>
             : o.status === 'approved' || o.status === 'done' ? <Text style={{ color: C.green, fontSize: 13, fontWeight: '800', marginTop: 8 }}><Ionicons name="checkmark" size={14} color={C.green} />{' ' + t('rd_approved')}</Text>
             : o.ok ? (askFor === o.kind ? (

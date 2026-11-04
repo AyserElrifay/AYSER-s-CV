@@ -146,7 +146,7 @@ export const ProfileCardEntry = ({ line } = {}) => {
         <Pressable testID="card-entry" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
           <Ionicons name={ready ? 'checkmark-circle' : 'images-outline'} size={15} color={ready ? C.green : C.text} />
           <Text style={{ flex: 1, color: ready ? C.dim : C.text, fontSize: 13, fontWeight: ready ? '600' : '800', marginStart: 6 }} numberOfLines={1}>
-            {ready ? cw(lang, 'ready') + ' · ' + cw(lang, 'edit') : cw(lang, 'need') + ' · +30 XP'}
+            {ready ? cw(lang, 'ready') + ' · ' + cw(lang, 'edit') : cw(lang, 'need') + (lang === 'ar' ? ' · +٣٠ نقطة' : ' · +30 points')}
           </Text>
           <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={14} color={C.faint} />
         </Pressable>
