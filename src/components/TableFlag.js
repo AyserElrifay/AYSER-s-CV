@@ -11,7 +11,7 @@ export const FlagBadge = ({ cat, no, lang, style }) => {
   return (
     <View style={[{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', borderRadius: 6, backgroundColor: f.bg, paddingHorizontal: 9, paddingVertical: 5 }, style]}>
       <Ionicons name="flag" size={12} color={f.ink} />
-      <Text style={{ color: f.ink, fontSize: 11, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1, marginHorizontal: 6 }}>{f.name + '  #' + tableNo(no)}</Text>
+      <Text style={{ color: f.ink, fontSize: 11, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1, marginHorizontal: 6 }}>{(lang === 'ar' ? f.nameAr || f.name : f.name) + '  #' + tableNo(no)}</Text>
     </View>
   );
 };

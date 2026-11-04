@@ -28,6 +28,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { C, R } from '../constants/theme';
 import { GAP, GridCell } from '../components/ProfileGrid';
+import { hobbyLabel } from '../lib/hobbyWords';
 import { ME, MY_MOMENTS, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
 import { Passport } from '../components/Passport';
@@ -1028,7 +1029,7 @@ export const ProfileScreen = () => {
                 return (
                   <Pressable key={h} onPress={() => { tapSelection(); setEditHobbies((list) => on ? list.filter((x) => x !== h) : [...list, h]); }}>
                     <View style={{ backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 7, marginBottom: 7 }}>
-                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{h}</Text>
+                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{hobbyLabel(h, lang)}</Text>
                     </View>
                   </Pressable>
                 );
@@ -1037,7 +1038,7 @@ export const ProfileScreen = () => {
 
             <Pressable onPress={saveEdit}>
               <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{savedEdit ? 'Saved ✓' : 'Save'}</Text>
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{savedEdit ? (lang === 'ar' ? 'اتحفظ' : 'Saved') : (lang === 'ar' ? 'حفظ' : 'Save')}</Text>
               </View>
             </Pressable>
           </ScrollView>

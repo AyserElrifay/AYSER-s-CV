@@ -470,7 +470,7 @@ export const TableBeacon = ({ kind, id, cat, no, onClose }) => {
             <Ionicons name="close" size={28} color={f.ink} />
           </Pressable>
           <Image source={light ? WORD_DARK : WORD_WHITE} style={{ width: 190, height: 64 }} resizeMode="contain" accessibilityLabel="moments" />
-          <Text style={{ color: f.ink, fontSize: 15, fontWeight: '800', letterSpacing: 3, marginTop: 18 }}>{f.name}</Text>
+          <Text style={{ color: f.ink, fontSize: 15, fontWeight: '800', letterSpacing: 3, marginTop: 18 }}>{lang === 'ar' ? f.nameAr || f.name : f.name}</Text>
           <Text style={[{ color: f.ink, fontSize: 150, fontWeight: '900', letterSpacing: -6, lineHeight: 160, marginTop: 4 }, NUM]}>{'#' + tableNo(no)}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
             <Ionicons name="flag" size={18} color={f.ink} />

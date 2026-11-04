@@ -5,10 +5,10 @@
 
 /* the four Moments Flags: the colour on the table, and the ink on it */
 export const FLAGS = {
-  tables: { bg: '#6C3CE9', ink: '#FAF9F6', name: 'TABLE DROP', en: 'Violet', ar: 'البنفسجي' },
-  culture: { bg: '#DCD3FF', ink: '#1B1640', name: 'CULTURE CIRCLE', en: 'Lavender', ar: 'اللافندر' },
-  roam: { bg: '#CBE8D6', ink: '#1F3D2B', name: 'ROAM CREW', en: 'Mint', ar: 'النعناعي' },
-  impact: { bg: '#CDE8FF', ink: '#13294B', name: 'IMPACT TRIBE', en: 'Sky Blue', ar: 'السماوي' },
+  tables: { bg: '#6C3CE9', ink: '#FAF9F6', name: 'TABLE DROP', nameAr: 'ترابيزة', en: 'Violet', ar: 'البنفسجي' },
+  culture: { bg: '#DCD3FF', ink: '#1B1640', name: 'CULTURE CIRCLE', nameAr: 'دايرة ثقافة', en: 'Lavender', ar: 'اللافندر' },
+  roam: { bg: '#CBE8D6', ink: '#1F3D2B', name: 'ROAM CREW', nameAr: 'رحلة', en: 'Mint', ar: 'النعناعي' },
+  impact: { bg: '#CDE8FF', ink: '#13294B', name: 'IMPACT TRIBE', nameAr: 'أثر', en: 'Sky Blue', ar: 'السماوي' },
 };
 export const flagOf = (cat) => FLAGS[cat] || FLAGS.tables;
 export const tableNo = (n) => String(Math.max(1, Number(n) || 1)).padStart(2, '0');

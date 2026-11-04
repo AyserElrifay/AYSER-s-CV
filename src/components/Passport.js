@@ -9,6 +9,7 @@ import { lookOf, titleFor } from '../lib/activityPins';
 import { fetchShowedUp, creatorRecord } from '../services/green';
 import { tapLight } from '../utils/feedback';
 import { myMomentsLevel, passLevel } from '../services/loop';
+import { hobbyLabel } from '../lib/hobbyWords';
 import { tw as trackWord } from '../constants/trackWords';
 
 /* ─── THE LOCAL PASS ──────────────────────────────────────────────────
@@ -127,7 +128,7 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
 
       <View style={{ borderTopWidth: 1, borderStyle: 'dashed', borderColor: C.line, marginTop: 14, paddingTop: 10 }}>
         {langs.length ? <Text style={line} numberOfLines={2}><Text style={{ color: C.faint }}>{t('pp_speaks') + '  '}</Text>{langs.join(' · ')}</Text> : null}
-        {loves.length ? <Text style={line} numberOfLines={2}><Text style={{ color: C.faint }}>{t('pp_loves') + '  '}</Text>{loves.join(' · ')}</Text> : null}
+        {loves.length ? <Text style={line} numberOfLines={2}><Text style={{ color: C.faint }}>{t('pp_loves') + '  '}</Text>{loves.map((h) => hobbyLabel(h, lang)).join(' · ')}</Text> : null}
         {p.occupation ? <Text style={line} numberOfLines={2}><Text style={{ color: C.faint }}>{t('pp_does') + '  '}</Text>{p.occupation}</Text> : null}
         {p.travel_love ? <Text style={line} numberOfLines={3}><Text style={{ color: C.faint }}>{'✈️ ' + t('pp_travel') + '  '}</Text>{p.travel_love}</Text> : null}
         {visited.length ? (
