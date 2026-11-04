@@ -143,7 +143,7 @@ export const NotificationsSheet = ({ onClose }) => {
       setItems((x) => x || []);   // what was already showing stays
       setLoadErr(/does not exist|schema cache/i.test(e.message || '')
         ? setupNotice('One step left: run supabase/RUN_ME.sql to turn on notifications.')
-        : 'Could not load activity');
+        : (lang === 'ar' ? 'ماقدرناش نجيب الإشعارات' : 'Could not load activity'));
     }
   }, [user]);
 
@@ -403,7 +403,7 @@ export const NotificationsSheet = ({ onClose }) => {
                   const had = items.length;
                   setItems(keep('notifs.' + user.id, []));   // gone from the screen at once
                   try { await clearMyNotifications(user.id); showToast('Cleared ' + had); }
-                  catch (e) { load(); showToast('Could not clear — try again'); }
+                  catch (e) { load(); showToast(lang === 'ar' ? 'ماتمسحتش — جرّب تاني' : 'Could not clear — try again'); }
                   finally { setClearing(false); }
                 }}
                 accessibilityRole="button"
@@ -430,10 +430,10 @@ export const NotificationsSheet = ({ onClose }) => {
           <View style={{ alignItems: 'center', paddingVertical: 34, paddingHorizontal: 30 }}>
             <Ionicons name="notifications-outline" size={30} color={C.faint} />
             <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', marginTop: 10 }}>
-              {loadErr ? 'Almost there' : 'No activity yet'}
+              {loadErr ? (lang === 'ar' ? 'خطوة كمان' : 'Almost there') : (lang === 'ar' ? 'مفيش حاجة لسه' : 'No activity yet')}
             </Text>
             <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 18 }}>
-              {loadErr || 'When people star, laugh at or comment on your moments — or mate up with you — it lands here instantly.'}
+              {loadErr || (lang === 'ar' ? 'لما حد يحط نجمة أو يضحك أو يكتب كومنت على لحظاتك، أو يضيفك صاحب، هتلاقيها هنا على طول.' : 'When people star, laugh at or comment on your moments — or mate up with you — it lands here instantly.')}
             </Text>
           </View>
         ) : sections.length === 0 ? (
