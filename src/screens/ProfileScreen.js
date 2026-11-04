@@ -27,7 +27,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { C, R } from '../constants/theme';
-import { GAP, COL, GridCell } from '../components/ProfileGrid';
+import { GAP, GridCell } from '../components/ProfileGrid';
 import { ME, MY_MOMENTS, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
 import { Passport } from '../components/Passport';
@@ -750,13 +750,13 @@ export const ProfileScreen = () => {
               );
             }
             return (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: GAP }}>
-                {rows.map((row, i) => (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: GAP, gap: GAP }}>
+                {rows.map((row) => (
                   <Pressable
                     key={row.id}
                     onPress={() => openOther(rows, row)}
                     onLongPress={tab === 'tagged' ? () => { tapLight(); untagMe(row.id); } : undefined}
-                    style={{ marginRight: (i % COL === COL - 1) ? 0 : GAP, marginBottom: GAP, borderRadius: 4, overflow: 'hidden' }}
+                    style={{ borderRadius: 4, overflow: 'hidden' }}
                   >
                     <GridCell item={row.media_url
                       ? { id: row.id, media: row.media_url, thumb: row.thumb_url || null, kind: row.type === 'reel' ? 'reel' : undefined, vibes: row.vibesCount }
@@ -799,13 +799,13 @@ export const ProfileScreen = () => {
             )}
           </View>
         ) : (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: GAP }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: GAP, gap: GAP }}>
             {(tab === 'reels' ? gridItems.filter((m) => m.kind === 'reel') : gridItems).length ? (
-              (tab === 'reels' ? gridItems.filter((m) => m.kind === 'reel') : gridItems).map((item, i) => (
+              (tab === 'reels' ? gridItems.filter((m) => m.kind === 'reel') : gridItems).map((item) => (
                 <Pressable
                   key={item.id}
                   onPress={() => openMoment(item)}
-                  style={{ marginRight: (i % COL === COL - 1) ? 0 : GAP, marginBottom: GAP, borderRadius: 4, overflow: 'hidden' }}
+                  style={{ borderRadius: 4, overflow: 'hidden' }}
                 >
                   <GridCell item={item} />
                 </Pressable>

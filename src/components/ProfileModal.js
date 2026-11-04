@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { isNeedUnlock } from '../lib/unlockBus';
 import { Passport, ShowedUp } from './Passport';
-import { GAP, COL, GridCell, gridItem } from './ProfileGrid';
+import { GAP, GridCell, gridItem } from './ProfileGrid';
 import { HostCard } from './HostCard';
 import { useLang } from '../context/LanguageContext';
 import { fetchMyMoments, fetchRepostsByUser } from '../services/posts';
@@ -385,7 +385,7 @@ export const ProfileModal = ({ user, onClose }) => {
             {/* their REAL moments — same grid as your own profile */}
             {/* the same tab row your own space has, so a profile looks
                 like a profile whoever it belongs to */}
-            {profileTabs.length > 1 ? (
+            {locked ? null : profileTabs.length > 1 ? (
             <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.line, marginTop: 22 }}>
               {profileTabs.map((x) => (
                 <Pressable key={x.k} onPress={() => { tapLight(); setTab(x.k); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: tab === x.k ? C.text : 'transparent' }}>
@@ -443,9 +443,9 @@ tab === 'posts' ? (
               </View>
             ) : (
               /* the same tiles as your own Space (src/components/ProfileGrid.js) */
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: GAP }}>
-                {shownPosts.slice(0, 30).map((p, i) => (
-                  <Pressable key={p.id} onPress={() => openPost(p)} style={{ marginRight: (i % COL === COL - 1) ? 0 : GAP, marginBottom: GAP, borderRadius: 4, overflow: 'hidden' }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: GAP, gap: GAP }}>
+                {shownPosts.slice(0, 30).map((p) => (
+                  <Pressable key={p.id} onPress={() => openPost(p)} style={{ borderRadius: 4, overflow: 'hidden' }}>
                     <GridCell item={gridItem(p)} />
                   </Pressable>
                 ))}

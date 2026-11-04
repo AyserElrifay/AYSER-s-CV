@@ -78,7 +78,7 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
             </View>
           ) : null}
         </Pressable>
-        <View style={{ flex: 1, minWidth: 0, marginStart: 14, paddingEnd: 84 }}>
+        <View style={[{ flex: 1, minWidth: 0, marginStart: 14 }, lang === 'ar' ? { paddingLeft: 84 } : { paddingRight: 84 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ color: C.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.3, flexShrink: 1 }} numberOfLines={2}>{name}{p.age ? ', ' + p.age : ''}</Text>
             {verified ? <Ionicons name="checkmark-circle" size={17} color={C.text} style={{ marginStart: 5 }} /> : null}
@@ -99,7 +99,7 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
       {/* the level, stamped on like a visa — on your own pass, it opens
           your rewards: that is where the points are spent */}
       <Pressable onPress={onStamp} disabled={!onStamp} accessibilityRole={onStamp ? 'button' : undefined} accessibilityLabel={onStamp ? t('rw_open') : undefined} hitSlop={6}
-        style={{ position: 'absolute', top: 40, right: 14, outlineStyle: 'none' }}>
+        style={[{ position: 'absolute', top: 40, outlineStyle: 'none' }, lang === 'ar' ? { left: 14 } : { right: 14 }]}>
       <View pointerEvents="none" style={{ width: 88, height: 88, borderRadius: 44, borderWidth: 2.5, borderColor: tone, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-12deg' }], opacity: 0.9 }}>
         <View style={{ position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderRadius: 40, borderWidth: 1, borderColor: tone }} />
         {track ? (
