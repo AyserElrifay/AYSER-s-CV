@@ -52,7 +52,7 @@ const Button = ({ label, icon, onPress }) => (
 export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { user } = useAuth();
   const uid = user && user.id;
   const [tab, setTab] = useState(TABS.includes(first) ? first : 'loyalty');
@@ -192,13 +192,15 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
   const inviteTab = () => (
     <View>
       <Text style={{ color: C.text, fontSize: 22, fontWeight: '900' }}>{t('inv_title')}</Text>
-      <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{t('rw_inv_sub')}</Text>
+      {/* Ayser, November 2026: one level in the app, so no XP box here; and the
+          button had borrowed a table's share text ("{title}") — now its own words */}
+      <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{lang === 'ar' ? 'ابعت اللينك بتاعك لصحابك. كل ٥ يدخلوا Moments، تاخد أسبوع Moments Black ببلاش (لحد أسبوعين في الشهر).' : 'Send your link to friends. Every 5 who join Moments give you a free Moments Black week (up to 2 a month).'}</Text>
       <View style={{ flexDirection: 'row', marginTop: 16, gap: 8 }}>
         <Stat n={refs ? refs.joined : null} label={t('rw_inv_joined')} />
         <Stat n={refs ? refs.showed_up : null} label={t('rw_inv_came')} />
-        <Stat n={refs ? refs.xp : null} label={t('rw_inv_xp')} />
+        <Stat n={refs ? Number(refs.plus_days || 0) : null} label={lang === 'ar' ? 'أيام Black ببلاش' : 'Free Black days'} />
       </View>
-      <Button label={t('inv_share')} icon="share-outline" onPress={share} />
+      <Button label={lang === 'ar' ? 'ابعت اللينك بتاعي' : 'Send my link'} icon="share-outline" onPress={share} />
       {note ? <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 8 }}>{note}</Text> : null}
 
       {refs && refs.people && refs.people.length ? (
@@ -207,7 +209,7 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
               <Image source={{ uri: p.avatar_url || AV_NEUTRAL }} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.glassHi }} />
               <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', marginStart: 10, flex: 1 }} numberOfLines={1}>{p.name || '…'}</Text>
-              <Text style={{ color: p.showed_up ? C.purple : C.faint, fontSize: 12.5, fontWeight: '800' }}>{p.showed_up ? '+50 XP' : t('rw_inv_not_yet')}</Text>
+              <Text style={{ color: p.showed_up ? C.purple : C.faint, fontSize: 12.5, fontWeight: '800' }}>{p.showed_up ? (lang === 'ar' ? 'نزل خروجة ✓' : 'Showed up ✓') : t('rw_inv_not_yet')}</Text>
             </View>
           ))}
         </View>
@@ -216,7 +218,6 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
       <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 18 }}>{t('rw_how').toUpperCase()}</Text>
       <Rule icon="link-outline" text={t('rw_inv_r1')} />
       <Rule icon="location-outline" text={t('rw_inv_r2')} />
-      <Rule icon="gift-outline" text={t('rw_inv_r3')} />
       <Rule icon="star-outline" text={t('rw_inv_plus') + (refs && refs.plus_days ? ' · ' + t('rw_inv_plus_n').replace('{n}', String(refs.plus_days)) : '')} />
       <Rule icon="shield-checkmark-outline" text={t('rw_inv_r4').replace('{n}', String(refs ? refs.month_left : 10))} />
     </View>
