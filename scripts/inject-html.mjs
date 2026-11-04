@@ -237,6 +237,37 @@ const kiteIntro = `
 </script>
 `;
 
+/* ─── ONE VIDEO AT A TIME ────────────────────────────────────────────
+   Ayser, November 2026: "كل ما أدوس على Together الأبلكيشن يفتح من الأول".
+   Together had six looping videos on the page at once (highlights, the
+   Drops, the plans, Green Minds). An iPhone gives a web page only so much
+   memory for video; past it, Safari kills the page and opens it again from
+   the start — no error, just a restart.
+
+   So, for every <video> with a file (never a call or the camera, which use
+   a live stream): it only holds its file while it is on the screen, at most
+   one plays at a time (the one most in view), and the moment it scrolls
+   away it pauses and lets go of the file. Its poster stays where it was. */
+const oneVideo = `<script>(function(){try{
+  if(!('IntersectionObserver' in window))return;
+  var ratio=new Map();
+  var pick=function(){var best=null,b=0;ratio.forEach(function(r,v){if(r>b&&v.isConnected){b=r;best=v;}});
+    ratio.forEach(function(r,v){if(v!==best){if(!v.paused)try{v.pause();}catch(e){}}});
+    if(best&&best.dataset.mmAuto==='1'){if(!best.getAttribute('src')&&best.dataset.mmSrc){best.setAttribute('src',best.dataset.mmSrc);}var p=best.play();if(p&&p.catch)p.catch(function(){});}};
+  var release=function(v){if(!v.getAttribute('src'))return;v.dataset.mmSrc=v.getAttribute('src');try{v.pause();}catch(e){}v.removeAttribute('src');try{v.load();}catch(e){}};
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){var v=e.target;
+    if(e.isIntersecting&&e.intersectionRatio>0.15){ratio.set(v,e.intersectionRatio);}
+    else{ratio.delete(v);release(v);}});pick();},{threshold:[0,0.15,0.4,0.7,1]});
+  var adopt=function(v){if(v.dataset.mmSeen)return;if(!v.getAttribute('src'))return;v.dataset.mmSeen='1';
+    if(v.autoplay||v.hasAttribute('autoplay')){v.dataset.mmAuto='1';v.autoplay=false;v.removeAttribute('autoplay');}
+    v.preload='none';try{v.pause();}catch(e){}io.observe(v);};
+  var scan=function(root){if(root.tagName==='VIDEO')adopt(root);if(root.querySelectorAll)root.querySelectorAll('video').forEach(adopt);};
+  new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(function(n){if(n.nodeType===1)scan(n);});
+    if(m.type==='attributes'&&m.target.tagName==='VIDEO'){var v=m.target,src=v.getAttribute('src');if(!src)return;if(!v.dataset.mmSeen){adopt(v);return;}if(src!==v.dataset.mmSrc){v.dataset.mmSrc=src;if(ratio.has(v))pick();else release(v);}}});})
+    .observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['src']});
+  document.addEventListener('visibilitychange',function(){if(document.hidden){ratio.forEach(function(r,v){try{v.pause();}catch(e){}});}else pick();});
+}catch(e){}})();</script>`;
+
 /* ─── THE OLD ADDRESS ─────────────────────────────────────────────────
    The app moved from ayserelrifay.github.io/AYSER-s-CV to its own
    domain, and now lives at the root of therealmoments.com. A phone that
@@ -247,7 +278,7 @@ const kiteIntro = `
 const moveHome = `<script>(function(){try{var h=location.hostname;if(/\\.github\\.io$/i.test(h)){location.replace('https://therealmoments.com/'+location.search+location.hash);}}catch(e){}})();</script>`;
 /* dark only when the app will be dark: the choice in Settings, or the phone's own when it is left on auto */
 const bootTheme = `<script>(function(){try{var v=localStorage.getItem('moments.theme');var d=v==='dark'||(v!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.className+=' mm-boot-dark';}catch(e){}})();</script>`;
-html = html.replace(/<head([^>]*)>/, (m) => m + moveHome + bootTheme);
+html = html.replace(/<head([^>]*)>/, (m) => m + moveHome + bootTheme + oneVideo);
 html = html.replace(/<body([^>]*)>/, (m) => m + kiteIntro);
 /* Without JavaScript (and for a crawler that reads before it renders)
    the page said only "You need to enable JavaScript". Now it says what
