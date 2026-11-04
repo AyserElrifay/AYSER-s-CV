@@ -746,8 +746,8 @@ export const MyDay = ({ onClose }) => {
                   style={{ flex: 1, color: C.text, fontSize: 15, paddingVertical: 12, outlineStyle: 'none', textAlign: lang === 'ar' ? 'right' : 'left' }} />
                 {draft.trim() ? (
                   <Pressable onPress={addNote} accessibilityRole="button" accessibilityLabel={t('md_note_add')} hitSlop={8}>
-                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.text, alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="arrow-up" size={17} color={C.bg} />
+                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="arrow-up" size={17} color={C.ink} />
                     </View>
                   </Pressable>
                 ) : null}

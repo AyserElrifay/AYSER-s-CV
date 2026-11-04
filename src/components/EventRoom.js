@@ -157,8 +157,8 @@ const ClassRoom = ({ lang, room, onOut }) => {
           </View>
         </Pressable>
         <Pressable onPress={() => { tapLight(); out(false); }} accessibilityRole="button" style={{ flex: 1 }}>
-          <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', backgroundColor: C.text }}>
-            <Text style={{ color: C.bg, fontSize: 14, fontWeight: '800' }}>{w(lang, 'leave')}</Text>
+          <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', backgroundColor: C.purple }}>
+            <Text style={{ color: C.ink, fontSize: 14, fontWeight: '800' }}>{w(lang, 'leave')}</Text>
           </View>
         </Pressable>
       </View>
@@ -362,9 +362,9 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
             <Text style={{ color: C.dim, fontSize: 14, marginTop: 2, writingDirection: 'ltr', textAlign: lang === 'ar' ? 'right' : 'left' }}>{r.host_tel}</Text>
             <View style={{ flexDirection: 'row', marginTop: 12 }}>
               <Pressable testID="host-call" onPress={() => { tapLight(); Linking.openURL('tel:' + r.host_tel).catch(() => {}); }} accessibilityRole="link" style={{ flex: 1, marginEnd: 8 }}>
-                <View style={{ borderRadius: 999, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.text }}>
-                  <Ionicons name="call-outline" size={15} color={C.bg} />
-                  <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'كلّمه' : 'Call'}</Text>
+                <View style={{ borderRadius: 999, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple }}>
+                  <Ionicons name="call-outline" size={15} color={C.ink} />
+                  <Text style={{ color: C.ink, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'كلّمه' : 'Call'}</Text>
                 </View>
               </Pressable>
               <Pressable testID="host-wa" onPress={() => { tapLight(); Linking.openURL('https://wa.me/' + String(r.host_tel).replace(/[^0-9]/g, '')).catch(() => {}); }} accessibilityRole="link" style={{ flex: 1 }}>
@@ -444,9 +444,9 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
                 </Pressable>
                 {r.is_drop ? (
                   <Pressable testID="btn-beacon" onPress={() => { tapMedium(); setBeacon(true); }} accessibilityRole="button" style={{ marginTop: 14 }}>
-                    <View style={{ borderRadius: 999, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.text }}>
-                      <Ionicons name="flag" size={17} color={C.bg} />
-                      <Text style={{ color: C.bg, fontSize: 15, fontWeight: '800', marginHorizontal: 8 }}>{tbw(lang, 'beacon')}</Text>
+                    <View style={{ borderRadius: 999, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple }}>
+                      <Ionicons name="flag" size={17} color={C.ink} />
+                      <Text style={{ color: C.ink, fontSize: 15, fontWeight: '800', marginHorizontal: 8 }}>{tbw(lang, 'beacon')}</Text>
                     </View>
                   </Pressable>
                 ) : null}

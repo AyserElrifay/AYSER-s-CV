@@ -198,8 +198,8 @@ const Wallet = ({ lang }) => {
           <TextInput testID="hub-instapay" value={addr} onChangeText={setAddr} placeholder={hw(lang, 'askHint')} placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false}
             style={{ borderRadius: 14, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 12, color: C.text, fontSize: 15 }} />
           <Pressable testID="hub-send-ask" onPress={send} disabled={busy || addr.trim().length < 3} accessibilityRole="button" style={{ marginTop: 8, opacity: addr.trim().length < 3 ? 0.5 : 1 }}>
-            <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.text }}>
-              {busy ? <ActivityIndicator color={C.bg} /> : <Text style={{ color: C.bg, fontSize: 15, fontWeight: '800' }}>{hw(lang, 'send')}</Text>}
+            <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.purple }}>
+              {busy ? <ActivityIndicator color={C.ink} /> : <Text style={{ color: C.ink, fontSize: 15, fontWeight: '800' }}>{hw(lang, 'send')}</Text>}
             </View>
           </Pressable>
         </View>
@@ -450,9 +450,9 @@ export const HubEntry = ({ pill } = {}) => {
       {pill ? (
         /* Ayser, November 2026: a small pill in Space's top bar, for organizers only */
         <Pressable testID="hub-entry" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" accessibilityLabel={hw(lang, 'title')} style={{ marginEnd: 4 }}>
-          <View style={{ height: 32, flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 11, backgroundColor: C.text }}>
-            <Ionicons name="flag" size={13} color={C.bg} />
-            <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '800', marginStart: 5 }}>{lang === 'ar' ? 'لوحة المنظّم' : 'Host Hub'}</Text>
+          <View style={{ height: 32, flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 11, backgroundColor: C.purple }}>
+            <Ionicons name="flag" size={13} color={C.ink} />
+            <Text style={{ color: C.ink, fontSize: 12.5, fontWeight: '800', marginStart: 5 }}>{lang === 'ar' ? 'لوحة المنظّم' : 'Host Hub'}</Text>
             {pings ? <View style={{ minWidth: 16, height: 16, borderRadius: 8, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', marginStart: 5, paddingHorizontal: 4 }}><Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900' }}>{pings}</Text></View> : null}
           </View>
         </Pressable>

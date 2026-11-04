@@ -303,8 +303,8 @@ const Scene = ({ scene, ar, t }) => {
 
           {picked != null ? (
             <Pressable onPress={next}>
-              <View style={{ backgroundColor: C.text, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}>
-                <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '900' }}>{t('story_next')}</Text>
+              <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}>
+                <Text style={{ color: C.ink, fontSize: 13.5, fontWeight: '900' }}>{t('story_next')}</Text>
               </View>
             </Pressable>
           ) : null}

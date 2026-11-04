@@ -308,8 +308,8 @@ const TripApplications = () => {
             </View>
             {x.status === 'selected' ? <Text style={{ color: C.faint, fontSize: 12.5 }}>Selected</Text> : (
               <>
-                <Pressable disabled={!!busy} onPress={() => decide(x, true)} accessibilityRole="button" style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginEnd: 6 }}>
-                  <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '700' }}>Select</Text>
+                <Pressable disabled={!!busy} onPress={() => decide(x, true)} accessibilityRole="button" style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginEnd: 6 }}>
+                  <Text style={{ color: C.ink, fontSize: 12.5, fontWeight: '700' }}>Select</Text>
                 </Pressable>
                 <Pressable disabled={!!busy} onPress={() => decide(x, false)} accessibilityRole="button" style={{ borderWidth: 1, borderColor: C.text, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
                   <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700' }}>Decline</Text>
@@ -341,8 +341,8 @@ const PayRow = ({ x, onDone }) => {
       </View>
       {url ? <Image source={{ uri: url }} style={{ width: 160, height: 260, borderRadius: 12, marginTop: 10 }} resizeMode="contain" /> : null}
       <View style={{ flexDirection: 'row', marginTop: 10 }}>
-        <Pressable disabled={busy} onPress={() => decide(true)} accessibilityRole="button" style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, marginEnd: 8 }}>
-          <Text style={{ color: C.bg, fontSize: 13, fontWeight: '700' }}>Approve subscription</Text>
+        <Pressable disabled={busy} onPress={() => decide(true)} accessibilityRole="button" style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, marginEnd: 8 }}>
+          <Text style={{ color: C.ink, fontSize: 13, fontWeight: '700' }}>Approve subscription</Text>
         </Pressable>
         <Pressable disabled={busy} onPress={() => decide(false)} accessibilityRole="button" style={{ borderWidth: 1, borderColor: C.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
           <Text style={{ color: C.text, fontSize: 13, fontWeight: '700' }}>Reject</Text>

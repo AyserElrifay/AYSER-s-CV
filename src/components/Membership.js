@@ -164,8 +164,8 @@ const WhySheet = ({ lang, onClose }) => {
           </View>
         ))}
         <Pressable onPress={onClose} accessibilityRole="button" style={{ marginTop: 24 }}>
-          <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.text }}>
-            <Text style={{ color: C.bg, fontSize: 15, fontWeight: '600' }}>{w(lang, 'gotIt')}</Text>
+          <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.purple }}>
+            <Text style={{ color: C.ink, fontSize: 15, fontWeight: '600' }}>{w(lang, 'gotIt')}</Text>
           </View>
         </Pressable>
       </View>

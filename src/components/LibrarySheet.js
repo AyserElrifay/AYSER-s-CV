@@ -61,8 +61,8 @@ const Book = ({ book, onBack, t, plus, onRead, onTogether }) => (
     <Text style={{ color: C.text, fontSize: 26, fontWeight: '800', textAlign: 'center', marginTop: 28, lineHeight: 31 }}>{book.title}</Text>
     <Text style={{ color: C.dim, fontSize: 16, textAlign: 'center', marginTop: 6 }}>{book.author + (book.year ? ' · ' + book.year : '')}</Text>
     <Pressable onPress={onRead} accessibilityRole="button" style={{ marginTop: 28, alignSelf: 'stretch' }}>
-      <View style={{ borderRadius: 14, backgroundColor: C.text, paddingVertical: 15, alignItems: 'center' }}>
-        <Text style={{ color: C.bg, fontSize: 17, fontWeight: '800' }}>{plus === false ? '✦ ' + t('lb_read') : t('lb_read')}</Text>
+      <View style={{ borderRadius: 14, backgroundColor: C.purple, paddingVertical: 15, alignItems: 'center' }}>
+        <Text style={{ color: C.ink, fontSize: 17, fontWeight: '800' }}>{plus === false ? '✦ ' + t('lb_read') : t('lb_read')}</Text>
       </View>
     </Pressable>
     <Pressable onPress={onTogether} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'stretch' }}>

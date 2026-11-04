@@ -167,16 +167,16 @@ export const Focus = ({ onClose }) => {
               ))}
             </View>
             <Pressable onPress={start} accessibilityRole="button">
-              <View style={{ borderRadius: 999, backgroundColor: C.text, paddingVertical: 17, alignItems: 'center' }}>
-                <Text style={{ color: C.bg, fontSize: 17, fontWeight: '700' }}>{t('fo_start')}</Text>
+              <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 17, alignItems: 'center' }}>
+                <Text style={{ color: C.ink, fontSize: 17, fontWeight: '700' }}>{t('fo_start')}</Text>
               </View>
             </Pressable>
           </View>
         ) : (
           <View style={{ flexDirection: 'row' }}>
             <Pressable onPress={pause} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
-              <View style={{ borderRadius: 999, backgroundColor: C.text, paddingVertical: 16, alignItems: 'center' }}>
-                <Text style={{ color: C.bg, fontSize: 16, fontWeight: '700' }}>{pausedLeft != null ? t('fo_resume') : t('fo_pause')}</Text>
+              <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 16, alignItems: 'center' }}>
+                <Text style={{ color: C.ink, fontSize: 16, fontWeight: '700' }}>{pausedLeft != null ? t('fo_resume') : t('fo_pause')}</Text>
               </View>
             </Pressable>
             <Pressable onPress={stop} accessibilityRole="button" style={{ flex: 1 }}>

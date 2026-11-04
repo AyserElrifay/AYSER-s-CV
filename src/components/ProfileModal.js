@@ -323,19 +323,19 @@ export const ProfileModal = ({ user, onClose }) => {
                 <Pressable onPress={doMateUp} style={{ flex: 1 }}>
                   <View style={{
                     borderRadius: 999, paddingVertical: 13, alignItems: 'center',
-                    backgroundColor: mateState === 'mates' ? 'transparent' : C.text,
+                    backgroundColor: mateState === 'mates' ? 'transparent' : C.purple,
                     borderWidth: mateState === 'mates' ? 1.5 : 0, borderColor: C.line,
                   }}>
-                    <Text style={{ color: mateState === 'mates' ? C.text : C.bg, fontSize: 13.5, fontWeight: '900' }}>
+                    <Text style={{ color: mateState === 'mates' ? C.text : C.ink, fontSize: 13.5, fontWeight: '900' }}>
                       {real ? mateLabel : (lang === 'ar' ? '+ صاحبه' : '＋ Mate up')}
                     </Text>
                   </View>
                 </Pressable>
                 {mateState === 'mates' ? (
                   <Pressable testID="pm-message" onPress={() => { tapLight(); setChatOpen(true); }} accessibilityRole="button" style={{ flex: 1, marginStart: 10 }}>
-                    <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', backgroundColor: C.text }}>
-                      <Ionicons name="chatbubble-outline" size={16} color={C.bg} />
-                      <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '900', marginStart: 6 }}>{lang === 'ar' ? 'رسالة' : 'Message'}</Text>
+                    <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', backgroundColor: C.purple }}>
+                      <Ionicons name="chatbubble-outline" size={16} color={C.ink} />
+                      <Text style={{ color: C.ink, fontSize: 13.5, fontWeight: '900', marginStart: 6 }}>{lang === 'ar' ? 'رسالة' : 'Message'}</Text>
                     </View>
                   </Pressable>
                 ) : null}

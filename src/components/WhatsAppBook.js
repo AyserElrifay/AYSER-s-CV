@@ -68,9 +68,9 @@ export const WhatsAppBook = ({ lang, userId, title, at, style }) => {
   return (
     <View style={style}>
       <Pressable testID="wa-book" onPress={() => go(team.number)} accessibilityRole="link">
-        <View style={{ borderRadius: 999, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1A1A' }}>
-          <Ionicons name="logo-whatsapp" size={19} color="#FFFFFF" />
-          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800', marginStart: 8 }}>{lang === 'ar' ? 'احجز عبر واتساب' : 'Book via WhatsApp'}</Text>
+        <View style={{ borderRadius: 999, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple }}>
+          <Ionicons name="logo-whatsapp" size={19} color={C.ink} />
+          <Text style={{ color: C.ink, fontSize: 16, fontWeight: '800', marginStart: 8 }}>{lang === 'ar' ? 'احجز عبر واتساب' : 'Book via WhatsApp'}</Text>
         </View>
       </Pressable>
       {team.name || team.backup_number ? (

@@ -86,8 +86,8 @@ const GuessGame = ({ deck, people, lang, onClose }) => {
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <Text style={{ color: '#18181B', fontSize: 28, fontWeight: '800', lineHeight: 36 }}>{tw(lang, 'done', { s: score, t: Math.min(round + (pick ? 1 : 0), cards.length) })}</Text>
             <Pressable onPress={again} accessibilityRole="button" style={{ marginTop: 22 }}>
-              <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: '#18181B' }}>
-                <Text style={{ color: '#FAF8F5', fontSize: 16, fontWeight: '800' }}>{tw(lang, 'again')}</Text>
+              <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: C.purple }}>
+                <Text style={{ color: C.ink, fontSize: 16, fontWeight: '800' }}>{tw(lang, 'again')}</Text>
               </View>
             </Pressable>
           </View>
@@ -116,8 +116,8 @@ const GuessGame = ({ deck, people, lang, onClose }) => {
                   {pick === card.uid ? tw(lang, 'right') : tw(lang, 'wrong', { n: (people.find((p) => p.uid === card.uid) || {}).name || '' })}
                 </Text>
                 <Pressable testID="gw-next" onPress={() => { tapLight(); setPick(null); setRound((x) => x + 1); }} accessibilityRole="button" style={{ marginTop: 12 }}>
-                  <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: '#18181B' }}>
-                    <Text style={{ color: '#FAF8F5', fontSize: 15.5, fontWeight: '800' }}>{tw(lang, 'next')}</Text>
+                  <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.purple }}>
+                    <Text style={{ color: C.ink, fontSize: 15.5, fontWeight: '800' }}>{tw(lang, 'next')}</Text>
                   </View>
                 </Pressable>
               </>

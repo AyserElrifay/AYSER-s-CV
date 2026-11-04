@@ -95,8 +95,8 @@ export const MapPanel = ({
           </Pressable>
         ) : (
           <Pressable onPress={() => onJoin(g)} disabled={!!joining[g.id]} accessibilityRole="button"
-            style={{ marginStart: 8, backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9, opacity: joining[g.id] ? 0.6 : 1 }}>
-            <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '800' }}>{jw(lang, 'claim')}</Text>
+            style={{ marginStart: 8, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9, opacity: joining[g.id] ? 0.6 : 1 }}>
+            <Text style={{ color: C.ink, fontSize: 12.5, fontWeight: '800' }}>{jw(lang, 'claim')}</Text>
           </Pressable>
         )}
       </Pressable>

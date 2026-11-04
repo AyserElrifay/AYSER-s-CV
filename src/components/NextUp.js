@@ -193,9 +193,9 @@ export const NextUp = ({ user, onOpen, onStart, compact }) => {
           </View>
           {g.im_going ? (
             <Pressable onPress={bringFriend} accessibilityRole="button" hitSlop={6} style={{ marginStart: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }}>
-                <Ionicons name={asked ? 'checkmark' : 'person-add-outline'} size={15} color={C.bg} />
-                <Text style={{ color: C.bg, fontSize: 13, fontWeight: '900', marginStart: 6 }}>{t(asked ? 'nu_asked' : 'nu_bring')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }}>
+                <Ionicons name={asked ? 'checkmark' : 'person-add-outline'} size={15} color={C.ink} />
+                <Text style={{ color: C.ink, fontSize: 13, fontWeight: '900', marginStart: 6 }}>{t(asked ? 'nu_asked' : 'nu_bring')}</Text>
               </View>
             </Pressable>
           ) : (

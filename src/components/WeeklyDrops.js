@@ -146,9 +146,9 @@ const TopicCard = ({ id, lang, compact }) => {
       <Text style={{ color: '#18181B', fontSize: 22, fontWeight: '700', lineHeight: 30, marginTop: 8, fontFamily: Platform.OS === 'web' ? 'Georgia, serif' : undefined }}>{q}</Text>
       {t && t.can_shuffle ? (
         <Pressable testID="circle-shuffle" onPress={shuffle} disabled={busy} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: '#18181B' }}>
-            <Ionicons name="shuffle" size={15} color="#FAF8F5" />
-            <Text style={{ color: '#FAF8F5', fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L[1]}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.purple }}>
+            <Ionicons name="shuffle" size={15} color={C.ink} />
+            <Text style={{ color: C.ink, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L[1]}</Text>
           </View>
         </Pressable>
       ) : null}
@@ -520,9 +520,9 @@ const DropCard = ({ d, lang, onChanged }) => {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
               {pointOf(d.venue.map_url) ? (
                 <Pressable testID="drop-on-map" onPress={() => { tapLight(); const pt = pointOf(d.venue.map_url); showOnMap({ ...pt, title: d.venue.name || place }); goToTab('MAP'); }} accessibilityRole="button" hitSlop={8}
-                  style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.text, paddingHorizontal: 14, paddingVertical: 9, marginEnd: 8 }}>
-                  <Ionicons name="map-outline" size={15} color={C.bg} />
-                  <Text style={{ color: C.bg, fontSize: 13, fontWeight: '700', marginStart: 6 }}>{lang === 'ar' ? 'شوفها على خريطة مومنتس' : 'View on Moments Map'}</Text>
+                  style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.purple, paddingHorizontal: 14, paddingVertical: 9, marginEnd: 8 }}>
+                  <Ionicons name="map-outline" size={15} color={C.ink} />
+                  <Text style={{ color: C.ink, fontSize: 13, fontWeight: '700', marginStart: 6 }}>{lang === 'ar' ? 'شوفها على خريطة مومنتس' : 'View on Moments Map'}</Text>
                 </Pressable>
               ) : null}
               <Pressable testID="drop-copy-pin" onPress={async () => { tapLight(); const ok = await copyText(d.venue.map_url); if (ok) { tapSuccess(); setNote(lang === 'ar' ? '✦ لينك المكان اتنسخ!' : '✦ Location link copied!'); } }} accessibilityRole="button" accessibilityLabel={lang === 'ar' ? 'انسخ المكان' : 'Copy pin'} hitSlop={8}

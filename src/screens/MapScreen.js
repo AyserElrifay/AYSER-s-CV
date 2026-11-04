@@ -1195,9 +1195,9 @@ export const MapScreen = () => {
           </View>
           <View style={{ flex: 1 }} />
           <Pressable onPress={() => { tapLight(); setFeedOpen(true); }} accessibilityRole="button" hitSlop={6}>
-            <View style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="images-outline" size={14} color={C.bg} />
-              <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '900', marginStart: 6 }}>{t('mp_see_all').replace('{n}', String(DESTINATIONS.length))}</Text>
+            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="images-outline" size={14} color={C.ink} />
+              <Text style={{ color: C.ink, fontSize: 12.5, fontWeight: '900', marginStart: 6 }}>{t('mp_see_all').replace('{n}', String(DESTINATIONS.length))}</Text>
             </View>
           </Pressable>
         </View>
@@ -2105,9 +2105,9 @@ export const MapScreen = () => {
                     ) : null}
                     {/* Ayser, November 2026: the Moments route first (drawn on this map), a ride or the pin second */}
                     <Pressable testID="dest-route" onPress={() => { tapLight(); const d = destOpen; setDestOpen(null); setRouteTo({ lat: d.lat, lng: d.lng, ts: Date.now() }); setMapFocus({ lat: d.lat, lng: d.lng, zoom: 14, ts: Date.now() }); }} accessibilityRole="button" style={{ marginTop: 10 }}>
-                      <View style={{ backgroundColor: C.text, borderRadius: 14, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="navigate" size={16} color={C.bg} />
-                        <Text style={{ color: C.bg, fontSize: 14, fontWeight: '900', marginStart: 6 }}>{lang === 'ar' ? 'طريق مومنتس' : 'Moments route'}</Text>
+                      <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="navigate" size={16} color={C.ink} />
+                        <Text style={{ color: C.ink, fontSize: 14, fontWeight: '900', marginStart: 6 }}>{lang === 'ar' ? 'طريق مومنتس' : 'Moments route'}</Text>
                       </View>
                     </Pressable>
                     <View style={{ flexDirection: 'row', marginTop: 8 }}>

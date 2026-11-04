@@ -695,9 +695,9 @@ export const ProfileScreen = () => {
                 <View style={{ flexDirection: 'row', marginTop: 10 }}>
                   {SUPABASE_READY && user ? (
                     <Pressable testID="pass-scan" onPress={() => { tapLight(); setScanOpen(true); }} accessibilityRole="button" style={{ flex: 1.3, marginEnd: 8 }}>
-                      <View style={{ height: 42, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#18181B' }}>
-                        <Ionicons name="qr-code-outline" size={16} color="#FAF8F5" />
-                        <Text style={{ color: '#FAF8F5', fontSize: 14, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'امسح QR' : 'Scan QR'}</Text>
+                      <View style={{ height: 42, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple }}>
+                        <Ionicons name="qr-code-outline" size={16} color={C.ink} />
+                        <Text style={{ color: C.ink, fontSize: 14, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'امسح QR' : 'Scan QR'}</Text>
                       </View>
                     </Pressable>
                   ) : null}

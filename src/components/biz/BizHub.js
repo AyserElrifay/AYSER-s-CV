@@ -325,9 +325,9 @@ const Today = ({ v, lang, onCode, onRequests }) => {
       {/* what just happened, big enough to see from the counter */}
       {live ? (
         <Pressable onPress={() => setLive(null)} accessibilityRole="alert" style={{ marginTop: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingVertical: 16, paddingHorizontal: 18, backgroundColor: C.text }}>
-            <Ionicons name="person-add" size={22} color={C.bg} />
-            <Text style={{ color: C.bg, fontSize: 17, fontWeight: '800', marginStart: 12, flex: 1 }}>{live.t}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingVertical: 16, paddingHorizontal: 18, backgroundColor: C.purple }}>
+            <Ionicons name="person-add" size={22} color={C.ink} />
+            <Text style={{ color: C.ink, fontSize: 17, fontWeight: '800', marginStart: 12, flex: 1 }}>{live.t}</Text>
           </View>
         </Pressable>
       ) : null}

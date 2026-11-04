@@ -303,8 +303,8 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
         </Text>
         {err ? <Text style={{ color: '#E11D48', fontSize: 13.5, textAlign: 'center', marginTop: 10 }}>{err}</Text> : null}
         <Pressable onPress={() => { tapLight(); onBack('mine'); }} accessibilityRole="button" style={{ marginTop: 26 }}>
-          <View style={{ borderRadius: 999, paddingVertical: 13, paddingHorizontal: 28, backgroundColor: C.text }}>
-            <Text style={{ color: C.bg, fontSize: 15, fontWeight: '900' }}>{t('bk_tab_mine')}</Text>
+          <View style={{ borderRadius: 999, paddingVertical: 13, paddingHorizontal: 28, backgroundColor: C.purple }}>
+            <Text style={{ color: C.ink, fontSize: 15, fontWeight: '900' }}>{t('bk_tab_mine')}</Text>
           </View>
         </Pressable>
       </View>

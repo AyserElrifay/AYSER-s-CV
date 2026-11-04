@@ -140,10 +140,10 @@ export const ShareSheet = ({ url, message, onClose }) => {
           <Pressable onPress={outside} style={{ marginTop: 6 }}>
             <View style={{
               flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-              backgroundColor: C.text, borderRadius: 14, paddingVertical: 13,
+              backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13,
             }}>
-              <Ionicons name="share-outline" size={18} color={C.bg} />
-              <Text style={{ color: C.bg, fontSize: 14, fontWeight: '900', marginStart: 8 }}>{t('sh_outside')}</Text>
+              <Ionicons name="share-outline" size={18} color={C.ink} />
+              <Text style={{ color: C.ink, fontSize: 14, fontWeight: '900', marginStart: 8 }}>{t('sh_outside')}</Text>
             </View>
           </Pressable>
 

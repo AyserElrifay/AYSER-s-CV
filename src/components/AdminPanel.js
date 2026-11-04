@@ -1167,8 +1167,8 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
                     style={{ color: C.text, fontSize: 13.5, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, minHeight: 100, textAlignVertical: 'top', marginBottom: 8 }}
                   />
                   <Pressable onPress={saveInstr}>
-                    <View style={{ backgroundColor: C.text, borderRadius: 999, paddingVertical: 12, alignItems: 'center', marginBottom: 18 }}>
-                      <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '700' }}>{bSaved ? 'Saved' : 'Save'}</Text>
+                    <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 12, alignItems: 'center', marginBottom: 18 }}>
+                      <Text style={{ color: C.ink, fontSize: 13.5, fontWeight: '700' }}>{bSaved ? 'Saved' : 'Save'}</Text>
                     </View>
                   </Pressable>
                 </>

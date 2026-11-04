@@ -226,8 +226,8 @@ const Chat = ({ other, threadId, lang, onBack }) => {
           <Text style={{ color: C.text, fontSize: 15.5, lineHeight: 22 }}>{mw(lang, 'locked')}</Text>
           <View style={{ flexDirection: 'row', marginTop: 16 }}>
             <Pressable onPress={() => { tapLight(); askUpgrade('member'); }} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
-              <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', backgroundColor: C.text }}>
-                <Text style={{ color: C.bg, fontSize: 15, fontWeight: '700' }}>{mw(lang, 'seePlus')}</Text>
+              <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', backgroundColor: C.purple }}>
+                <Text style={{ color: C.ink, fontSize: 15, fontWeight: '700' }}>{mw(lang, 'seePlus')}</Text>
               </View>
             </Pressable>
             <Pressable onPress={() => { tapLight(); goToTab('TOGETHER'); try { window.dispatchEvent(new CustomEvent('mm-close-buddies')); } catch (e) {} }} accessibilityRole="button" style={{ flex: 1 }}>

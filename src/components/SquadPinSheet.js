@@ -185,8 +185,8 @@ export const SquadPinSheet = ({ mode, checkins = 0, pin, center, onClose, onChan
     body = (
       <View testID="squad-pin">
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.text, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name={k.icon} size={21} color={C.bg} />
+          <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name={k.icon} size={21} color={C.ink} />
           </View>
           <View style={{ marginStart: 12, flex: 1 }}>
             <Text style={{ color: C.text, fontSize: 19, fontWeight: '900' }}>{k[lang === 'ar' ? 'ar' : 'en']}</Text>

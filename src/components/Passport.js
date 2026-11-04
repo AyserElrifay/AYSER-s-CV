@@ -74,8 +74,8 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
         <Pressable onPress={own ? onPhoto : undefined} disabled={!own} accessibilityRole={own ? 'button' : undefined}>
           <Image source={{ uri: avatar }} style={{ width: 86, height: 104, borderRadius: 14, backgroundColor: C.glassHi }} />
           {own ? (
-            <View style={{ position: 'absolute', bottom: -4, right: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: C.text, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.glass }}>
-              <Ionicons name="camera" size={13} color={C.bg} />
+            <View style={{ position: 'absolute', bottom: -4, right: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.glass }}>
+              <Ionicons name="camera" size={13} color={C.ink} />
             </View>
           ) : null}
         </Pressable>

@@ -180,8 +180,8 @@ const TeamOnly = ({ onClose }) => {
           <>
             <Text style={{ color: C.text, fontSize: 15.5, lineHeight: 23, marginTop: 10 }}>{L.done}</Text>
             <Pressable onPress={() => { onClose(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ marginTop: 18 }}>
-              <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.text }}>
-                <Text style={{ color: C.bg, fontSize: 15.5, fontWeight: '700' }}>{L.drops}</Text>
+              <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.purple }}>
+                <Text style={{ color: C.ink, fontSize: 15.5, fontWeight: '700' }}>{L.drops}</Text>
               </View>
             </Pressable>
           </>
@@ -203,8 +203,8 @@ const TeamOnly = ({ onClose }) => {
               style={{ marginTop: 8, minHeight: 84, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 12, color: C.text, fontSize: 15, textAlignVertical: 'top' }} />
             {err ? <Text style={{ color: C.coral, fontSize: 13, marginTop: 8 }}>{err}</Text> : null}
             <Pressable testID="pitch-send" onPress={send} disabled={busy || idea.trim().length < 6} accessibilityRole="button" style={{ marginTop: 16, opacity: idea.trim().length < 6 ? 0.5 : 1 }}>
-              <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: C.text }}>
-                {busy ? <ActivityIndicator color={C.bg} /> : <Text style={{ color: C.bg, fontSize: 15.5, fontWeight: '700' }}>{L.send}</Text>}
+              <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: C.purple }}>
+                {busy ? <ActivityIndicator color={C.ink} /> : <Text style={{ color: C.ink, fontSize: 15.5, fontWeight: '700' }}>{L.send}</Text>}
               </View>
             </Pressable>
           </>

@@ -115,8 +115,8 @@ export const Compass = ({ onClose, faith }) => {
           </Section>
 
           <Pressable onPress={() => { tapSuccess(); onClose(); }} accessibilityRole="button" style={{ marginTop: 22 }}>
-            <View style={{ borderRadius: 999, backgroundColor: C.text, paddingVertical: 15, alignItems: 'center' }}>
-              <Text style={{ color: C.bg, fontSize: 16, fontWeight: '700' }}>{t('md_continue')}</Text>
+            <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 15, alignItems: 'center' }}>
+              <Text style={{ color: C.ink, fontSize: 16, fontWeight: '700' }}>{t('md_continue')}</Text>
             </View>
           </Pressable>
           <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 10 }}>{t('cp_private')}</Text>

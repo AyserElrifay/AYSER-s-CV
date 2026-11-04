@@ -160,8 +160,8 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
                     </Pressable>
                   ))}
                   <Pressable onPress={book} accessibilityRole="button" style={{ marginTop: 10 }}>
-                    <View style={{ borderRadius: 14, paddingVertical: 14, alignItems: 'center', backgroundColor: C.text }}>
-                      <Text style={{ color: C.bg, fontSize: 15.5, fontWeight: '800' }}>{'📕 ' + t('mb_make')}</Text>
+                    <View style={{ borderRadius: 14, paddingVertical: 14, alignItems: 'center', backgroundColor: C.purple }}>
+                      <Text style={{ color: C.ink, fontSize: 15.5, fontWeight: '800' }}>{'📕 ' + t('mb_make')}</Text>
                     </View>
                   </Pressable>
                   <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', marginTop: 6 }}>{t('mb_note')}</Text>

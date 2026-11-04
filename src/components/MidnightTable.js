@@ -125,8 +125,8 @@ const Card = ({ p, lang, onSpark, onSay }) => {
           <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700', marginTop: 14 }}>{'✦ ' + mw(lang, 'mutual')}</Text>
           <View style={{ flexDirection: 'row', marginTop: 10 }}>
             <Pressable onPress={() => onSay(p)} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
-              <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', backgroundColor: C.text }}>
-                <Text style={{ color: C.bg, fontSize: 15, fontWeight: '700' }}>{mw(lang, 'say')}</Text>
+              <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', backgroundColor: C.purple }}>
+                <Text style={{ color: C.ink, fontSize: 15, fontWeight: '700' }}>{mw(lang, 'say')}</Text>
               </View>
             </Pressable>
             <Pressable onPress={() => { tapLight(); goToTab('TOGETHER'); try { window.dispatchEvent(new CustomEvent('mm-close-buddies')); } catch (e) {} }} accessibilityRole="button" style={{ flex: 1 }}>

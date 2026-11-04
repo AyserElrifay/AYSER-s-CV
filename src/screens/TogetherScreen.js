@@ -387,8 +387,8 @@ const RateLast = ({ t, lang }) => {
           <TextInput value={note} onChangeText={setNote} maxLength={400} placeholder={t('rt_ph')} placeholderTextColor={C.faint}
             style={{ color: C.text, fontSize: 14, borderBottomWidth: 1, borderBottomColor: C.line, paddingVertical: 8, marginTop: 8, outlineStyle: 'none' }} />
           <Pressable onPress={send} accessibilityRole="button" style={{ marginTop: 12, alignSelf: 'flex-start' }}>
-            <View style={{ borderRadius: 999, backgroundColor: C.text, paddingHorizontal: 18, paddingVertical: 9 }}>
-              <Text style={{ color: C.bg, fontSize: 14, fontWeight: '900' }}>{t('rt_send')}</Text>
+            <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingHorizontal: 18, paddingVertical: 9 }}>
+              <Text style={{ color: C.ink, fontSize: 14, fontWeight: '900' }}>{t('rt_send')}</Text>
             </View>
           </Pressable>
         </View>
@@ -852,8 +852,8 @@ export const TogetherScreen = () => {
                             <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900' }}>{'✓ ' + t('xp_checked_in')}</Text>
                           ) : canCheckIn(g) && (g.im_going || mine) ? (
                             <Pressable onPress={() => checkIn(g)} disabled={!!busy[g.id]} accessibilityRole="button">
-                              <View style={{ backgroundColor: C.text, borderRadius: 999, paddingVertical: 12, alignItems: 'center', opacity: busy[g.id] ? 0.6 : 1 }}>
-                                <Text style={{ color: C.bg, fontSize: 14, fontWeight: '800' }}>{t('xp_im_here').replace('{n}', String(g.xp || 30))}</Text>
+                              <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 12, alignItems: 'center', opacity: busy[g.id] ? 0.6 : 1 }}>
+                                <Text style={{ color: C.ink, fontSize: 14, fontWeight: '800' }}>{t('xp_im_here').replace('{n}', String(g.xp || 30))}</Text>
                               </View>
                             </Pressable>
                           ) : mine ? (
@@ -866,9 +866,9 @@ export const TogetherScreen = () => {
                               </Text>
                               <View style={{ flexDirection: 'row', marginTop: 10 }}>
                                 <Pressable testID="host-invite" onPress={() => invite(g)} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
-                                  <View style={{ backgroundColor: C.text, borderRadius: 999, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Ionicons name="person-add-outline" size={15} color={C.bg} />
-                                    <Text style={{ color: C.bg, fontSize: 14, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'اعزم صحابك' : 'Invite friends'}</Text>
+                                  <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Ionicons name="person-add-outline" size={15} color={C.ink} />
+                                    <Text style={{ color: C.ink, fontSize: 14, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'اعزم صحابك' : 'Invite friends'}</Text>
                                   </View>
                                 </Pressable>
                                 <Pressable testID="host-who" onPress={() => { tapLight(); setEventOf(g.id); }} accessibilityRole="button" style={{ flex: 1 }}>
@@ -895,8 +895,8 @@ export const TogetherScreen = () => {
                             <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{jw(lang, 'full')}</Text>
                           ) : (
                             <Pressable onPress={() => join(g)} disabled={!!busy[g.id]} accessibilityRole="button">
-                              <View style={{ backgroundColor: C.text, borderRadius: 999, paddingVertical: 12, alignItems: 'center', opacity: busy[g.id] ? 0.6 : 1 }}>
-                                <Text style={{ color: C.bg, fontSize: 14, fontWeight: '800' }}>{jw(lang, 'claim')}</Text>
+                              <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 12, alignItems: 'center', opacity: busy[g.id] ? 0.6 : 1 }}>
+                                <Text style={{ color: C.ink, fontSize: 14, fontWeight: '800' }}>{jw(lang, 'claim')}</Text>
                               </View>
                             </Pressable>
                           )}
