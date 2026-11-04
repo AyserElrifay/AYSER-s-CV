@@ -33,6 +33,7 @@ import { fetchLiveVenues, applyAsVenue } from '../services/venues';
 import { buildAvatarUrl, buildStandingUrl } from '../services/avatarBuilder';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
+import { destName } from '../constants/destinationsAr';
 import { publicMedia } from '../lib/publicMedia';
 import { listSquadPins, myCheckins, SQUAD_KINDS, SQUAD_UNLOCK } from '../services/squadPins';
 import { openPartner as openPartnerPage } from '../lib/partnerLink';
@@ -413,7 +414,7 @@ export const MapScreen = () => {
     // REAL places from OpenStreetMap, pinned at their true coordinates
     realPlaces.forEach((pl) => out.push({ id: pl.id, srcId: pl.id, kind: 'place', lat: pl.lat, lng: pl.lng, emoji: pl.emoji, label: pl.name }));
     // curated adventure destinations — real spots across the planet
-    DESTINATIONS.forEach((d) => out.push({ id: 'dest_' + d.id, srcId: d.id, kind: 'dest', lat: d.lat, lng: d.lng, emoji: d.emoji, flag: d.flag, label: d.name, hero: !!d.hero }));
+    DESTINATIONS.forEach((d) => out.push({ id: 'dest_' + d.id, srcId: d.id, kind: 'dest', lat: d.lat, lng: d.lng, emoji: d.emoji, flag: d.flag, label: destName(d, lang), hero: !!d.hero }));
     // pinned notes/comments people dropped at a spot
     realNotes.forEach((n) => out.push({ id: 'note_' + n.id, srcId: n.id, kind: 'note', lat: n.lat, lng: n.lng, label: n.body }));
     // what people actually SHARED here — the picture sits on the map
@@ -778,8 +779,8 @@ export const MapScreen = () => {
     if (!q) return [];
     const out = [];
     DESTINATIONS.forEach((d) => {
-      if (d.name.toLowerCase().includes(q) || (d.country || '').toLowerCase().includes(q) || (d.desc || '').toLowerCase().includes(q)) {
-        out.push({ id: 'sd_' + d.id, kind: 'dest', name: d.name, sub: (d.flag ? d.flag + ' ' : '') + (lang === 'ar' ? countryOfFlag(d.flag, lang, d.country) : (d.country || 'Destination')), emoji: d.emoji || '🌍', lat: d.lat, lng: d.lng, src: d });
+      if (d.name.toLowerCase().includes(q) || destName(d, 'ar').includes(q) || (d.country || '').toLowerCase().includes(q) || (d.desc || '').toLowerCase().includes(q)) {
+        out.push({ id: 'sd_' + d.id, kind: 'dest', name: destName(d, lang), sub: (d.flag ? d.flag + ' ' : '') + (lang === 'ar' ? countryOfFlag(d.flag, lang, d.country) : (d.country || 'Destination')), emoji: d.emoji || '🌍', lat: d.lat, lng: d.lng, src: d });
       }
     });
     realPlaces.forEach((pl) => {
@@ -1203,7 +1204,7 @@ export const MapScreen = () => {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16 }}>
           {around.map(({ d, k, venue }) => (
-            <Pressable key={(venue ? 'v' : '') + d.id} onPress={() => { tapLight(); setMapFocus({ lat: d.lat, lng: d.lng, zoom: 14, ts: Date.now() }); if (venue) { setRail('book'); setBookingVenue(venue); } else openDest(d); }} accessibilityRole="button" accessibilityLabel={d.name}
+            <Pressable key={(venue ? 'v' : '') + d.id} onPress={() => { tapLight(); setMapFocus({ lat: d.lat, lng: d.lng, zoom: 14, ts: Date.now() }); if (venue) { setRail('book'); setBookingVenue(venue); } else openDest(d); }} accessibilityRole="button" accessibilityLabel={destName(d, lang)}
               style={{ width: 150, height: 120, marginEnd: 10, borderRadius: 18, overflow: 'hidden', backgroundColor: C.floatSolid, borderWidth: 1, borderColor: C.line }}>
               {d.photo ? <Image source={{ uri: publicMedia(d.photo) }} style={{ position: 'absolute', width: 150, height: 120 }} />
                 : <View style={{ position: 'absolute', width: 150, height: 120, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 40 }}>{d.emoji}</Text></View>}
@@ -1211,7 +1212,7 @@ export const MapScreen = () => {
               <View style={{ position: 'absolute', top: 7, right: 7, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
                 <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>{k < 10 ? k.toFixed(1) + ' km' : Math.round(k) + ' km'}</Text>
               </View>
-              <Text style={{ position: 'absolute', left: 9, right: 9, bottom: 8, color: '#FFF', fontSize: 13, fontWeight: '900' }} numberOfLines={2}>{d.emoji + ' ' + d.name}</Text>
+              <Text style={{ position: 'absolute', left: 9, right: 9, bottom: 8, color: '#FFF', fontSize: 13, fontWeight: '900' }} numberOfLines={2}>{d.emoji + ' ' + destName(d, lang)}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -1959,7 +1960,7 @@ export const MapScreen = () => {
                   <Text style={{ fontSize: 28 }}>{destOpen.emoji}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{destOpen.name} {destOpen.flag}</Text>
+                  <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{destName(destOpen, lang)} {destOpen.flag}</Text>
                   <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{placeAr(destOpen.area, lang)} · {lang === 'ar' ? countryOfFlag(destOpen.flag, lang, destOpen.country) : destOpen.country}</Text>
                   <View style={{ flexDirection: 'row', marginTop: 5 }}>
                     {(destOpen.tags || []).map((t) => (
@@ -2011,7 +2012,7 @@ export const MapScreen = () => {
                             <Pressable key={d.id} onPress={() => { tapLight(); openDest(d); }} accessibilityRole="button" style={{ marginRight: 8 }}>
                               <View style={{ width: 150, borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 10 }}>
                                 <Text style={{ fontSize: 20 }}>{d.emoji}</Text>
-                                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 4 }} numberOfLines={2}>{d.name}</Text>
+                                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 4 }} numberOfLines={2}>{destName(d, lang)}</Text>
                                 <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{fmt(k) + ((d.tags || []).find((g) => CURATED_NEAR.test(g)) ? ' · ' + (d.tags || []).find((g) => CURATED_NEAR.test(g)) : '')}</Text>
                               </View>
                             </Pressable>
@@ -2036,7 +2037,7 @@ export const MapScreen = () => {
                   <Text style={{ fontSize: 20, marginRight: 10 }}>✈️</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>
-                      {t('travel_getting_there').replace('{place}', destOpen.name)}
+                      {t('travel_getting_there').replace('{place}', destName(destOpen, lang))}
                     </Text>
                     <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>{t('travel_getting_there_sub')}</Text>
                   </View>
@@ -2144,12 +2145,12 @@ export const MapScreen = () => {
                       <Text style={{ fontSize: 32 }}>🎉</Text>
                       <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 8 }}>{t('trip_request_received')}</Text>
                       <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 18 }}>
-                        {t('trip_request_hint').replace('{place}', destOpen.name)}
+                        {t('trip_request_hint').replace('{place}', destName(destOpen, lang))}
                       </Text>
                     </View>
                   ) : (
                     <>
-                      <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{t('plan_my_trip').replace('{place}', destOpen.name)} {destOpen.flag}</Text>
+                      <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{t('plan_my_trip').replace('{place}', destName(destOpen, lang))} {destOpen.flag}</Text>
                       <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, marginBottom: 10 }}>
                         {t('trip_form_hint')}
                       </Text>
