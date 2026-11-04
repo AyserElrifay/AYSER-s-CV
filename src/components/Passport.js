@@ -8,7 +8,7 @@ import { levelOf } from '../lib/xp';
 import { lookOf, titleFor } from '../lib/activityPins';
 import { fetchShowedUp, creatorRecord } from '../services/green';
 import { tapLight } from '../utils/feedback';
-import { myMomentsLevel } from '../services/loop';
+import { myMomentsLevel, passLevel } from '../services/loop';
 import { tw as trackWord } from '../constants/trackWords';
 
 /* ─── THE LOCAL PASS ──────────────────────────────────────────────────
@@ -45,7 +45,10 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
      is the same level as the bar under it (the Global Track, from real
      check-ins), never a second XP name */
   const [track, setTrack] = useState(null);
-  useEffect(() => { if (own) myMomentsLevel().then((x) => { if (x && x.ok) setTrack(x.level || 1); }); }, [own]);
+  useEffect(() => {
+    if (own) myMomentsLevel().then((x) => { if (x && x.ok) setTrack(x.level || 1); });
+    else if (p.id) Promise.resolve(passLevel(p.id)).then((n) => { if (typeof n === 'number' && n > 0) setTrack(n); }).catch(() => {});
+  }, [own, p.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const tone = STAMP[track ? Math.min(STAMP.length - 1, track - 1) : lv.index] || STAMP[0];
   /* the city in the reader's language for the places Moments runs in; anything else as typed */
   const CITY_AR = { cairo: 'القاهرة', giza: 'الجيزة', alexandria: 'الإسكندرية', dahab: 'دهب', 'new cairo': 'القاهرة الجديدة', tallinn: 'تالين', budapest: 'بودابست', berlin: 'برلين', 'timișoara': 'تيميشوارا', timisoara: 'تيميشوارا' };
@@ -140,7 +143,7 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
             </View>
           </View>
         ) : null}
-        {footer ? null : lv.next && lv.xp > 0 ? (
+        {footer || track ? null : lv.next && lv.xp > 0 ? (
           <View style={{ marginTop: 10 }}>
             <View style={{ height: 4, borderRadius: 2, backgroundColor: C.glassHi, overflow: 'hidden' }}>
               <View style={{ width: Math.round(lv.progress * 100) + '%', height: 4, backgroundColor: tone }} />

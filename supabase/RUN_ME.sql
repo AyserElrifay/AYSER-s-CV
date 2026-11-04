@@ -27900,6 +27900,21 @@ end $$;
 revoke execute on function public.event_room(text, uuid) from public, anon;
 grant execute on function public.event_room(text, uuid) to authenticated;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  ONE LEVEL ON EVERY PASS
+--  Ayser, November 2026: somebody else's pass still showed an XP stamp
+--  ("NEWCOMER 0 XP"). The stamp is now the same level as your own pass —
+--  the Global Track, from real check-ins. Only the number (1–4) is given,
+--  nothing about where or when; signed-in people only.
+-- ═══════════════════════════════════════════════════════════════════════
+create or replace function public.pass_level(p_user uuid)
+returns int language sql stable security definer set search_path = public as $$
+  select case when auth.uid() is null or p_user is null then null
+              else coalesce((public.moments_level_of(p_user)->>'level')::int, 1) end;
+$$;
+revoke execute on function public.pass_level(uuid) from public, anon;
+grant execute on function public.pass_level(uuid) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

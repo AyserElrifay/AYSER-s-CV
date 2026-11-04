@@ -9,6 +9,8 @@ const rpc = async (fn, args) => {
 };
 
 export const myMomentsLevel = () => rpc('my_moments_level');
+// someone else's pass: only their level number (RUN_ME.sql · ONE LEVEL ON EVERY PASS)
+export const passLevel = (uid) => rpc('pass_level', { p_user: uid });
 export const globalApply = (kind) => rpc('global_apply', { p_kind: kind });
 export const studioGlobalList = () => rpc('studio_global_list');
 export const studioGlobalContacted = (user, kind) => rpc('studio_global_contacted', { p_user: user, p_kind: kind });
