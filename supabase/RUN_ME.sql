@@ -27826,6 +27826,80 @@ $$;
 revoke execute on function public.call_pending() from public, anon;
 grant execute on function public.call_pending() to authenticated;
 
+-- ═══════════════════════════════════════════════════════════════════════
+--  THE ORGANIZER'S NUMBER, A DAY BEFORE
+--  Ayser, November 2026: "خلّي الأورجنايزر قبل الخروجة رقمه يبان". Somebody
+--  with a seat sees the organizer's number from 24 hours before the start
+--  until the end — the number the organizer gave for that table, or else
+--  the one they registered with (private_contacts). Never to anybody
+--  without a seat, never after it is over; on plans as well as Drops.
+-- ═══════════════════════════════════════════════════════════════════════
+create or replace function public.host_phone(u uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select phone from public.private_contacts where user_id = u;
+$$;
+revoke all on function public.host_phone(uuid) from public, anon, authenticated;
+
+create or replace function public.event_room(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); o public.offers%rowtype; g public.green_gatherings%rowtype;
+        going boolean; paid boolean; host boolean; opens timestamptz; closes timestamptz; sq uuid; hid uuid; arrival boolean;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_kind = 'offer' then
+    select * into o from public.offers where id = p_id;
+    if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+    going := exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = me and b.status in ('reserved','paid','attended'));
+    paid  := exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = me and b.status in ('paid','attended'));
+    hid   := public.table_host(o.id);
+    host  := public.offer_host(o.id, me) or hid = me;
+    if not going and not host then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+    closes := coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour');
+    sq := o.squad_id;
+    if host and not o.online and sq is not null then
+      insert into public.squad_members (squad_id, user_id) values (sq, me) on conflict do nothing;
+    end if;
+    arrival := public.in_arrival_window(o);
+    return jsonb_build_object('ok', true, 'kind', 'offer', 'id', o.id, 'title', o.title, 'title_ar', o.title_ar,
+      'starts_at', o.starts_at, 'closes_at', closes, 'now', now(), 'online', o.online, 'is_host', host,
+      'pin', o.host_pin, 'pin_at', o.host_pin_at,
+      'category', o.drop_category, 'table_no', o.table_no, 'is_drop', o.is_drop,
+      'host', (select jsonb_build_object('id', p.id, 'name', p.name, 'avatar', p.avatar_url) from public.profiles p where p.id = hid),
+      'map', coalesce(o.host_map_url, case when now() >= o.starts_at - interval '12 hours' then (select v.map_url from public.drop_venues v where v.offer_id = o.id) end),
+      'my_tel', case when host then o.host_tel end, 'my_map', case when host then o.host_map_url end,
+      'arrival', jsonb_build_object('opens_at', o.starts_at - interval '4 hours', 'closes_at', o.starts_at + interval '2 hours', 'open', arrival),
+      'host_tel', case when not host and now() >= o.starts_at - interval '24 hours' and now() <= closes then coalesce(o.host_tel, public.host_phone(hid)) end,
+      'taken', public.offer_seats_taken(o.id), 'total', o.seats,
+      'chat', case when o.online or sq is null then null else jsonb_build_object('squad_id', sq,
+                'opens_at', o.starts_at - interval '4 hours', 'closes_at', closes,
+                'open', now() between o.starts_at - interval '4 hours' and closes) end,
+      'call', case when not o.online then null else jsonb_build_object(
+                'opens_at', o.starts_at - interval '15 minutes', 'ended', o.room_ended_at is not null,
+                'can_join', (paid or host) and o.room_ended_at is null and now() >= o.starts_at - interval '15 minutes'
+                            and now() < closes + interval '30 minutes') end);
+  elsif p_kind = 'gathering' then
+    select * into g from public.green_gatherings where id = p_id;
+    if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+    going := exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id = me);
+    host  := g.host_id = me;
+    if not going and not host then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+    opens := g.starts_at - interval '4 hours';
+    closes := g.starts_at + make_interval(mins => coalesce(g.minutes, 180));
+    return jsonb_build_object('ok', true, 'kind', 'gathering', 'id', g.id, 'title', g.title,
+      'starts_at', g.starts_at, 'closes_at', closes, 'now', now(), 'online', false, 'is_host', host,
+      'pin', g.host_pin, 'pin_at', g.host_pin_at,
+      'host', (select jsonb_build_object('id', p.id, 'name', p.name, 'avatar', p.avatar_url) from public.profiles p where p.id = g.host_id),
+      'host_tel', case when not host and now() >= g.starts_at - interval '24 hours' and now() <= closes then public.host_phone(g.host_id) end,
+      'taken', (select count(*) from public.green_joins j where j.gathering_id = g.id), 'total', g.capacity,
+      'chat', case when g.squad_id is null or g.cancelled_at is not null then null else jsonb_build_object('squad_id', g.squad_id,
+                'opens_at', opens, 'closes_at', closes, 'open', now() between opens and closes) end,
+      'call', null);
+  end if;
+  return jsonb_build_object('ok', false, 'reason', 'kind');
+end $$;
+revoke execute on function public.event_room(text, uuid) from public, anon;
+grant execute on function public.event_room(text, uuid) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

@@ -352,11 +352,29 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
             ) : null}
             {/* Ayser: "وصلت ومش لاقي الترابيزة" — one tap to the organizer, and an SOS that also reaches the team */}
             {r.arrival && r.arrival.open && !r.is_host ? <PingHostBar kind={kind} id={id} lang={lang} onLost={() => setArrivalMode(true)} /> : null}
-            {r.arrival && r.arrival.open && r.host_tel ? (
-              <Pressable onPress={() => { tapLight(); Linking.openURL('tel:' + r.host_tel).catch(() => {}); }} accessibilityRole="link" hitSlop={8} style={{ marginTop: 10, alignSelf: 'center' }}>
-                <Text style={{ color: C.bg, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' }}>{tbw(lang, 'callPhone')}</Text>
+          </View>
+        ) : null}
+        {/* the organizer's number, from a day before until it ends — only for people with a seat (event_room decides) */}
+        {r && r.ok && !r.is_host && r.host_tel ? (
+          <View testID="host-phone" style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 14 }}>
+            <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1 }}>{lang === 'ar' ? 'المنظّم' : 'YOUR ORGANIZER'}</Text>
+            <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{(r.host && r.host.name) || (lang === 'ar' ? 'المنظّم' : 'Organizer')}</Text>
+            <Text style={{ color: C.dim, fontSize: 14, marginTop: 2, writingDirection: 'ltr', textAlign: lang === 'ar' ? 'right' : 'left' }}>{r.host_tel}</Text>
+            <View style={{ flexDirection: 'row', marginTop: 12 }}>
+              <Pressable testID="host-call" onPress={() => { tapLight(); Linking.openURL('tel:' + r.host_tel).catch(() => {}); }} accessibilityRole="link" style={{ flex: 1, marginEnd: 8 }}>
+                <View style={{ borderRadius: 999, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.text }}>
+                  <Ionicons name="call-outline" size={15} color={C.bg} />
+                  <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'كلّمه' : 'Call'}</Text>
+                </View>
               </Pressable>
-            ) : null}
+              <Pressable testID="host-wa" onPress={() => { tapLight(); Linking.openURL('https://wa.me/' + String(r.host_tel).replace(/[^0-9]/g, '')).catch(() => {}); }} accessibilityRole="link" style={{ flex: 1 }}>
+                <View style={{ borderRadius: 999, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.text }}>
+                  <Ionicons name="logo-whatsapp" size={15} color={C.text} />
+                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{lang === 'ar' ? 'واتساب' : 'WhatsApp'}</Text>
+                </View>
+              </Pressable>
+            </View>
+            <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 8 }}>{lang === 'ar' ? 'بيظهر للي حاجزين بس، من يوم قبل الخروجة لحد ما تخلص.' : 'Only people with a seat see it, from a day before until it ends.'}</Text>
           </View>
         ) : null}
         {walkie && r && r.ok && r.arrival && r.arrival.open ? <View style={{ marginHorizontal: 16 }}><Walkie lang={lang} id={r.id} onOut={() => setWalkie(false)} /></View> : null}
