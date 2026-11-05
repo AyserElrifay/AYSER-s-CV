@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { everySeen } from '../lib/everySeen';
 import { View, Text, Pressable, TextInput, Animated, Easing, Platform } from 'react-native';
 import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
@@ -196,7 +197,7 @@ const TruthOnTable = ({ truthId, lang }) => {
   useEffect(() => {
     let alive = true;
     const get = () => truthCard(truthId).then((x) => alive && x && x.ok && setC(x));
-    get(); const h = setInterval(get, 4000);
+    get(); const h = everySeen(get, 4000);
     return () => { alive = false; clearInterval(h); };
   }, [truthId]);
   if (!c) return null;
@@ -229,7 +230,7 @@ const PollOnTable = ({ kind, id, poll, people, lang }) => {
   useEffect(() => {
     let alive = true;
     const get = () => pollResult(kind, id, poll).then((x) => alive && x && x.ok && setR(x));
-    get(); const h = setInterval(get, 4000);
+    get(); const h = everySeen(get, 4000);
     return () => { alive = false; clearInterval(h); };
   }, [poll]); // eslint-disable-line react-hooks/exhaustive-deps
   const others = (people || []).filter((p) => p.id !== (user && user.id));
@@ -276,7 +277,7 @@ export const ActivitiesHub = ({ kind, id, lang }) => {
     setA(x);
   };
   const load = () => activityGet(kind, id).then(take);
-  useEffect(() => { load(); const h = setInterval(load, 3000); return () => clearInterval(h); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); const h = everySeen(load, 3000); return () => clearInterval(h); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const act = async (fn) => {
     tapMedium(); setErr(null);
     const x = await fn();

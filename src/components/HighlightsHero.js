@@ -86,7 +86,7 @@ export const HighlightsHero = ({ height = 260 }) => {
             {it.kind === 'video' && !saving && Platform.OS === 'web' ? React.createElement('video', {
               ref: (el) => { vids.current[k] = el; },
               className: 'mm-hero', src: it.media_url, poster: it.poster_url || undefined,
-              muted: true, playsInline: true, autoPlay: k === 0, preload: Math.abs(k - i) <= 1 ? 'auto' : 'metadata',
+              muted: true, playsInline: true, autoPlay: k === 0, preload: k === i ? 'auto' : 'metadata',
               disablePictureInPicture: true, controls: false, controlsList: 'nodownload nofullscreen noremoteplayback',
               tabIndex: -1, 'aria-hidden': true,
               onEnded: () => { if (k === i) next(); },

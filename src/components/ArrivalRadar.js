@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { everySeen } from '../lib/everySeen';
 import { View, Text, Pressable, Modal, Animated, Easing, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -163,7 +164,7 @@ export const RadarWatcher = () => {
     let alive = true;
     const load = () => supabase.rpc('radar_targets').then(({ data }) => { if (alive && data && data.ok) setTargets((data.targets || []).filter((t) => pt(t.point) || pt(t.host))); }, () => {});
     load();
-    const h = setInterval(load, 180000);
+    const h = everySeen(load, 180000);
     const vis = () => { if (document.visibilityState === 'visible') load(); };
     try { document.addEventListener('visibilitychange', vis); } catch (e) {}
     return () => { alive = false; clearInterval(h); try { document.removeEventListener('visibilitychange', vis); } catch (e) {} };

@@ -1,4 +1,5 @@
 import { placeAr, countryOfFlag } from '../lib/placeAr';
+import { everySeen } from '../lib/everySeen';
 import { hobbyLabel } from '../lib/hobbyWords';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { reportProblem } from '../lib/problems';
@@ -216,7 +217,7 @@ export const MapScreen = () => {
   const loadSquads = () => { if (SUPABASE_READY && user) listSquadPins().then(setSquadPins).catch(() => {}); };
   useEffect(() => {
     loadSquads();
-    const iv = setInterval(loadSquads, 120000);
+    const iv = everySeen(loadSquads, 120000);
     return () => clearInterval(iv);
   }, [user && user.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const openSquadButton = async () => {

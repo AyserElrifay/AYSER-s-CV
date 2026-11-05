@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase';
 export async function getMateStatus(myId, otherId) {
   const { data, error } = await supabase
     .from('mates')
-    .select('*')
+    .select('requester_id, status')
     .or(`and(requester_id.eq.${myId},addressee_id.eq.${otherId}),and(requester_id.eq.${otherId},addressee_id.eq.${myId})`)
     .limit(1);
   if (error) throw error;

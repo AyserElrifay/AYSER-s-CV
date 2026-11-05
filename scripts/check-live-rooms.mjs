@@ -50,7 +50,7 @@ for (const t of ['game_rooms', 'room_players']) {
 }
 
 console.log('\nthe safety net is still there');
-ok('a poll as well as a subscription', /setInterval\(refresh, 5000\)/.test(game));
+ok('a poll as well as a subscription', /(setInterval|everySeen)\(refresh, 5000\)/.test(game));
 ok('a burst of answers is one refresh, not seventy', /burst = setTimeout\(/.test(game));
 
 if (bad) {

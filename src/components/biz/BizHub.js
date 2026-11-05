@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { everySeen } from '../../lib/everySeen';
 import { View, Text, Modal, Pressable, ScrollView, TextInput, Image, ActivityIndicator, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -308,7 +309,7 @@ const Today = ({ v, lang, onCode, onRequests }) => {
       setS(r);
     });
     get();
-    const iv = setInterval(get, 20000);
+    const iv = everySeen(get, 20000);
     return () => { alive = false; clearInterval(iv); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // the arrival line stays a minute, then the screen is quiet again

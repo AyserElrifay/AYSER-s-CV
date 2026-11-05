@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { everySeen } from '../lib/everySeen';
 import { View, Text, Pressable, Modal, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -97,7 +98,7 @@ export const TalkRoomSheet = ({ roomId, onClose }) => {
     if (stage === 'live' || !room) return undefined;
     const ask = () => talkBridge(roomId).then((b) => { if (b && b.ok) setBridge(b); });
     ask();
-    const h = setInterval(ask, 15000);
+    const h = everySeen(ask, 15000);
     return () => clearInterval(h);
   }, [stage === 'live', room]);
 

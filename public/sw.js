@@ -20,7 +20,7 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v89';
+const CACHE = 'moments-v90';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -34,7 +34,7 @@ self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     try {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== CACHE && k !== FACE_CACHE).map((k) => caches.delete(k)));
+      await Promise.all(keys.filter((k) => k !== CACHE && k !== FACE_CACHE && k !== MEDIA_CACHE).map((k) => caches.delete(k)));
     } catch (err) { /* ignore */ }
     await self.clients.claim();
     await precache();
@@ -105,9 +105,50 @@ async function cacheFirst(request, name) {
   return fresh;
 }
 
+/* ── PHOTOS FROM SUPABASE, KEPT ON THE PHONE ─────────────────────────
+   Ayser, November 2026: Supabase's cached egress passed 5.5 GB. Every
+   photo in Storage lives under a name that never changes (src/lib/
+   storage.js), but the ones uploaded before that fix say "keep for one
+   hour", so every open of Home, Together and Space asked for them again.
+   Here a photo from Storage is kept on the phone and answered from it —
+   old uploads included. Asked for in cors mode (Storage allows it for
+   public files) so the real bytes are kept, not an opaque placeholder.
+   Only pictures: a video is fetched in ranges and stays with the browser.
+   At most MEDIA_MAX photos; the oldest go first. Releases do not empty it. */
+const MEDIA_CACHE = 'moments-media-1';
+const MEDIA_MAX = 400;
+const isStoragePhoto = (url, req) => /\.supabase\.co$/.test(url.hostname)
+  && /^\/storage\/v1\/(object|render\/image)\/public\//.test(url.pathname)
+  && (req.destination === 'image' || /\.(jpe?g|png|webp|avif)$/i.test(url.pathname));
+async function photoFromPhone(request) {
+  const key = request.url;
+  if (HAS_CACHES) {
+    try { const c = await caches.open(MEDIA_CACHE); const hit = await c.match(key); if (hit) return hit; } catch (e) {}
+  }
+  let fresh;
+  try { fresh = await fetch(key, { mode: 'cors', credentials: 'omit' }); }
+  catch (e) { return fetch(request); }                       // no cors here: let the browser ask as it would have
+  if (HAS_CACHES && fresh && fresh.ok) {
+    const copy = fresh.clone();
+    (async () => {
+      try {
+        const c = await caches.open(MEDIA_CACHE);
+        await c.put(key, copy);
+        const keys = await c.keys();
+        for (let i = 0; i < keys.length - MEDIA_MAX; i++) await c.delete(keys[i]);
+      } catch (e) {}
+    })();
+  }
+  return fresh;
+}
+
 self.addEventListener('fetch', (e) => {
   let url;
   try { url = new URL(e.request.url); } catch (err) { return; }
+  if (e.request.method === 'GET' && isStoragePhoto(url, e.request)) {
+    e.respondWith(photoFromPhone(e.request));
+    return;
+  }
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
   // The app's code: its name carries a hash of its contents, so what is

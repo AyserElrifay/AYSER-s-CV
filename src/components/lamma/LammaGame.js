@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { everySeen } from '../../lib/everySeen';
 import { View, Text, Pressable, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -210,7 +211,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
     /* A poll as well as a subscription. A dropped socket is silent, and
        a room that has moved on without you is the one thing this screen
        must never do. Five seconds is cheap and invisible. */
-    const tick = setInterval(refresh, 5000);
+    const tick = everySeen(refresh, 5000);
     return () => { off(); clearInterval(tick); if (burst) clearTimeout(burst); setConnected(roomId, false); };
   }, [roomId, refresh]);
 

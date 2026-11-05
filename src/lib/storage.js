@@ -14,6 +14,15 @@ import { SUPABASE_URL } from './supabaseConfig';
 export const R2_PUBLIC_URL = process.env.EXPO_PUBLIC_R2_PUBLIC_URL || '';
 export const R2_READY = !!R2_PUBLIC_URL;
 
+/* ── KEPT FOR A YEAR ON THE PHONE ─────────────────────────────────────
+   Ayser, November 2026: Supabase warned that cached egress passed 5.5 GB.
+   Every file is uploaded under a new name (a timestamp and an unguessable
+   part) and nothing is ever overwritten, so a file can be cached for a
+   year and never changes: the browser keeps it instead of asking again.
+   supabase-js writes this as "max-age=<value>". */
+export const CACHE_SECONDS = '31536000, immutable';
+const CACHE_HEADER = 'max-age=' + CACHE_SECONDS;
+
 /* ── HOW BIG A FILE CAN BE ────────────────────────────────────────────
    The old cap was 48 MB, and it was never a limit on storage — it was
    the limit on ONE request. Anything larger had to be refused, which
@@ -157,6 +166,7 @@ function putWithProgress({ url, token, body, contentType, onProgress, signal }) 
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Authorization', 'Bearer ' + token);
     xhr.setRequestHeader('x-upsert', 'false');
+    xhr.setRequestHeader('cache-control', CACHE_HEADER);
     if (contentType) xhr.setRequestHeader('Content-Type', contentType);
     xhr.send(body);
   });
@@ -218,6 +228,7 @@ async function uploadResumable({ base, token, bucket, path, body, contentType, o
     'bucketName ' + btoa(bucket),
     'objectName ' + btoa(path),
     'contentType ' + btoa(contentType || 'application/octet-stream'),
+    'cacheControl ' + btoa('31536000'),          // TUS takes the seconds; the server writes max-age=
   ].join(',');
 
   const create = await fetch(base + '/storage/v1/upload/resumable', {
@@ -289,7 +300,7 @@ async function uploadToSupabase(userId, uri, ext, contentType, opts) {
         });
       } else {
         // no XHR (native) or no session — the plain path, as before
-        const { error } = await supabase.storage.from('media').upload(path, body, { contentType, upsert: false });
+        const { error } = await supabase.storage.from('media').upload(path, body, { contentType, upsert: false, cacheControl: CACHE_SECONDS });
         if (error) throw error;
       }
       const { data } = supabase.storage.from('media').getPublicUrl(path);
@@ -361,7 +372,8 @@ export async function smallImage(uri, maxSide = 1080, quality = 0.8) {
    storage, into the uploader's own folder — the database accepts no
    other address — and small, because it is shown on a phone list. */
 export async function uploadPlanPhoto(userId, file) {
-  const s = await smallImage(URL.createObjectURL(file), 1280, 0.82);
+  const { squeezeImage } = await import('./squeeze');
+  const s = await squeezeImage(file);
   return uploadToSupabase(userId, s.uri, s.ext || 'jpg', s.type || 'image/jpeg');
 }
 
@@ -370,6 +382,11 @@ export async function uploadPlanPhoto(userId, file) {
    have it and Safari's blob-fetch bug never comes up. */
 export async function uploadMediaSmart(userId, uri, ext, contentType, opts) {
   if (!SUPABASE_READY) return uri; // demo mode keeps the local blob url
+  if (/^image\//.test(contentType || '') && !/gif|svg/.test(contentType)) {
+    const { squeezeImage } = await import('./squeeze');   // loaded the first time a photo is sent
+    const s = await squeezeImage(uri);
+    if (s.ext) { uri = s.uri; ext = s.ext; contentType = s.type; }
+  }
   if (R2_READY) {
     try { return await uploadToR2(userId, uri, ext, contentType); }
     catch (e) { /* fall through to Supabase */ }

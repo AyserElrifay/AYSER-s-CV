@@ -10,7 +10,8 @@ import { supabase, SUPABASE_READY } from '../lib/supabase';
 export async function fetchHighlights() {
   if (!SUPABASE_READY) return [];
   try {
-    const { data } = await supabase.from('app_highlights').select('*')
+    // only what Home draws (Ayser, November 2026: no select('*') on Home)
+    const { data } = await supabase.from('app_highlights').select('id, media_url, poster_url, kind, caption, created_at')
       .eq('live', true).order('created_at', { ascending: false }).limit(6);
     return data || [];
   } catch (e) { return []; }
@@ -19,7 +20,7 @@ export async function fetchHighlights() {
 export async function fetchHighlight() {
   if (!SUPABASE_READY) return null;
   try {
-    const { data } = await supabase.from('app_highlights').select('*')
+    const { data } = await supabase.from('app_highlights').select('id, media_url, poster_url, kind, caption, created_at')
       .eq('live', true).order('created_at', { ascending: false }).limit(1);
     return (data && data[0]) || null;
   } catch (e) { return null; }

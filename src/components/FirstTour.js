@@ -66,7 +66,7 @@ export const FirstTour = ({ onClose }) => {
     <Modal visible animationType="fade" transparent={false} onRequestClose={done}>
       <View style={{ flex: 1, backgroundColor: '#000000' }}>
         {Platform.OS === 'web' ? (
-          <video key={CLIPS[i]} src={publicMedia(CLIPS[i] + '.mp4')} poster={publicMedia(CLIPS[i] + '.jpg')} muted autoPlay loop playsInline preload="auto" aria-hidden="true"
+          <video key={CLIPS[i]} src={publicMedia(CLIPS[i] + '.mp4')} poster={publicMedia(CLIPS[i] + '.jpg')} muted autoPlay loop playsInline preload="metadata" aria-hidden="true"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
         ) : null}
         <LinearGradient colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.85)']} locations={[0, 0.35, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />

@@ -266,7 +266,7 @@ async function _uploadMediaSupabase(userId, localUri) {
   const body = await res.arrayBuffer();
   const { error } = await supabase.storage
     .from('media')
-    .upload(path, body, { contentType: 'image/' + (ext === 'jpg' ? 'jpeg' : ext) });
+    .upload(path, body, { contentType: 'image/' + (ext === 'jpg' ? 'jpeg' : ext), cacheControl: '31536000, immutable' });
   if (error) throw error;
   const { data } = supabase.storage.from('media').getPublicUrl(path);
   return data.publicUrl;

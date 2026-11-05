@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { everySeen } from '../lib/everySeen';
 import { View, Text, Pressable, Modal, ActivityIndicator, Linking, Platform, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -122,7 +123,7 @@ const TopicCard = ({ id, lang, compact }) => {
     let alive = true;
     const get = () => circleTopicTurn(id).then((x) => { if (alive && x) setT(x); });
     get();
-    const h = compact ? null : setInterval(get, 12000);
+    const h = compact ? null : everySeen(get, 12000);
     return () => { alive = false; if (h) clearInterval(h); };
   }, [id, compact]);
   const q = circleTopic(id, t ? t.turn : 0, lang);
@@ -170,7 +171,7 @@ const CircleRoom = ({ room, lang, onClose }) => {
   const left = Date.parse(room.ends_at) - (Date.now() + skew.current);
   const over = left <= 0;
   useEffect(() => {
-    const t = room.test ? null : setInterval(() => circleEnter(room.id).then((r) => r && r.ok && setPeople(r.people || [])), 10000);
+    const t = room.test ? null : everySeen(() => circleEnter(room.id).then((r) => r && r.ok && setPeople(r.people || [])), 10000);
     return () => { if (t) clearInterval(t); if (mesh.current) { mesh.current.close(); mesh.current = null; } };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (over && mesh.current) { mesh.current.close(); mesh.current = null; setVoice(false); tapMedium(); } }, [over]);
@@ -256,7 +257,7 @@ export const CircleCard = ({ onShowDrops }) => {
   const [editing, setEditing] = useState(false);
   const skew = useRef(0);
   const load = () => circleNow('en').then((x) => { if (x && x.ok) { skew.current = Date.parse(x.now) - Date.now(); setC(x); } });
-  useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, []);
+  useEffect(() => { load(); const t = everySeen(load, 60000); return () => clearInterval(t); }, []);
   const tick = useTick(1000);
   useEffect(() => { if (c && c.id) circleTopicTurn(c.id).then((x) => setTeam(!!(x && x.can_shuffle))).catch(() => {}); }, [c && c.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // the clock ran past a turn (voting closed, the circle opened or ended): ask again

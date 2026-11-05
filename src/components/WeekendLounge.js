@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { everySeen } from '../lib/everySeen';
 import { View, Text, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, NUM } from '../constants/theme';
@@ -26,7 +27,7 @@ export const WeekendLounge = ({ lang }) => {
   const [p, setP] = useState(null);
   useEffect(() => {
     rpc('lounge_now').then((r) => setP(r && r.ok ? r : null));
-    const h = setInterval(() => rpc('lounge_now').then((r) => { if (r && r.ok) setP(r); }), 20000);
+    const h = everySeen(() => rpc('lounge_now').then((r) => { if (r && r.ok) setP(r); }), 20000);
     return () => clearInterval(h);
   }, []);
   if (!p) return null;

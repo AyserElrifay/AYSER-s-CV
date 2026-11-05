@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { everySeen } from '../lib/everySeen';
 import { View, Text, Pressable, ScrollView, Modal, Image, ActivityIndicator, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -73,7 +74,7 @@ const EventView = ({ ev, lang, onBack }) => {
   const [note, setNote] = useState(null);
   const [qr, setQr] = useState(false);
   const load = () => hostRoster(ev.kind, ev.id).then((x) => setR(x && x.ok ? x : { ok: false }));
-  useEffect(() => { load(); const h = setInterval(load, 20000); return () => clearInterval(h); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); const h = everySeen(load, 20000); return () => clearInterval(h); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const e = (r && r.event) || ev;
   const here = async () => {
     tapMedium(); setBusy('here'); setNote(null);
@@ -359,7 +360,7 @@ export const PingHostBar = ({ kind, id, lang, ink = C.bg, onLost }) => {
   const [here, setHere] = useState(null);
   const [msg, setMsg] = useState(null);
   const [ask, setAsk] = useState(false);
-  useEffect(() => { const f = () => eventHostHere(kind, id).then((x) => x && setHere(x)); f(); const h = setInterval(f, 30000); return () => clearInterval(h); }, [kind, id]);
+  useEffect(() => { const f = () => eventHostHere(kind, id).then((x) => x && setHere(x)); f(); const h = everySeen(f, 30000); return () => clearInterval(h); }, [kind, id]);
   const send = async (reason) => {
     tapMedium(); setAsk(false);
     const r = await pingHost(kind, id, reason);

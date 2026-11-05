@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { everySeen } from '../lib/everySeen';
 import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -118,7 +119,7 @@ const Lounge = ({ lounge, lang, onOut }) => {
     };
     beat();
     const hb = setInterval(beat, 15000);                                  // "still here"
-    const rd = setInterval(() => loungeRoom(lounge.id).then((r) => alive && r && setRoom(r)), 4000);
+    const rd = everySeen(() => loungeRoom(lounge.id).then((r) => alive && r && setRoom(r)), 4000);
     return () => { alive = false; clearInterval(hb); clearInterval(rd); if (mesh.current) { mesh.current.close(); mesh.current = null; } loungeLeave(lounge.id); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -226,7 +227,7 @@ export const LoungesSheet = ({ onClose }) => {
 
   const [sig, setSig] = useState({});   // per lounge: my Vibe Match, and the flags of who is in it now
   const load = () => { loungesList().then((x) => setList(x || { lounges: [] })); loungeSignals().then((x) => x && setSig(x)); };
-  useEffect(() => { load(); const h = setInterval(load, 20000); return () => clearInterval(h); }, []);
+  useEffect(() => { load(); const h = everySeen(load, 20000); return () => clearInterval(h); }, []);
   const go = (l) => {
     tapMedium(); setNote(null);
     if (list && !list.plus) { needPlus({ ok: false, reason: 'plus' }, 'lounge'); return; }

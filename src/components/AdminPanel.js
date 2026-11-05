@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { everySeen } from '../lib/everySeen';
 import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -685,7 +686,7 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
     studioPing();
     const load = () => { if (owner) studioActivity().then(setAct).catch(() => {}); };
     load();
-    const t = setInterval(() => { studioPing(); load(); }, 20 * 1000);
+    const t = everySeen(() => { studioPing(); load(); }, 20 * 1000);
     return () => clearInterval(t);
   }, [owner]);
   useEffect(() => {

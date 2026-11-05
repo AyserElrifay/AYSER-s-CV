@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { everySeen } from '../lib/everySeen';
 import { titleFor } from '../lib/activityPins';
 import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -251,7 +252,7 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
     });
   };
   const checkin = async () => { tapMedium(); const x = await eventCheckin(kind, id); if (x && x.ok) { tapSuccess(); load(); } else setMsg(w(lang, 'err')); };
-  useEffect(() => { load(); const h = setInterval(load, 30000); return () => clearInterval(h); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); const h = everySeen(load, 30000); return () => clearInterval(h); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // the people-going chat: read whenever there is one; new lines arrive live
   const sq = r && r.ok && r.chat ? r.chat.squad_id : null;
