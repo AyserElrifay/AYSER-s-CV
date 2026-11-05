@@ -1,3 +1,4 @@
+import { whileSeen } from '../lib/whileSeen';
 import { supabase } from '../lib/supabase';
 
 /* Real notifications — rows written by DB triggers (schema_v11), so
@@ -65,6 +66,9 @@ export async function markAllRead(userId) {
 
 /* Live: fires the callback the instant a new notification lands. */
 export function subscribeNotifications(userId, onNew) {
+  return whileSeen(() => openNotifications(userId, onNew));   // only while the app is on screen
+}
+function openNotifications(userId, onNew) {
   const channel = supabase
     .channel('notifs-' + userId)
     .on('postgres_changes',

@@ -1,3 +1,4 @@
+import { whileSeen } from '../lib/whileSeen';
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase, SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from './AuthContext';
@@ -20,33 +21,22 @@ export const PresenceProvider = ({ children }) => {
   useEffect(() => {
     if (!SUPABASE_READY || !user) { setOnlineIds(new Set()); return; }
 
-    const channel = supabase.channel('online-users', { config: { presence: { key: user.id } } });
-    channelRef.current = channel;
-
-    channel.on('presence', { event: 'sync' }, () => {
-      setOnlineIds(new Set(Object.keys(channel.presenceState())));
+    /* only while the app is on screen (Ayser, November 2026: zero-cost
+       realtime) — in the background you leave "online", back you rejoin */
+    const stop = whileSeen(() => {
+      const channel = supabase.channel('online-users', { config: { presence: { key: user.id } } });
+      channelRef.current = channel;
+      channel.on('presence', { event: 'sync' }, () => {
+        setOnlineIds(new Set(Object.keys(channel.presenceState())));
+      });
+      channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ online_at: new Date().toISOString() });
+        }
+      });
+      return () => { try { supabase.removeChannel(channel); } catch (e) {} channelRef.current = null; };
     });
-
-    channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.track({ online_at: new Date().toISOString() });
-      }
-    });
-
-    // re-announce when the tab comes back to the foreground — covers
-    // laptops that suspended the network while backgrounded
-    const onVis = () => {
-      if (typeof document !== 'undefined' && !document.hidden && channelRef.current) {
-        channelRef.current.track({ online_at: new Date().toISOString() }).catch(() => {});
-      }
-    };
-    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVis);
-
-    return () => {
-      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVis);
-      try { supabase.removeChannel(channel); } catch (e) {}
-      channelRef.current = null;
-    };
+    return stop;
   }, [user && user.id]);
 
   const isOnline = (id) => onlineIds.has(id);

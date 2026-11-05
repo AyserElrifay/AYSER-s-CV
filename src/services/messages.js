@@ -1,3 +1,4 @@
+import { whileSeen } from '../lib/whileSeen';
 import { supabase } from '../lib/supabase';
 import { isNeedUnlock, requestUnlock } from '../lib/unlockBus';
 
@@ -199,7 +200,15 @@ export async function fetchDmStreaks(userId) {
   }
 }
 
-export function subscribeMessages({ squadId, dmThreadId }, onInsert) {
+/* only while the app is on screen (Ayser, November 2026); onResume runs
+   when it comes back, so the chat can ask for what arrived meanwhile */
+export function subscribeMessages({ squadId, dmThreadId }, onInsert, onResume) {
+  return whileSeen((again) => {
+    if (again && onResume) onResume();
+    return openMessages({ squadId, dmThreadId }, onInsert);
+  });
+}
+function openMessages({ squadId, dmThreadId }, onInsert) {
   const filter = squadId ? 'squad_id=eq.' + squadId : 'dm_thread_id=eq.' + dmThreadId;
   const channel = supabase
     .channel('messages_' + (squadId || dmThreadId))

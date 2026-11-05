@@ -240,11 +240,11 @@ export const ProfileScreen = () => {
     try {
       // Shrink to a small square first (web) — small enough to store
       // inline if the storage bucket isn't ready, so it ALWAYS saves.
-      const small = Platform.OS === 'web' ? await resizeSquare(asset.uri, 256) : null;
+      const small = Platform.OS === 'web' ? await resizeSquare(asset.uri, 200) : null;
       const src = small || asset.uri;
       let finalUrl = small; // data URL fallback that needs no bucket
       try {
-        finalUrl = await uploadCapture(user.id, src, 'jpg', 'image/jpeg'); // real hosted URL if storage works
+        finalUrl = await uploadCapture(user.id, src, 'jpg', 'image/jpeg', { squeeze: 'avatar' }); // 200×200 WebP, 25 KB at most
       } catch (e) {
         if (!small) throw e; // native without a data-url fallback → surface the error
       }

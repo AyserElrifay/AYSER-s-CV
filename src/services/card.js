@@ -20,16 +20,16 @@ export const sendTableSpark = (kind, id, to) => rpc('table_spark', { p_kind: kin
 /* any screen can ask for the card (App.js CardGate) */
 export const askCard = () => { try { window.dispatchEvent(new CustomEvent('mm-need-card')); } catch (e) {} };
 
-/* one photo: the card's copy (WebP, 1080, ~50KB) and a 24-pixel blurred
+/* one photo: the card's copy (WebP, 800px, 80 KB at most) and a 24-pixel blurred
    copy — the only one a stranger is ever sent. Both get names nobody can
    guess (src/lib/storage.js). */
 export async function uploadCardPhoto(userId, uri) {
-  const big = await smallImage(uri, 1080, 0.72);
+  const big = await smallImage(uri, 800, 0.72);
   const tiny = await smallImage(uri, 24, 0.5);
   // never the real photo in place of the blurred one: if it could not be made small, stop
   if (!tiny.ext || tiny.uri === uri) throw new Error('could not make the blurred copy');
   const [photo, blur] = await Promise.all([
-    uploadMediaSmart(userId, big.uri, big.ext || 'jpg', big.type || 'image/jpeg'),
+    uploadMediaSmart(userId, big.uri, big.ext || 'jpg', big.type || 'image/jpeg', { squeeze: 'card' }),   // 800px, 80 KB at most
     uploadMediaSmart(userId, tiny.uri, tiny.ext || 'jpg', tiny.type || 'image/jpeg'),
   ]);
   return { photo, blur };

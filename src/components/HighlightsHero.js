@@ -21,7 +21,7 @@ import { isSaving } from '../lib/dataSaver';
    it shows the still frames instead. */
 const IDEAS = ['hang', 'shop'].map((k) => ({
   id: 'idea-' + k, idea: true, kind: 'video', key: 'hl_' + k,
-  media_url: publicMedia('welcome-' + k + '.mp4'), poster_url: publicMedia('welcome-' + k + '.jpg'),
+  media_url: publicMedia('welcome-' + k + '.mp4'), poster_url: publicMedia('welcome-' + k + '.webp'),   // under 25 KB
 }));
 const BY = '@khaledelnagar9';
 const STILL_MS = 6000;
@@ -86,7 +86,7 @@ export const HighlightsHero = ({ height = 260 }) => {
             {it.kind === 'video' && !saving && Platform.OS === 'web' ? React.createElement('video', {
               ref: (el) => { vids.current[k] = el; },
               className: 'mm-hero', src: it.media_url, poster: it.poster_url || undefined,
-              muted: true, playsInline: true, autoPlay: k === 0, preload: k === i ? 'auto' : 'metadata',
+              muted: true, playsInline: true, autoPlay: k === 0, preload: k === i ? 'auto' : 'none',   // only the one on screen loads; the rest show their poster
               disablePictureInPicture: true, controls: false, controlsList: 'nodownload nofullscreen noremoteplayback',
               tabIndex: -1, 'aria-hidden': true,
               onEnded: () => { if (k === i) next(); },

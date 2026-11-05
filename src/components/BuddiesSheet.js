@@ -102,6 +102,8 @@ const Chat = ({ other, threadId, lang, onBack }) => {
   const [st, setSt] = useState(null);
   const [tid, setTid] = useState(threadId || null);
   const [msgs, setMsgs] = useState([]);
+  const msgsRef = useRef(msgs);
+  msgsRef.current = msgs;
   const [draft, setDraft] = useState('');
   const [ping, setPing] = useState(null);       // null · list of my next events
   const [pinged, setPinged] = useState({});
@@ -148,6 +150,13 @@ const Chat = ({ other, threadId, lang, onBack }) => {
     return subscribeMessages({ dmThreadId: tid }, (p) => {
       setMsgs((m) => { const n = m.some((x) => x.id === p.new.id) ? m : m.concat(p.new); chatSet(tid, n); return n; });
       dmState(tid).then((x) => x && x.ok && setSt(x));
+    }, () => {
+      // back from the background: what arrived while the channel was closed
+      const m = msgsRef.current;
+      const since = m.length ? m[m.length - 1].created_at : new Date(0).toISOString();
+      fetchMessagesSince({ dmThreadId: tid, since }).then((rows) => {
+        if (rows && rows.length) setMsgs((cur) => { const n = cur.concat(rows.filter((r) => !cur.some((x) => x.id === r.id))); chatSet(tid, n); return n; });
+      }).catch(() => {});
     });
   }, [tid]);
 

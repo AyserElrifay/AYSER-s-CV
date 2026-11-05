@@ -750,7 +750,7 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
          at most; the full photo or drawing stays on this phone
          (src/lib/vault.js) and the Book shows it whenever the phone has it */
       let full = blob, up = blob, upExt = ext, upType = type;
-      if (kind === 'photo' || kind === 'drawing') {
+      if (kind === 'photo' || (kind === 'drawing' && !/svg/.test(type || ''))) {   // an SVG drawing is already a few KB
         if (typeof full === 'string' && /^data:/.test(full)) full = dataBlob(full);
         const { squeezeImage, BOOK_THUMB } = await import('../lib/squeeze');
         const th = await squeezeImage(full, BOOK_THUMB);

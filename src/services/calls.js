@@ -1,3 +1,4 @@
+import { whileSeen } from '../lib/whileSeen';
 import { supabase } from '../lib/supabase';
 
 /* REAL calls — WebRTC media with Supabase Realtime as the signaling
@@ -35,7 +36,7 @@ export async function getRtcConfig() {
 }
 
 /* ── incoming-ring listener (mounted once, app-wide) ── */
-export function subscribeIncomingCalls(myId, onEvent) {
+function openRing(myId, onEvent) {
   const ch = supabase.channel('ring_' + myId, { config: { broadcast: { self: false } } });
   /* a ring counts only if the server saw this call: the name and photo
      are the caller's real ones, never what the broadcast claimed */
@@ -51,6 +52,9 @@ export function subscribeIncomingCalls(myId, onEvent) {
   ch.subscribe();
   return () => { try { supabase.removeChannel(ch); } catch (e) {} };
 }
+/* open only while the app is on screen; a call that rang meanwhile is
+   asked for when it comes back (callPending, IncomingCallGate) */
+export const subscribeIncomingCalls = (myId, onEvent) => whileSeen(() => openRing(myId, onEvent));
 
 /* ── a call still ringing when the app opens or comes back ──
    The live ring is missed by a phone that had Moments in the background;

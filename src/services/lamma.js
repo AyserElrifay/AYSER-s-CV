@@ -1,3 +1,4 @@
+import { whileSeen } from '../lib/whileSeen';
 import { supabase, SUPABASE_READY } from '../lib/supabase';
 import { withDeadline } from '../lib/deadline';
 import { COUNTRIES } from '../constants/mockData';
@@ -219,6 +220,13 @@ export async function fetchFaces(roomId) {
    ago. */
 export function subscribeRoom(roomId, handlers = {}) {
   if (!SUPABASE_READY || !roomId) return () => {};
+  // only while the app is on screen; back from the background, the room is read again
+  return whileSeen((again) => {
+    if (again) { if (handlers.onPlayers) handlers.onPlayers(); }
+    return openRoom(roomId, handlers);
+  });
+}
+function openRoom(roomId, handlers) {
   const ch = supabase.channel('lamma_' + roomId, { config: { broadcast: { self: false } } });
 
   ch.on('broadcast', { event: 'phase' }, ({ payload }) => {

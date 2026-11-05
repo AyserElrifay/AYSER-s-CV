@@ -9,7 +9,7 @@ import { mw } from '../constants/memoryWords';
 /* ─── DRAW HOW TODAY FELT ─────────────────────────────────────────────
    Ayser, November 2026: "أرسم الإحساس بتاعي". A sheet of the book's own
    cream paper, a finger for a pen, five inks and two widths, undo and
-   clear. "Put it in the book" hands back a small WebP of the drawing;
+   clear. "Put it in the book" hands back the drawing as a tiny SVG of its strokes;
    the book uploads it and pins it to the page (RUN_ME.sql page_add). */
 const INKS = ['#2A2118', '#7C3AED', '#FFC233', '#FF5A6E', '#22C7A9'];
 const PAPER = '#F5EFE6';
@@ -59,9 +59,36 @@ export const DrawSheet = ({ lang, onDone, onClose }) => {
 
   const undo = () => { tapLight(); strokes.current.pop(); setN(strokes.current.length); paint(); };
   const clear = () => { tapLight(); strokes.current = []; setN(0); paint(); };
+  /* Ayser, November 2026 (zero-cost storage): the drawing goes up as its
+     own strokes — a tiny SVG, a few hundred bytes to 3 KB — not as a picture.
+     Points closer than a step are dropped, a bigger step until it fits; a
+     drawing so busy it cannot fit in 12 KB goes up as a WebP as before. */
+  const asSvg = (c) => {
+    const W = 360, k = W / c.width, H = Math.round(c.height * k);
+    for (const step of [2, 3, 4, 6, 8, 11]) {
+      const paths = strokes.current.map((st) => {
+        let last = null; const pts = [];
+        st.pts.forEach(([x, y], i) => {
+          const p = [Math.round(x * k), Math.round(y * k)];
+          if (!last || i === st.pts.length - 1 || Math.abs(p[0] - last[0]) + Math.abs(p[1] - last[1]) >= step) { pts.push(p); last = p; }
+        });
+        if (pts.length === 1) pts.push([pts[0][0] + 1, pts[0][1]]);
+        return '<path stroke="' + st.ink + '" stroke-width="' + Math.max(1, Math.round(st.w * k)) + '" d="M' + pts[0][0] + ' ' + pts[0][1] + 'l' + pts.slice(1).map((q, i) => (q[0] - pts[i][0]) + ' ' + (q[1] - pts[i][1])).join(' ').replace(/ -/g, '-') + '"/>';   // each point as a step from the last: shorter
+      }).join('');
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '"><rect width="100%" height="100%" fill="' + PAPER + '"/><g fill="none" stroke-linecap="round" stroke-linejoin="round">' + paths + '</g></svg>';
+      if (svg.length <= 3 * 1024 || (step === 11 && svg.length <= 12 * 1024)) return svg;
+    }
+    return null;
+  };
   const done = () => {
     const c = cv.current; if (!c || !n || busy) return;
     setBusy(true);
+    const svg = asSvg(c);
+    if (svg) {
+      tapSuccess();
+      Promise.resolve(onDone({ blob: new Blob([svg], { type: 'image/svg+xml' }), ext: 'svg', type: 'image/svg+xml' })).finally(() => setBusy(false));
+      return;
+    }
     // a book page does not need more than 1080 wide
     const k = Math.min(1, 1080 / c.width);
     const out = document.createElement('canvas'); out.width = Math.round(c.width * k); out.height = Math.round(c.height * k);

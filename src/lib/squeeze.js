@@ -12,8 +12,14 @@ const sizeOf = (u) => {
   return /^data:/.test(u) && i > 0 ? Math.floor((u.length - i - 1) * 3 / 4) : 0;
 };
 /* the Moments Book's server copy: the full one stays on the phone (src/lib/vault.js) */
+/* named sizes an upload can ask for (uploadMediaSmart opts.squeeze) */
+export const SIZES = {
+  avatar: { maxBytes: 25 * 1024, tries: [[200, 0.75], [200, 0.62], [200, 0.5], [160, 0.5]] },   // a face in a circle
+  card: { maxBytes: 80 * 1024, tries: [[800, 0.72], [800, 0.6], [720, 0.55], [640, 0.5]] },     // the 3-photo card
+};
 export const BOOK_THUMB = { maxBytes: 35 * 1024, tries: [[640, 0.6], [560, 0.55], [480, 0.5], [400, 0.45], [320, 0.4]] };
 export async function squeezeImage(uriOrBlob, opt) {
+  if (typeof opt === 'string') opt = SIZES[opt];
   const MAX = (opt && opt.maxBytes) || MAX_IMAGE_BYTES;
   if (typeof window === 'undefined' || !window.document) return { uri: uriOrBlob, ext: null, type: null };
   const isWebp = (uriOrBlob && typeof uriOrBlob !== 'string') ? /webp/.test(uriOrBlob.type || '') : /^data:image\/webp/.test(String(uriOrBlob));

@@ -50,12 +50,13 @@ import { hubRequested } from './src/lib/hubLink';
 import { goToTab as goToTabLink } from './src/lib/mapBus';
 import { initPwa } from './src/lib/pwa';
 import { Boundary } from './src/components/Boundary';
-import { InstallPrompt } from './src/components/InstallPrompt';
 import { SafetyHold } from './src/components/SafetyHold';
 import { StudioProblem } from './src/components/StudioProblem';
 import { lazyOverlay } from './src/lib/lazyScreen';
 /* the Studio's code is fetched only once the owner check has passed —
    nobody else's phone ever downloads it */
+// the home-screen prompt: shown 45 s in, from the third visit — loaded then, not with the app
+const InstallPrompt = lazyOverlay(() => import('./src/components/InstallPrompt').then((m) => ({ default: m.InstallPrompt })));
 const StudioLock = lazyOverlay(() => import('./src/components/StudioLock').then((m) => ({ default: m.StudioLock })));
 const RadarWatcher = lazyOverlay(() => import('./src/components/ArrivalRadar').then((m) => ({ default: m.RadarWatcher })));
 const FirstTour = lazyOverlay(() => import('./src/components/FirstTour').then((m) => ({ default: m.FirstTour })));

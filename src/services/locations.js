@@ -1,3 +1,4 @@
+import { whileSeen } from '../lib/whileSeen';
 import { supabase } from '../lib/supabase';
 
 /* Real live locations — the map's "who's around right now" layer. */
@@ -76,6 +77,9 @@ export async function fetchMyLiveLocation(userId) {
 }
 
 export function subscribeNearby(onChange) {
+  return whileSeen(() => openNearby(onChange));   // only while the app is on screen
+}
+function openNearby(onChange) {
   const channel = supabase
     .channel('live_locations_changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'live_locations' }, onChange)

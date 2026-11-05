@@ -20,7 +20,7 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v91';
+const CACHE = 'moments-v92';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -34,7 +34,7 @@ self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     try {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== CACHE && k !== FACE_CACHE && k !== MEDIA_CACHE && k !== VIDEO_CACHE).map((k) => caches.delete(k)));
+      await Promise.all(keys.filter((k) => k !== CACHE && k !== FACE_CACHE && k !== MEDIA_CACHE && k !== VIDEO_CACHE && k !== STATIC_CACHE).map((k) => caches.delete(k)));
     } catch (err) { /* ignore */ }
     await self.clients.claim();
     await precache();
@@ -76,7 +76,7 @@ async function networkFirst(request) {
       ? await fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' })
       : await fetch(request, { cache: 'no-cache' });
     if (HAS_CACHES && fresh && fresh.ok) {
-      try { const c = await caches.open(name || CACHE); c.put(request, fresh.clone()); } catch (e) {}
+      try { const c = await caches.open(CACHE); c.put(request, fresh.clone()); } catch (e) {}
     }
     return fresh;
   } catch (err) {
@@ -100,7 +100,7 @@ async function cacheFirst(request, name) {
   }
   const fresh = await fetch(request);
   if (HAS_CACHES && fresh && fresh.ok) {
-    try { const c = await caches.open(CACHE); c.put(request, fresh.clone()); } catch (e) {}
+    try { const c = await caches.open(name || CACHE); c.put(request, fresh.clone()); } catch (e) {}
   }
   return fresh;
 }
@@ -117,6 +117,7 @@ async function cacheFirst(request, name) {
    At most MEDIA_MAX photos; the oldest go first. Releases do not empty it. */
 const MEDIA_CACHE = 'moments-media-vault-v1';
 const VIDEO_CACHE = 'moments-video-vault-v1';
+const STATIC_CACHE = 'moments-static-cache-v1';
 const MEDIA_MAX = 400;
 const isStoragePhoto = (url, req) => /\.supabase\.co$/.test(url.hostname)
   && /^\/storage\/v1\/(object|render\/image)\/public\//.test(url.pathname)
@@ -226,6 +227,12 @@ self.addEventListener('fetch', (e) => {
       lastPrecache = Date.now();
       e.waitUntil(precache());
     }
+    return;
+  }
+  // The showcase stills under /media/ (hero posters, onboarding, map photos) → kept for good in
+  // their own cache, which a new release does not empty (Ayser, November 2026: local-first)
+  if (/\/media\/[^/]+\.(jpe?g|png|webp)$/i.test(url.pathname)) {
+    e.respondWith(cacheFirst(e.request, STATIC_CACHE));
     return;
   }
   // Immutable static assets → cache-first (guarded).

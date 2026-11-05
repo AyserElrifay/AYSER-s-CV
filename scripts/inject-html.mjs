@@ -278,7 +278,9 @@ const oneVideo = `<script>(function(){try{
 const moveHome = `<script>(function(){try{var h=location.hostname;if(/\\.github\\.io$/i.test(h)){location.replace('https://therealmoments.com/'+location.search+location.hash);}}catch(e){}})();</script>`;
 /* dark only when the app will be dark: the choice in Settings, or the phone's own when it is left on auto */
 const bootTheme = `<script>(function(){try{var v=localStorage.getItem('moments.theme');var d=v==='dark'||(v!=='light'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.className+=' mm-boot-dark';}catch(e){}})();</script>`;
-html = html.replace(/<head([^>]*)>/, (m) => m + moveHome + bootTheme + oneVideo);
+/* Chrome offers "install" once, early; the prompt that uses it loads later (App.js lazy), so it is kept here */
+const keepInstall = `<script>(function(){try{window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__mmInstall=e;});}catch(e){}})();</script>`;
+html = html.replace(/<head([^>]*)>/, (m) => m + moveHome + bootTheme + oneVideo + keepInstall);
 html = html.replace(/<body([^>]*)>/, (m) => m + kiteIntro);
 /* Without JavaScript (and for a crawler that reads before it renders)
    the page said only "You need to enable JavaScript". Now it says what

@@ -58,10 +58,12 @@ export function isIos() {
 /* Chrome hands us the install event before we're mounted, so we grab it
    at module load and keep it. Without this the button would only ever
    work if the event happened to fire late. */
-let deferred = null;
+/* this file loads late (App.js), so the page's own head keeps the event
+   (scripts/inject-html.mjs: window.__mmInstall) and it is read from there */
+let deferred = (typeof window !== 'undefined' && window.__mmInstall) || null;
 if (Platform.OS === 'web' && typeof window !== 'undefined') {
   try {
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; });
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; window.__mmInstall = e; });
   } catch (e) {}
 }
 
@@ -69,6 +71,7 @@ export const InstallPrompt = ({ force = false, onClose }) => {
   const { t } = useLang();
   const insets = useSafeAreaInsets();
   const [show, setShow] = useState(false);
+  if (!deferred && typeof window !== 'undefined' && window.__mmInstall) deferred = window.__mmInstall;
   const [canPrompt, setCanPrompt] = useState(!!deferred);
   const [open, setOpen] = useState(false);          // the iPhone steps, only when asked
 

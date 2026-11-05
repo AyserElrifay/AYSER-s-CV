@@ -384,7 +384,7 @@ export async function uploadMediaSmart(userId, uri, ext, contentType, opts) {
   if (!SUPABASE_READY) return uri; // demo mode keeps the local blob url
   if (/^image\//.test(contentType || '') && !/gif|svg/.test(contentType)) {
     const { squeezeImage } = await import('./squeeze');   // loaded the first time a photo is sent
-    const s = await squeezeImage(uri);
+    const s = await squeezeImage(uri, opts && opts.squeeze);
     if (s.ext) { uri = s.uri; ext = s.ext; contentType = s.type; }
   }
   if (R2_READY) {
