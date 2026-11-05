@@ -17,7 +17,23 @@ const LABEL = {
 };
 
 /* Fetch real venues within `radius` metres of a coordinate. */
+/* Kept on the phone for a week per area (about a kilometre square):
+   cafés and restaurants do not move, so opening the map again asks no
+   one (Ayser, November 2026: local-first). Live things — people, tables,
+   squads — are never kept like this. */
+const PLACES_TTL = 7 * 24 * 3600 * 1000;
+const placesKey = (lat, lng, r) => 'mm.places.' + lat.toFixed(2) + ',' + lng.toFixed(2) + ',' + r;
 export async function fetchNearbyPlaces({ latitude, longitude }, radius = 1600) {
+  const key = placesKey(latitude, longitude, radius);
+  try {
+    const kept = JSON.parse(localStorage.getItem(key) || 'null');
+    if (kept && Date.now() - kept.at < PLACES_TTL && Array.isArray(kept.rows)) return kept.rows;
+  } catch (e) {}
+  const rows = await askOverpass({ latitude, longitude }, radius);
+  if (rows.length) { try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), rows })); } catch (e) {} }
+  return rows;
+}
+async function askOverpass({ latitude, longitude }, radius) {
   const q = `[out:json][timeout:20];
     (
       node["amenity"~"restaurant|cafe|bar|pub|fast_food|ice_cream|food_court"](around:${radius},${latitude},${longitude});

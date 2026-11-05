@@ -8,7 +8,11 @@ import { mw, until } from '../constants/memoryWords';
 import { mv } from '../constants/mvpWords';
 import { splitPrompt } from '../constants/loopWords';
 import { memoryBook, keepPage, highlightPage, makeLight, isVideoUrl, addToPage, removeFromPage } from '../services/memory';
-import { uploadMediaSmart, smallImage } from '../lib/storage';
+import { uploadMediaSmart, smallImage, dataBlob } from '../lib/storage';
+// the full photos kept on this phone (src/lib/vault.js), loaded with the Book
+const vault = () => import('../lib/vault');
+const localCopy = (u) => vault().then((v) => v.localCopy(u));
+const keepLocalCopy = (u, b) => vault().then((v) => v.keepLocalCopy(u, b));
 import { fetchMyMoments } from '../services/posts';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { askUpgrade } from '../services/membership';
@@ -319,7 +323,7 @@ const Spread = ({ pg, n, lang, black, member, price, total, onOpen, onKeep, onHi
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
                 {(ownPic ? [ownPic] : []).concat(rest).map((x, i) => (
                   <View key={x.id} testID="mb-extra" style={{ width: 58, height: 58, marginEnd: 8, marginBottom: 8, backgroundColor: V.frame, padding: 3, borderWidth: 1, borderColor: V.edge, transform: [{ rotate: i % 2 ? '2deg' : '-2deg' }] }}>
-                    <Image source={{ uri: x.url }} style={{ flex: 1 }} resizeMode="cover" />
+                    <BookImage url={x.url} style={{ flex: 1 }} />
                     {!locked ? (
                       <Pressable onPress={() => onRemoveExtra(pg, x)} hitSlop={8} accessibilityRole="button" accessibilityLabel={mw(lang, 'remove')}
                         style={{ position: 'absolute', top: -7, right: -7, width: 18, height: 18, borderRadius: 9, backgroundColor: V.ink, alignItems: 'center', justifyContent: 'center' }}>
@@ -403,7 +407,7 @@ const AddSheet = ({ lang, pg, userId, onClose, onPost, onPhone, onDraw }) => {
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                 {posts.map((x) => (
                   <Pressable key={x.id} testID="mb-post-pick" onPress={() => { tapLight(); onPost(x.url); }} accessibilityRole="button" style={cell}>
-                    <Image source={{ uri: x.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    <BookImage url={x.url} style={{ width: '100%', height: '100%' }} />
                   </Pressable>
                 ))}
                 {posts.length % 3 ? Array.from({ length: 3 - (posts.length % 3) }).map((_, i) => <View key={'f' + i} style={{ width: '31.5%' }} />) : null}
@@ -531,6 +535,19 @@ const wrap = (x, text, maxW) => {
   return lines;
 };
 const SANS = '-apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+/* a page's own photo or drawing: the full copy on this phone when it has
+   one (src/lib/vault.js), the server's small copy otherwise */
+const BookImage = ({ url, style }) => {
+  const [src, setSrc] = React.useState(url);
+  React.useEffect(() => {
+    let alive = true;
+    setSrc(url);
+    localCopy(url).then((u) => { if (alive && u) setSrc(u); });
+    return () => { alive = false; };
+  }, [url]);
+  return <Image source={{ uri: src }} style={style} resizeMode="cover" />;
+};
+
 export async function makeRecap({ lang, black, label, sub, photos, quote, checks }) {
   const P = black ? OBSIDIAN : PAPER;
   const c = document.createElement('canvas'); c.width = 1080; c.height = 1920;
@@ -729,7 +746,18 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
     if (!user) return;
     setAdding(pg.day + kind); setNote(null);
     try {
-      const url = await uploadMediaSmart(user.id, blob, ext, type);
+      /* Ayser, November 2026 (local-first): the server gets a copy of 35 KB
+         at most; the full photo or drawing stays on this phone
+         (src/lib/vault.js) and the Book shows it whenever the phone has it */
+      let full = blob, up = blob, upExt = ext, upType = type;
+      if (kind === 'photo' || kind === 'drawing') {
+        if (typeof full === 'string' && /^data:/.test(full)) full = dataBlob(full);
+        const { squeezeImage, BOOK_THUMB } = await import('../lib/squeeze');
+        const th = await squeezeImage(full, BOOK_THUMB);
+        if (th.ext) { up = th.uri; upExt = th.ext; upType = th.type; }
+      }
+      const url = await uploadMediaSmart(user.id, up, upExt, upType);
+      if (full && typeof full !== 'string' && url && up !== full) keepLocalCopy(url, full);
       const r = await addToPage(pg.day, kind, url);
       if (r && r.ok) { tapSuccess(); await load(); }
       else setNote(r && r.reason === 'full' ? mw(lang, 'extrasFull') : r && r.reason === 'locked' ? mw(lang, 'lockedAdd') : mw(lang, 'err'));
@@ -743,7 +771,8 @@ export const MemoryBook = ({ initial = null, bare = false }) => {
     inp.onchange = async () => {
       const f = inp.files && inp.files[0]; if (!f) return;
       const local = URL.createObjectURL(f);
-      try { const sm = await smallImage(local, 1080, 0.72); await pin(pg, 'photo', sm.uri, sm.ext || 'jpg', sm.type || 'image/jpeg'); }
+      // the copy kept on the phone: large and sharp (2048px); the server gets the small one (pin)
+      try { const sm = await smallImage(local, 2048, 0.85); await pin(pg, 'photo', sm.ext ? sm.uri : f, sm.ext || 'jpg', sm.type || 'image/jpeg'); }
       finally { URL.revokeObjectURL(local); }
     };
     inp.click();

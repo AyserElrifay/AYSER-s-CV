@@ -176,6 +176,8 @@ export const AuthProvider = ({ children }) => {
       // the next person on this phone must not inherit these
       forgetAccountSettings();
       forgetKept();
+      // your kept chats and Book photos (src/lib/vault.js) leave with you
+      try { if (typeof window !== 'undefined' && window.indexedDB) window.indexedDB.deleteDatabase('moments-vault'); } catch (e) {}
       setDemoAuthed(false);
     },
     enterDemo: () => setDemoAuthed(true),

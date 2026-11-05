@@ -9,6 +9,25 @@ import { useLang } from '../context/LanguageContext';
 import { DECK, BADGES, badgeName, cardText } from '../constants/activityDeck';
 import { myBuddies, myConversations, buddyThread, dmState, buddyPing, myNextEvents, passport, needPlus, mySafety } from '../services/live';
 import { fetchMessages, sendMessage, subscribeMessages } from '../services/messages';
+import { supabase } from '../lib/supabase';
+/* only what is newer than the last message this phone already has
+   (a conversation is kept on the phone — src/lib/vault.js) */
+async function fetchMessagesSince({ dmThreadId, since }) {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*, user:profiles!messages_user_id_fkey(name, handle, avatar_url)')
+    .eq('dm_thread_id', dmThreadId)
+    .gt('created_at', since)
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if (error) throw error;
+  return data || [];
+}
+
+// the conversation kept on this phone (src/lib/vault.js), loaded with the first chat opened
+const vault = () => import('../lib/vault');
+const chatGet = (t) => vault().then((v) => v.chatGet(t));
+const chatSet = (t, rows) => { vault().then((v) => v.chatSet(t, rows)); };
 import { Face } from '../ui/Face';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -107,14 +126,27 @@ const Chat = ({ other, threadId, lang, onBack }) => {
       if (!alive || !t) return;
       setTid(t);
       dmState(t).then((x) => alive && setSt(x && x.ok ? x : null));
-      fetchMessages({ dmThreadId: t }).then((rows) => alive && setMsgs(rows || [])).catch(() => {});
+      /* local-first (Ayser, November 2026): what this phone already has shows
+         at once, and only newer messages are asked for. Once a day the whole
+         conversation is asked for again, so a removed message goes away too. */
+      const kept = await chatGet(t);
+      if (alive && kept && kept.rows && kept.rows.length) setMsgs(kept.rows);
+      const fresh = kept && kept.rows && kept.rows.length && Date.now() - kept.at < 24 * 3600 * 1000;
+      try {
+        const rows = fresh
+          ? kept.rows.concat((await fetchMessagesSince({ dmThreadId: t, since: kept.rows[kept.rows.length - 1].created_at })).filter((r) => !kept.rows.some((x) => x.id === r.id)))
+          : (await fetchMessages({ dmThreadId: t })) || [];
+        if (!alive) return;
+        setMsgs(rows);
+        chatSet(t, rows);
+      } catch (e) {}
     })();
     return () => { alive = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!tid) return undefined;
     return subscribeMessages({ dmThreadId: tid }, (p) => {
-      setMsgs((m) => (m.some((x) => x.id === p.new.id) ? m : m.concat(p.new)));
+      setMsgs((m) => { const n = m.some((x) => x.id === p.new.id) ? m : m.concat(p.new); chatSet(tid, n); return n; });
       dmState(tid).then((x) => x && x.ok && setSt(x));
     });
   }, [tid]);
@@ -126,7 +158,7 @@ const Chat = ({ other, threadId, lang, onBack }) => {
     tapLight(); setDraft(''); setErr(null);
     try {
       const row = await sendMessage({ dmThreadId: tid, userId: user.id, body });
-      setMsgs((m) => (m.some((x) => x.id === row.id) ? m : m.concat(row)));
+      setMsgs((m) => { const n = m.some((x) => x.id === row.id) ? m : m.concat(row); chatSet(tid, n); return n; });
     } catch (e) { setDraft(body); setErr(w(lang, 'err')); }
     dmState(tid).then((x) => x && x.ok && setSt(x));
   };

@@ -2333,7 +2333,7 @@ export const STRINGS = {
     lens_stories: 'Stories',
     lens_trips: 'Trips',
     // Reels, install, books, music, films
-    install_title: 'Keep Moments on your home screen',
+    install_title: 'Download the Moments app — free',
     install_hint: 'Opens full screen, own icon, no address bar.',
     install_app: 'Install app',
     add_to_home: 'Add to Home screen',

@@ -117,8 +117,9 @@ export const InstallPrompt = ({ force = false, onClose }) => {
         </Pressable>
         {canPrompt && !ios ? (
           <Pressable onPress={install} accessibilityRole="button" style={{ marginEnd: 6 }}>
-            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 6 }}>
-              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Install</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 6 }}>
+              <Ionicons name="download-outline" size={14} color={C.ink} />
+              <Text style={{ color: C.ink, fontSize: 12.5, fontWeight: '900', marginStart: 5 }}>{t('install_app')}</Text>
             </View>
           </Pressable>
         ) : null}
