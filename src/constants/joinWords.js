@@ -39,6 +39,23 @@ export const mapsLink = (g) => (g && g.lat != null && g.lng != null
    is ten seats unless the team set another number; until it is half full it
    says what it is, then how many are left. Never "1 / 20", never "1 going". */
 export const TABLE_SEATS = 10;
+/* Ayser, November 2026: "never display exact low booking numbers". Three
+   states only, every one of them true: under half full it says what the
+   table is (a curated table, at most N seats); from half full the seats
+   that are really left; full is full. */
+export const seatState = (g) => {
+  const cap = Number(g && g.capacity) || TABLE_SEATS;
+  const n = Math.min(cap, Number(g && g.going) || 0);
+  const left = cap - n;
+  return { cap, left, level: left <= 0 ? 'full' : n / cap >= 0.5 ? 'fast' : 'curated' };
+};
+export const seatPillText = (lang, g, waitlist) => {
+  const { cap, left, level } = seatState(g);
+  const ar = lang === 'ar';
+  if (level === 'full') return ar ? 'كمل العدد' + (waitlist ? ' • ادخل قايمة الانتظار' : '') : 'Sold out' + (waitlist ? ' • Join waitlist' : '');
+  if (level === 'fast') return ar ? 'بيتملى بسرعة • فاضل ' + left + (left === 1 ? ' كرسي بس' : ' كراسي بس') : 'Filling fast • Only ' + left + (left === 1 ? ' seat' : ' seats') + ' left';
+  return ar ? 'ترابيزة منتقاة (' + cap + ' كراسي بالكتير)' : 'Curated table (max ' + cap + ' seats)';
+};
 export const seatLine = (lang, g) => {
   const cap = Number(g && g.capacity) || TABLE_SEATS;
   const n = Math.min(cap, Number(g && g.going) || 0);

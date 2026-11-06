@@ -17,6 +17,7 @@ import { joinMesh } from '../lib/talkMesh';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { dropClip } from '../lib/mediaFit';
+import { SeatPill } from './SeatPill';
 import { readPlan } from '../lib/feedGate';
 import { jw } from '../constants/joinWords';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -488,19 +489,9 @@ const DropCard = ({ d, lang, onChanged }) => {
         <>
           {/* Ayser, November 2026: a curated table says what it is until it is half full; after that, the seats left — never "1 / 20" */}
           {taken / Math.max(1, seats) >= 0.5 ? <Seats taken={taken} seats={seats} /> : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
-            <Text testID="drop-seats" style={[{ color: C.text, fontSize: 13.5, fontWeight: '600' }, NUM]}>
-              {full ? mv(lang, 'full')
-                : taken / Math.max(1, seats) >= 0.5 ? (lang === 'ar' ? 'باقي ' + (seats - taken) + ' كراسي بس على ترابيزة #' + (d.table_no || 1) : 'Only ' + (seats - taken) + (seats - taken === 1 ? ' spot' : ' spots') + ' left on Table #' + (d.table_no || 1))
-                : (lang === 'ar' ? '✦ ترابيزة منتقاة · ' + seats + ' كراسي بالكتير' : '✦ Curated table · max ' + seats + ' seats')}
-            </Text>
-            {/* the last seats, said out loud */}
-            {hot && taken / Math.max(1, seats) < 0.5 ? (
-              <View testID="drop-hot" style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.text, paddingHorizontal: 10, paddingVertical: 4, marginStart: 8 }}>
-                <Ionicons name="flame" size={12} color={C.bg} />
-                <Text style={{ color: C.bg, fontSize: 11.5, fontWeight: '800', marginStart: 4 }}>{seats - taken === 1 ? tbw(lang, 'lastSeat') : tbw(lang, 'lastSeats', { n: seats - taken })}</Text>
-              </View>
-            ) : null}
+          {/* curated · filling fast · sold out — the same pill as every plan card (SeatPill); full has a real waitlist below */}
+          <View testID="drop-seats" style={{ marginTop: 10 }}>
+            <SeatPill lang={lang} g={{ capacity: seats, going: taken }} waitlist />
           </View>
           {d.table_no > 1 && !d.mine ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6 }}>{tbw(lang, 'nowTable', { n: d.table_no })}</Text> : null}
         </>
@@ -629,7 +620,7 @@ const WeekendBanner = ({ lang }) => {
   );
 };
 
-export const DropsSection = ({ max = 3, only = null, onCount }) => {
+export const DropsSection = ({ max = 3, only = null, onCount, onSpot }) => {
   const { lang } = useLang();
   const [list, setList] = useState(null);
   const [cat, setCat] = useState(only || 'all');
@@ -640,6 +631,9 @@ export const DropsSection = ({ max = 3, only = null, onCount }) => {
     if (!onCount || !list) return;
     onCount(list.filter((d) => !only || (d.category || 'tables') === only).length);
   }, [list]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Together asks: is a Drop this weekend's one table? (then no plan is put in the spotlight next to it)
+  const spotN = (list || []).filter((d) => d.state !== 'queued' && (d.mine || (d.category || 'tables') === 'roam' || weekendDay(d.starts_at))).length ? 1 : 0;
+  useEffect(() => { if (onSpot) onSpot(spotN); }, [spotN]); // eslint-disable-line react-hooks/exhaustive-deps
   // no Drops this week: only the weekend countdown (Sunday–Wednesday), never a line saying "nothing"
   if (!list || !list.length) return only ? null : <View style={{ marginTop: 22 }}><WeekendBanner lang={lang} /></View>;
   // the open Drops first (yours, then the spotlight), then the ones waiting their turn

@@ -45,7 +45,8 @@ import { greenPic } from '../components/green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
 import { JourneyMap } from '../components/JourneyMap';
-import { jw, mapsLink, seatsLeftOf, seatLine, TABLE_SEATS } from '../constants/joinWords';
+import { jw, mapsLink, seatsLeftOf, TABLE_SEATS } from '../constants/joinWords';
+import { SeatPill } from '../components/SeatPill';
 import { LammaCard } from '../components/LammaCard';
 const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
 const EventRoom = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -421,6 +422,8 @@ export const TogetherScreen = () => {
   const [rows, setRows] = useState(() => keptGatherings(readCode()));  // the week as last seen; null = still asking
   const [on, setOn] = useState(() => recall('whatson') || null);  // fetchWhatsOn: now / soon / groups
   const [day, setDay] = useState(null);
+  const [laterOpen, setLaterOpen] = useState(false);   // "Coming next week", folded
+  const [dropSpot, setDropSpot] = useState(0);         // a Drop is this weekend's one table
   const [focus, setFocus] = useState(() => takePlan());   // a plan somebody sent (…/?plan=<id>) or tapped on the map, shown on its day and marked
   useEffect(() => onOpenPlan((id) => { takePlan(); setFocus(id); }), []);
   const [aud, setAud] = useState(null);   // null = all · 'all' = mixed · 'women' · 'men'
@@ -579,6 +582,7 @@ export const TogetherScreen = () => {
     if (!g) return;
     const d = groupByDay([g])[0];
     if (d) setDay(d.key);
+    setLaterOpen(true);   // a plan somebody sent is shown even when it is not this weekend's
     setOpen(focus);
   }, [focus, !!rows]); // eslint-disable-line react-hooks/exhaustive-deps
   /* Ayser, November 2026: the weekend only (Thursday to Saturday, Cairo), so people meet at full tables, not six half-empty ones */
@@ -690,71 +694,7 @@ export const TogetherScreen = () => {
       if (seen.has(k)) return false; seen.add(k); return true;
     }) })).filter((d) => d.items.length);
   })();
-  const myFlag = myCode ? String.fromCodePoint(...myCode.split('').map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)) : '📍';
-
-  return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
-      {/* nothing scrolls under the phone's clock (the same strip as Space) */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: C.bg, zIndex: 10 }} />
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 130, paddingHorizontal: 16 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
-      >
-        {/* ── header ── */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 14 }}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            {/* the city hub: tap to choose Cairo, Tallinn, Timișoara, Budapest, Berlin… */}
-            <Pressable onPress={() => { tapLight(); setHubPick(true); }} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: C.purpleSoft }}>
-                <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{hub ? hub.flag + ' ' + (lang === 'ar' && hub.name_ar ? hub.name_ar : hub.name) : t('tg_near_me')}</Text>
-                <Ionicons name="chevron-down" size={14} color={C.purple} style={{ marginStart: 4 }} />
-              </View>
-            </Pressable>
-            <Text style={{ color: C.text, fontSize: 30, fontWeight: '900', marginTop: 6 }}>{t('tg_title')}</Text>
-          </View>
-{/* nobody starts a plan from here: the team curates them (Studio) */}
-        </View>
-
-        <RateLast t={t} lang={lang} />
-        {askPush ? <View style={{ marginBottom: 14 }}><PushRow ask onDone={() => setAskPush(false)} /></View> : null}
-
-        {/* ── the hub (Ayser, October 2026): the week's Drops — Tables, Culture,
-            Impact days, Roam — then the English Circle, then the Global Track */}
-        {/* the level is one line at the top; the card opens in a sheet (GlobalTrack pill) */}
-        {uid ? <GlobalTrack pill /> : null}
-        {/* Ayser, November 2026: the real evenings, moving, right above the tables you can join */}
-        <View style={{ marginTop: 12 }}><HighlightsHero height={230} /></View>
-        {uid ? <DropsSection max={6} /> : null}
-        {uid ? <CircleCard /> : null}
-        <View style={{ height: 18 }} />
-
-        {/* one city picker only — the one at the top (Ayser, November 2026) */}
-        {/* ── the week ── */}
-        {rows === null ? (
-          <ActivityIndicator color={C.purple} style={{ marginVertical: 40 }} />
-        ) : rows.length === 0 ? null /* never an empty card: the Drops above are the week */ : (
-          <>
-            {/* girls only · guys only · mixed — shown once any of them exists */}
-            {(rows || []).some((g) => g.audience && g.audience !== 'all') ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 6 }}>
-                {[[null, '✨', 'au_any'], ['all', '👥', 'au_mixed'], ['women', '👩', 'au_women'], ['men', '👨', 'au_men']].map(([k, e, key]) => (
-                  <Pill key={key} on={aud === k} label={e + ' ' + t(key)} onPress={() => { tapLight(); setAud(k); setDay(null); }} />
-                ))}
-              </ScrollView>
-            ) : null}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 6 }}>
-              <Pill on={day === null} label={t('green_all_week')} onPress={() => { tapLight(); setDay(null); }} />
-              {days.map((d) => (
-                <Pill key={d.key} on={day === d.key} label={dayLabel(d)} onPress={() => { tapLight(); setDay(d.key); }} />
-              ))}
-            </ScrollView>
-
-            {shown.map((d) => (
-              <View key={d.key}>
-                <Section>{dayLabel(d, true).toUpperCase()}</Section>
-                {d.items.map((g) => {
+  const renderCard = (g) => {
                   const mine = uid && g.host_id === uid;
                   const expanded = open === g.id;
                   return (
@@ -833,10 +773,8 @@ export const TogetherScreen = () => {
                         ) : null}
 
                         {/* seats, then one button: Claim Seat → Seat Reserved → the place */}
-                        {(() => {
-                          const line = mine ? null : seatLine(lang, g);   // the host sees the real count below
-                          return line ? <Text style={[{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 10 }, NUM]}>{line}</Text> : null;
-                        })()}
+                        {/* never "1 booked of 10" on a card: curated · filling fast · sold out (SeatPill) — the host's exact count is in "Who is coming" */}
+                        <SeatPill lang={lang} g={g} style={{ marginTop: 10 }} />
                         {g.revealed && (g.im_going || mine) && !g.checked_in ? (
                           <View style={{ marginTop: 10 }}>
                             <Pressable onPress={() => { tapLight(); if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('MAP'); }} accessibilityRole="button"
@@ -860,11 +798,7 @@ export const TogetherScreen = () => {
                             /* your own plan (Ayser, November 2026: "فين زرار الحجز وكام واحد رايح واعزم صحابك"):
                                the real count, invite friends, and who is coming */
                             <View testID="host-actions">
-                              <Text style={[{ color: C.text, fontSize: 14, fontWeight: '800' }, NUM]}>
-                                {(() => { const n = Number(g.going) || 0; const cap = Number(g.capacity) || TABLE_SEATS;
-                                  return lang === 'ar' ? `${n} حاجزين من ${cap} · فاضل ${Math.max(cap - n, 0)}` : `${n} booked of ${cap} · ${Math.max(cap - n, 0)} seats left`; })()}
-                              </Text>
-                              <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                              <View style={{ flexDirection: 'row' }}>
                                 <Pressable testID="host-invite" onPress={() => invite(g)} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
                                   <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                                     <Ionicons name="person-add-outline" size={15} color={C.ink} />
@@ -936,9 +870,84 @@ export const TogetherScreen = () => {
                       </View>
                     </Pressable>
                   );
-                })}
+  };
+
+  /* the one drop: this weekend's plan (Thursday–Saturday, within a week) with the most people
+     already in it and a seat still free — unless a Drop above already holds the spotlight.
+     Seats you claimed stay in sight; everything else goes to "Coming next week". */
+  const inWeek = (g) => { const ts = new Date(g.starts_at).getTime(); return ts > Date.now() - 3 * 3600e3 && ts < Date.now() + 7 * 864e5; };
+  const pool = (aud ? (rows || []).filter((x) => (x.audience || 'all') === aud) : (rows || [])).filter((x) => x && x.starts_at);
+  const hasSeat = (x) => (Number(x.going) || 0) < (Number(x.capacity) || TABLE_SEATS);
+  const star = dropSpot ? null : pool.filter((x) => wkend(x) && inWeek(x))
+    .sort((a, b) => Number(hasSeat(b)) - Number(hasSeat(a)) || (Number(b.going) || 0) - (Number(a.going) || 0) || String(a.starts_at).localeCompare(String(b.starts_at)))[0] || null;
+  const featured = (star ? [star] : []).concat(pool.filter((x) => x !== star && x.im_going && !(uid && x.host_id === uid)));
+  const nextUp = (() => {
+    const seen = new Set(featured.map((x) => x.weekly_id || x.id));
+    return pool.filter((x) => !featured.includes(x)).sort((a, b) => String(a.starts_at).localeCompare(String(b.starts_at)))
+      .filter((x) => { const k = x.weekly_id || ((x.title || '') + '|' + (x.place_name || '')); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 8);
+  })();
+  const myFlag = myCode ? String.fromCodePoint(...myCode.split('').map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)) : '📍';
+
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      {/* nothing scrolls under the phone's clock (the same strip as Space) */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: C.bg, zIndex: 10 }} />
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 130, paddingHorizontal: 16 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
+      >
+        {/* ── header ── */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 14 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            {/* the city hub: tap to choose Cairo, Tallinn, Timișoara, Budapest, Berlin… */}
+            <Pressable onPress={() => { tapLight(); setHubPick(true); }} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: C.purpleSoft }}>
+                <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{hub ? hub.flag + ' ' + (lang === 'ar' && hub.name_ar ? hub.name_ar : hub.name) : t('tg_near_me')}</Text>
+                <Ionicons name="chevron-down" size={14} color={C.purple} style={{ marginStart: 4 }} />
               </View>
-            ))}
+            </Pressable>
+            <Text style={{ color: C.text, fontSize: 30, fontWeight: '900', marginTop: 6 }}>{t('tg_title')}</Text>
+          </View>
+{/* nobody starts a plan from here: the team curates them (Studio) */}
+        </View>
+
+        <RateLast t={t} lang={lang} />
+        {askPush ? <View style={{ marginBottom: 14 }}><PushRow ask onDone={() => setAskPush(false)} /></View> : null}
+
+        {/* ── the hub (Ayser, October 2026): the week's Drops — Tables, Culture,
+            Impact days, Roam — then the English Circle, then the Global Track */}
+        {/* the level is one line at the top; the card opens in a sheet (GlobalTrack pill) */}
+        {uid ? <GlobalTrack pill /> : null}
+        {/* Ayser, November 2026: the real evenings, moving, right above the tables you can join */}
+        <View style={{ marginTop: 12 }}><HighlightsHero height={230} /></View>
+        {uid ? <DropsSection max={1} onSpot={setDropSpot} /> : null}
+        {uid ? <CircleCard /> : null}
+        <View style={{ height: 18 }} />
+
+        {/* one city picker only — the one at the top (Ayser, November 2026) */}
+        {/* ── the week ── */}
+        {rows === null ? (
+          <ActivityIndicator color={C.purple} style={{ marginVertical: 40 }} />
+        ) : rows.length === 0 ? null /* never an empty card: the Drops above are the week */ : (
+          <>
+            {/* girls only · guys only · mixed — shown once any of them exists */}
+            {(rows || []).some((g) => g.audience && g.audience !== 'all') ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 6 }}>
+                {[[null, '✨', 'au_any'], ['all', '👥', 'au_mixed'], ['women', '👩', 'au_women'], ['men', '👨', 'au_men']].map(([k, e, key]) => (
+                  <Pill key={key} on={aud === k} label={e + ' ' + t(key)} onPress={() => { tapLight(); setAud(k); setDay(null); }} />
+                ))}
+              </ScrollView>
+            ) : null}
+            {/* Ayser, November 2026: ONE drop for the weekend, so the people meet at one full table —
+                the rest wait, folded, at the bottom (see the "Coming next week" fold below) */}
+            {featured.length ? (
+              <View testID="featured-plan">
+                <Section>{lang === 'ar' ? 'خروجة الويك إند' : 'This weekend'}</Section>
+                {featured.map(renderCard)}
+              </View>
+            ) : null}
           </>
         )}
 
@@ -1069,6 +1078,19 @@ export const TogetherScreen = () => {
             <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginStart: 8 }}>{t('pt_together_line')}</Text>
           </View>
         </Pressable>
+
+        {/* ── coming next week ── everything that is not this weekend's one drop, folded at the very bottom */}
+        {nextUp.length ? (
+          <View testID="coming-next" style={{ marginTop: 18 }}>
+            <Pressable testID="coming-next-toggle" onPress={() => { tapLight(); setLaterOpen((v) => !v); }} accessibilityRole="button" accessibilityState={{ expanded: laterOpen }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: C.line, paddingVertical: 13, paddingHorizontal: 16, backgroundColor: C.glass }}>
+              <Ionicons name="lock-closed-outline" size={16} color={C.dim} />
+              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', flex: 1 }}>{lang === 'ar' ? 'جاي الأسبوع الجاي' : 'Coming next week'}</Text>
+              <Ionicons name={laterOpen ? 'chevron-up' : 'chevron-down'} size={16} color={C.dim} />
+            </Pressable>
+            {laterOpen ? <View style={{ marginTop: 10 }}>{nextUp.map(renderCard)}</View> : null}
+          </View>
+        ) : null}
       </ScrollView>
 
       {/* Explore closes completely before the next screen opens. Closing
