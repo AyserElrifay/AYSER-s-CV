@@ -20,7 +20,7 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v92';
+const CACHE = 'moments-v93';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -168,7 +168,22 @@ const pieceOf = async (whole, range) => {
     'Content-Type': whole.headers.get('Content-Type') || 'video/mp4', 'Content-Length': String(end - start + 1),
     'Content-Range': 'bytes ' + start + '-' + end + '/' + total, 'Accept-Ranges': 'bytes' } });
 };
-async function videoFromPhone(request) {
+const keeping = new Set();
+const keepVideo = async (c, key, same) => {
+  if (keeping.has(key)) return;
+  keeping.add(key);
+  try {
+    const whole = await fetch(key, same ? {} : { mode: 'cors', credentials: 'omit' });
+    const size = parseInt(whole.headers.get('Content-Length') || '0', 10);
+    if (whole.ok && whole.status === 200 && !(size && size > VIDEO_BYTES)) {
+      await c.put(key, whole);
+      const keys = await c.keys();
+      for (let i = 0; i < keys.length - VIDEO_MAX; i++) await c.delete(keys[i]);
+    }
+  } catch (e) { /* kept next time */ }
+  keeping.delete(key);
+};
+async function videoFromPhone(request, event) {
   const key = request.url.split('#')[0];
   const range = request.headers.get('range');
   if (!HAS_CACHES) return fetch(request);
@@ -176,8 +191,16 @@ async function videoFromPhone(request) {
     const c = await caches.open(VIDEO_CACHE);
     const hit = await c.match(key);
     if (hit) return range ? pieceOf(hit, range) : hit;
-    // not kept yet: the whole file once (no Range), so it can be kept and cut
     const same = new URL(key).origin === self.location.origin;
+    /* our own clips (the Home hero): play straight from the network now —
+       waiting for the whole file first is what made the hero hang — and
+       keep the whole file in the background for next time */
+    if (same) {
+      const p = keepVideo(c, key, same);
+      if (event && event.waitUntil) event.waitUntil(p);
+      return fetch(request);
+    }
+    // Storage videos: the whole file once (no Range), so it can be kept and cut — one download, not two
     const whole = await fetch(key, same ? {} : { mode: 'cors', credentials: 'omit' });
     const size = parseInt(whole.headers.get('Content-Length') || '0', 10);
     if (!whole.ok || whole.status !== 200) return whole;
@@ -200,7 +223,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   if (e.request.method === 'GET' && isVaultVideo(url, e.request)) {
-    e.respondWith(videoFromPhone(e.request));
+    e.respondWith(videoFromPhone(e.request, e));
     return;
   }
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;

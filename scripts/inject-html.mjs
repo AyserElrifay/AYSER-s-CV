@@ -258,7 +258,7 @@ const oneVideo = `<script>(function(){try{
   var io=new IntersectionObserver(function(es){es.forEach(function(e){var v=e.target;
     if(e.isIntersecting&&e.intersectionRatio>0.15){ratio.set(v,e.intersectionRatio);}
     else{ratio.delete(v);release(v);}});pick();},{threshold:[0,0.15,0.4,0.7,1]});
-  var adopt=function(v){if(v.dataset.mmSeen)return;if(!v.getAttribute('src'))return;v.dataset.mmSeen='1';
+  var adopt=function(v){if(v.dataset.mmSeen||v.dataset.mmOwn)return;if(!v.getAttribute('src'))return;v.dataset.mmSeen='1';
     if(v.autoplay||v.hasAttribute('autoplay')){v.dataset.mmAuto='1';v.autoplay=false;v.removeAttribute('autoplay');}
     v.preload='none';try{v.pause();}catch(e){}io.observe(v);};
   var scan=function(root){if(root.tagName==='VIDEO')adopt(root);if(root.querySelectorAll)root.querySelectorAll('video').forEach(adopt);};
