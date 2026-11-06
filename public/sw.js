@@ -20,10 +20,14 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v93';
+const CACHE = 'moments-v94';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
+/* Safari on iPhone plays a video handed over by a service worker badly (a
+   black box on the Together hero, November 2026): there it goes straight
+   to the network, the phone's own media cache does the rest */
+const SAFARI = (() => { try { const u = self.navigator.userAgent || ''; return /Safari/.test(u) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS|Android/.test(u); } catch (e) { return false; } })();
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -222,7 +226,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(photoFromPhone(e.request));
     return;
   }
-  if (e.request.method === 'GET' && isVaultVideo(url, e.request)) {
+  if (e.request.method === 'GET' && !SAFARI && isVaultVideo(url, e.request)) {
     e.respondWith(videoFromPhone(e.request, e));
     return;
   }

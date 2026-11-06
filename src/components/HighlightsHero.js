@@ -29,7 +29,12 @@ import { isSaving } from '../lib/dataSaver';
      gave it back to the first one);
    · a video that fails, stalls or never starts is skipped after STUCK_MS;
    · a swipe (or a tap on a dot) moves between them; only the one showing
-     and its two neighbours hold a video, the rest are their still frame. */
+     and its two neighbours hold a video, the rest are their still frame.
+   Then a black box on an iPhone (Low Power Mode refuses to start a video
+   on its own): the still frame now always lies under the video, the
+   video shows itself only once it is really playing, a phone that says
+   "no" gets the stills sliding by (a touch starts the video), and a
+   highlight with neither a picture nor a playable video is left out. */
 const IDEAS = ['hang', 'shop'].map((k) => ({
   id: 'idea-' + k, idea: true, kind: 'video', key: 'hl_' + k,
   media_url: publicMedia('welcome-' + k + '.mp4'), poster_url: publicMedia('welcome-' + k + '.webp'),   // under 25 KB
@@ -55,6 +60,8 @@ export const HighlightsHero = ({ height = 260 }) => {
   const [w, setW] = useState(0);
   const [i, setI] = useState(0);
   const [seen, setSeen] = useState(true);       // on screen, and the app in front
+  const [blocked, setBlocked] = useState(false); // the phone will not start a video by itself
+  const [gone, setGone] = useState({});          // nothing to show at all: left out
   const x = useRef(new Animated.Value(0)).current;
   const vids = useRef({});
   const box = useRef(null);
@@ -66,12 +73,14 @@ export const HighlightsHero = ({ height = 260 }) => {
     fetchHighlights().then((h) => { if (alive && Array.isArray(h)) { setHls(h); remember('highlights', h); } }).catch(() => {});
     return () => { alive = false; };
   }, []);
-  const items = hls.concat(IDEAS);
+  const items = hls.concat(IDEAS).filter((it) => !gone[it.id]);
   const n = items.length;
   // Arabic reads from the right: the next one waits on the left
   const dir = rtl ? -1 : 1;
   const live = useRef({});
-  live.current = { i, n, w, dir, seen };
+  live.current = { i, n, w, dir, seen, blocked, items };
+  useEffect(() => { if (n && i >= n) setI(0); }, [n, i]);
+  const drop = (it) => { if (it && !it.poster_url && it.kind === 'video') setGone((g) => ({ ...g, [it.id]: true })); };
 
   const go = (k) => { const m = live.current.n; if (m) setI(((k % m) + m) % m); };
   const next = () => {
@@ -108,17 +117,18 @@ export const HighlightsHero = ({ height = 260 }) => {
     const c = live.current;
     Object.keys(vids.current).forEach((k) => {
       const v = vids.current[k]; if (!v) return;
-      if (Number(k) === c.i && v.error) { setTimeout(next, 600); return; }   // it already failed while waiting its turn
-      if (Number(k) === c.i && c.seen && !saving) {
+      if (Number(k) === c.i && v.error) { const it = c.items[c.i]; setTimeout(() => { drop(it); next(); }, 600); return; }   // it already failed while waiting its turn
+      if (Number(k) === c.i && c.seen && !saving && !c.blocked) {
         if (v._mmAt !== c.i) { v._mmAt = c.i; try { v.currentTime = 0; } catch (e) {} }
-        v.play().catch(() => {});
+        const pr = v.play();
+        if (pr && pr.catch) pr.catch((err) => { if (err && err.name === 'NotAllowedError') setBlocked(true); });
       } else {
         try { v.pause(); } catch (e) {}
-        if (Number(k) !== c.i) v._mmAt = -1;
+        if (Number(k) !== c.i) { v._mmAt = -1; v.style.opacity = '0'; }
       }
     });
   };
-  useEffect(() => { moved.current = Date.now(); steer(); }, [i, seen, n]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { moved.current = Date.now(); steer(); }, [i, seen, n, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // a still (data saver, or a photo highlight) moves on by itself; a video
   // that fails, stalls or never starts is skipped instead of hanging the hero
@@ -126,14 +136,25 @@ export const HighlightsHero = ({ height = 260 }) => {
     if (!seen || !n) return undefined;
     const it = items[i];
     if (!it) return undefined;
-    if (it.kind !== 'video' || saving || Platform.OS !== 'web') {
+    if (it.kind !== 'video' || saving || blocked || Platform.OS !== 'web') {
       const h = setTimeout(next, STILL_MS);
       return () => clearTimeout(h);
     }
     moved.current = Date.now();
     const h = setInterval(() => { if (Date.now() - moved.current > STUCK_MS) next(); }, 1000);
     return () => clearInterval(h);
-  }, [i, n, saving, seen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [i, n, saving, seen, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* a touch is the phone's "yes": start the video now, inside the touch */
+  const wake = (k) => {
+    if (!live.current.blocked) return;
+    const v = vids.current[k]; if (!v) return;
+    try { v.muted = true; v._mmAt = k; v.currentTime = 0; } catch (e) {}
+    const pr = v.play();
+    live.current.blocked = false; setBlocked(false);            // the touch said yes; if the phone still says no, back to stills
+    if (pr && pr.catch) pr.catch((err) => { if (err && err.name === 'NotAllowedError') setBlocked(true); });
+  };
+  const goTouch = (k) => { const m = live.current.n; if (!m) return; const t = ((k % m) + m) % m; wake(t); setI(t); };
 
   // a finger (or a mouse) moves between them
   const pan = useRef(PanResponder.create({
@@ -145,8 +166,8 @@ export const HighlightsHero = ({ height = 260 }) => {
       const c = live.current;
       const toward = c.dir * g.dx;              // < 0: towards the next one
       const far = Math.abs(g.dx) > (c.w || 300) * 0.18 || Math.abs(g.vx) > 0.35;
-      if (far && c.n > 1) go(c.i + (toward < 0 ? 1 : -1));
-      else place(c.i);
+      if (far && c.n > 1) goTouch(c.i + (toward < 0 ? 1 : -1));
+      else { place(c.i); wake(c.i); }
     },
     onPanResponderTerminate: () => place(live.current.i),
   })).current;
@@ -165,6 +186,9 @@ export const HighlightsHero = ({ height = 260 }) => {
           const play = it.kind === 'video' && !saving && Platform.OS === 'web' && near(k);
           return (
             <View key={it.id} style={{ position: 'absolute', top: 0, bottom: 0, left: dir * k * W, width: W, backgroundColor: '#17131F' }}>
+              {still ? React.createElement('img', { src: still, alt: '', draggable: false,
+                onError: (e) => { const j = still.replace(/\.webp$/, '.jpg'); if (j !== still && e.currentTarget.src.indexOf(j) < 0) e.currentTarget.src = j; },
+                style: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' } }) : null}
               {play ? React.createElement('video', {
                 ref: (el) => { if (el) vids.current[k] = el; else delete vids.current[k]; },
                 className: 'mm-hero', src: it.media_url, poster: it.poster_url || undefined,
@@ -172,14 +196,13 @@ export const HighlightsHero = ({ height = 260 }) => {
                 muted: true, playsInline: true, preload: k === i ? 'auto' : 'metadata',
                 disablePictureInPicture: true, controls: false, controlsList: 'nodownload nofullscreen noremoteplayback',
                 tabIndex: -1, 'aria-hidden': true, draggable: false,
-                onTimeUpdate: () => { if (k === live.current.i) moved.current = Date.now(); },
+                onTimeUpdate: (e) => { if (k === live.current.i) moved.current = Date.now(); if (e.currentTarget.currentTime > 0) e.currentTarget.style.opacity = '1'; },
+                onPlaying: (e) => { if (e.currentTarget.currentTime > 0) e.currentTarget.style.opacity = '1'; },
                 onCanPlay: () => { if (k === live.current.i) steer(); },
                 onEnded: () => { if (k === live.current.i) next(); },
-                onError: () => { if (k === live.current.i) next(); },
-                style: { width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', display: 'block' },
-              }) : still ? (
-                React.createElement('img', { src: still, alt: '', draggable: false, style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' } })
-              ) : null}
+                onError: () => { if (k === live.current.i) { drop(it); next(); } },
+                style: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', display: 'block', opacity: 0, transition: 'opacity .25s' },
+              }) : null}
             </View>
           );
         })}
@@ -194,7 +217,7 @@ export const HighlightsHero = ({ height = 260 }) => {
       {n > 1 ? (
         <View testID="hero-dots" style={{ position: 'absolute', left: 0, right: 0, bottom: 8, flexDirection: rtl ? 'row-reverse' : 'row', justifyContent: 'center' }}>
           {items.map((it, k) => (
-            <Pressable key={it.id} testID={'hero-dot-' + k} onPress={() => go(k)} hitSlop={8} accessibilityRole="button" accessibilityLabel={String(k + 1)}
+            <Pressable key={it.id} testID={'hero-dot-' + k} onPress={() => goTouch(k)} hitSlop={8} accessibilityRole="button" accessibilityLabel={String(k + 1)}
               style={{ paddingHorizontal: 3, paddingVertical: 4 }}>
               <View style={{ width: k === i ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: k === i ? '#FFF' : 'rgba(255,255,255,0.45)' }} />
             </Pressable>
