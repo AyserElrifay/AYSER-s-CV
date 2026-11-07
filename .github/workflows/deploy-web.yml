@@ -312,11 +312,11 @@ jobs:
         env:
           # the public address of the R2 media bucket — not a secret, but kept
           # with the others; empty means uploads stay on Supabase Storage
-          EXPO_PUBLIC_R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          EXPO_PUBLIC_R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL || vars.R2_PUBLIC_URL }}
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags
         env:
-          EXPO_PUBLIC_R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          EXPO_PUBLIC_R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL || vars.R2_PUBLIC_URL }}
         run: node scripts/inject-html.mjs dist
       # The app is cut into pieces that arrive when they are opened, and
       # two ordinary-looking lines silently put it back together: an
