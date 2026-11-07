@@ -253,7 +253,7 @@ const DropsBox = () => {
       if (m) await ownerOfferPoint(r.id, Number(m[1]), Number(m[2]));
     }
     if (r && r.ok) { tapSuccess(); setNote('Saved — it is on Home now.'); setF(null); load(); }
-    else setNote(r && r.reason === 'incomplete' ? 'The neighbourhood and the time are needed.' : r && r.reason === 'video' ? 'The video link has to start with https://' : 'Could not save — owner only.');
+    else setNote(r && r.reason === 'incomplete' ? 'The neighbourhood and the time are needed.' : r && r.reason === 'video' ? 'The video link has to start with https://' : r && r.reason === 'placeholder' ? 'The place still says SET THE / CONFIRM — write the real place first, then publish.' : 'Could not save — owner only.');
   };
   return (
     <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
@@ -289,7 +289,9 @@ const DropsBox = () => {
           {f.category !== 'roam' && isAdventure(f.video_url) ? <Text style={{ color: C.text, fontSize: 12.5, marginTop: 4 }}>This looks like an adventure clip. Tables, Culture and Impact show a city clip instead; adventure clips are for Roam.</Text> : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
             <Btn label="Save drop" solid onPress={save} />
-            {f.id ? <Btn label={f.status === 'closed' ? 'Open again' : 'Close it'} onPress={() => setF((x) => ({ ...x, status: x.status === 'closed' ? 'live' : 'closed' }))} /> : null}
+            {/* a draft (the plan of the weeks ahead) is seen by nobody until it is published here — then Save */}
+            {f.id && f.status === 'draft' ? <Btn label="Publish (then Save)" onPress={() => setF((x) => ({ ...x, status: 'live' }))} /> : null}
+            {f.id && f.status !== 'draft' ? <Btn label={f.status === 'closed' ? 'Open again' : 'Close it'} onPress={() => setF((x) => ({ ...x, status: x.status === 'closed' ? 'live' : 'closed' }))} /> : null}
             <Btn label="Cancel" onPress={() => setF(null)} />
           </View>
         </>

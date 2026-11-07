@@ -26565,6 +26565,12 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'incomplete');
   end if;
   if cat not in ('tables', 'culture', 'impact', 'roam') then cat := 'tables'; end if;
+  /* a planned draft says where it still needs a decision ("SET THE …",
+     "CONFIRM …", "حدّد …", "أكّد …"); it cannot go live with that showing */
+  if coalesce(nullif(p ->> 'status', ''), (select o.status from public.offers o where o.id = oid), 'live') = 'live'
+     and (p ->> 'neighborhood' || ' ' || coalesce(p ->> 'neighborhood_ar', '')) ~ '(SET THE|CONFIRM|حدّد|أكّد)' then
+    return jsonb_build_object('ok', false, 'reason', 'placeholder');
+  end if;
   if nullif(trim(p ->> 'video_url'), '') is not null and trim(p ->> 'video_url') !~* '^https://' then
     return jsonb_build_object('ok', false, 'reason', 'video');
   end if;
