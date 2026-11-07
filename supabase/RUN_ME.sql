@@ -10426,7 +10426,12 @@ begin
   if not exists (select 1 from public.green_gatherings where id = p_id and host_id = me) then
     return jsonb_build_object('ok', false, 'reason', 'not_host');
   end if;
-  if p_url is not null and p_url not like 'https://dvddiyztpyyuultndzso.supabase.co/storage/v1/object/public/media/' || me::text || '/%' then
+  /* our Supabase Storage, or (November 2026) our R2 bucket — its public
+     address is written to app_settings 'r2_public_url' by setup-backend.yml —
+     and in both, only the caller's own folder */
+  if p_url is not null and (p_url ~ '[\s"''<>]' or (
+       p_url not like 'https://dvddiyztpyyuultndzso.supabase.co/storage/v1/object/public/media/' || me::text || '/%'
+       and not coalesce(p_url like (select nullif(s.value #>> '{}', '') from public.app_settings s where s.key = 'r2_public_url') || '/' || me::text || '/%', false))) then
     return jsonb_build_object('ok', false, 'reason', 'bad_url');
   end if;
   update public.green_gatherings set photo_url = p_url where id = p_id;

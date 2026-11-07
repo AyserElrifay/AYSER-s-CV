@@ -281,6 +281,17 @@ const bootTheme = `<script>(function(){try{var v=localStorage.getItem('moments.t
 /* Chrome offers "install" once, early; the prompt that uses it loads later (App.js lazy), so it is kept here */
 const keepInstall = `<script>(function(){try{window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__mmInstall=e;});}catch(e){}})();</script>`;
 html = html.replace(/<head([^>]*)>/, (m) => m + moveHome + bootTheme + oneVideo + keepInstall);
+/* the R2 media bucket's address into the service worker, so what comes
+   from it is kept on the phone like Storage's (public/sw.js R2_ORIGIN) */
+{
+  const swFile = path.join(process.cwd(), dist, 'sw.js');
+  if (fs.existsSync(swFile)) {
+    let origin = '';
+    try { const u = process.env.EXPO_PUBLIC_R2_PUBLIC_URL || ''; if (u) origin = new URL(u).origin; } catch (e) { origin = ''; }
+    const sw = fs.readFileSync(swFile, 'utf8');
+    if (sw.includes('__R2_ORIGIN__')) fs.writeFileSync(swFile, sw.split("'__R2_ORIGIN__'").join(JSON.stringify(origin).replace(/"/g, "'")));
+  }
+}
 html = html.replace(/<body([^>]*)>/, (m) => m + kiteIntro);
 /* Without JavaScript (and for a crawler that reads before it renders)
    the page said only "You need to enable JavaScript". Now it says what

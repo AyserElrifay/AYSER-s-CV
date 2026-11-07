@@ -193,7 +193,7 @@ export const HighlightsHero = ({ height = 260 }) => {
                 ref: (el) => { if (el) vids.current[k] = el; else delete vids.current[k]; },
                 className: 'mm-hero', src: it.media_url, poster: it.poster_url || undefined,
                 'data-mm-own': '1',
-                muted: true, playsInline: true, preload: k === i ? 'auto' : 'metadata',
+                muted: true, playsInline: true, preload: 'none',   // nothing is fetched until it is played (zero egress for clips nobody watches)
                 disablePictureInPicture: true, controls: false, controlsList: 'nodownload nofullscreen noremoteplayback',
                 tabIndex: -1, 'aria-hidden': true, draggable: false,
                 onTimeUpdate: (e) => { if (k === live.current.i) moved.current = Date.now(); if (e.currentTarget.currentTime > 0) e.currentTarget.style.opacity = '1'; },

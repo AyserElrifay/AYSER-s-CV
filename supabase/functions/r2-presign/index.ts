@@ -61,36 +61,31 @@ const TYPES: Record<string, string> = {
 const MAX_BYTES = 200 * 1024 * 1024;
 const UUID = /^[0-9a-f-]{36}$/i;
 
-// ── AWS Signature V4, query-string form (what R2 speaks) ─────────────
-const enc = new TextEncoder();
-const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
-const sha256 = async (s: string) => hex(await crypto.subtle.digest('SHA-256', enc.encode(s)));
-const hmac = async (key: ArrayBuffer | Uint8Array, s: string) => {
-  const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  return crypto.subtle.sign('HMAC', k, enc.encode(s));
-};
-const uri = (s: string) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+// ── the S3 SDK (what R2 speaks), signing short-lived addresses ────────
+/* Ayser, November 2026: the official S3 client instead of hand-made
+   signatures. Pinned before the SDK began adding checksum headers to
+   presigned PUTs (R2 refuses those), and told so anyway. Uploads sign
+   their Content-Type and a one-year immutable Cache-Control: the phone
+   must send exactly these, and R2 then serves them on every read. */
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from 'npm:@aws-sdk/client-s3@3.726.1';
+import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner@3.726.1';
+const IMMUTABLE = 'public, max-age=31536000, immutable';
+const NO_STORE = 'private, no-store';   // view-once: never kept anywhere
+const s3 = new S3Client({
+  region: 'auto',
+  endpoint: 'https://' + HOST,
+  credentials: { accessKeyId: AK, secretAccessKey: SK },
+  // deno-lint-ignore no-explicit-any
+  ...({ requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' } as any),
+});
 
-async function presign(method: 'PUT' | 'GET' | 'DELETE', bucket: string, key: string, expires: number) {
-  const now = new Date();
-  const amz = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const day = amz.slice(0, 8);
-  const scope = `${day}/auto/s3/aws4_request`;
-  const path = '/' + bucket + '/' + key.split('/').map(uri).join('/');
-  const q: Record<string, string> = {
-    'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
-    'X-Amz-Credential': `${AK}/${scope}`,
-    'X-Amz-Date': amz,
-    'X-Amz-Expires': String(expires),
-    'X-Amz-SignedHeaders': 'host',
-  };
-  const qs = Object.keys(q).sort().map((k) => uri(k) + '=' + uri(q[k])).join('&');
-  const canonical = [method, path, qs, `host:${HOST}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
-  const toSign = ['AWS4-HMAC-SHA256', amz, scope, await sha256(canonical)].join('\n');
-  let k: ArrayBuffer = await hmac(enc.encode('AWS4' + SK), day);
-  k = await hmac(k, 'auto'); k = await hmac(k, 's3'); k = await hmac(k, 'aws4_request');
-  const sig = hex(await hmac(k, toSign));
-  return `https://${HOST}${path}?${qs}&X-Amz-Signature=${sig}`;
+async function presign(method: 'PUT' | 'GET' | 'DELETE', bucket: string, key: string, expires: number, contentType?: string, cacheControl = IMMUTABLE) {
+  if (method === 'PUT') {
+    const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType, CacheControl: cacheControl });
+    return getSignedUrl(s3, cmd, { expiresIn: expires, signableHeaders: new Set(['content-type', 'cache-control']) });
+  }
+  const cmd = method === 'GET' ? new GetObjectCommand({ Bucket: bucket, Key: key }) : new DeleteObjectCommand({ Bucket: bucket, Key: key });
+  return getSignedUrl(s3, cmd, { expiresIn: expires });
 }
 
 Deno.serve(async (req) => {
@@ -135,10 +130,10 @@ Deno.serve(async (req) => {
   if (b.purpose === 'ephemeral') {
     if (!EPHEMERAL) return json(503, { error: 'not_configured' });
     const key = me + '/' + crypto.randomUUID() + '.' + TYPES[type];
-    return json(200, { uploadUrl: await presign('PUT', EPHEMERAL, key, 600), key });
+    return json(200, { uploadUrl: await presign('PUT', EPHEMERAL, key, 600, type, NO_STORE), key, headers: { 'Content-Type': type, 'Cache-Control': NO_STORE } });
   }
 
   const key = String(b.key || '');
   if (!key.startsWith(me + '/') || key.includes('..') || key.length > 300) return json(403, { error: 'key' });
-  return json(200, { uploadUrl: await presign('PUT', BUCKET, key, 600), publicUrl: PUBLIC_URL ? PUBLIC_URL + '/' + key : null });
+  return json(200, { uploadUrl: await presign('PUT', BUCKET, key, 600, type), publicUrl: PUBLIC_URL ? PUBLIC_URL + '/' + key : null, headers: { 'Content-Type': type, 'Cache-Control': IMMUTABLE } });
 });

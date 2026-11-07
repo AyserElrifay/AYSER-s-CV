@@ -93,7 +93,8 @@ async function uploadToR2(userId, uri, ext, contentType) {
   // the number said out loud has to be the number that is enforced
   if (body.size > MAX_UPLOAD_BYTES) throw new Error('File too large (max ' + Math.round(MAX_UPLOAD_BYTES / 1048576) + 'MB)');
 
-  const put = await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body });
+  // exactly the headers the address was signed with (a one-year immutable Cache-Control: R2 serves it on every read)
+  const put = await fetch(data.uploadUrl, { method: 'PUT', headers: data.headers || { 'Content-Type': contentType }, body });
   if (!put.ok) throw new Error('R2 upload failed');
   return (data.publicUrl || (R2_PUBLIC_URL.replace(/\/$/, '') + '/' + key));
 }
@@ -369,11 +370,14 @@ export async function smallImage(uri, maxSide = 1080, quality = 0.8) {
 }
 
 /* A plan's photo (green_set_photo in RUN_ME.sql): always to OUR
-   storage, into the uploader's own folder — the database accepts no
-   other address — and small, because it is shown on a phone list. */
+   storage — the R2 bucket or Supabase's — into the uploader's own
+   folder (the database accepts no other address), and small, because
+   it is shown on a phone list. */
 export async function uploadPlanPhoto(userId, file) {
   const { squeezeImage } = await import('./squeeze');
   const s = await squeezeImage(file);
+  // R2 first (green_set_photo accepts the bucket's address under your own folder too), Supabase if R2 is not there
+  if (R2_READY) { try { return await uploadToR2(userId, s.uri, s.ext || 'jpg', s.type || 'image/jpeg'); } catch (e) { /* Supabase below */ } }
   return uploadToSupabase(userId, s.uri, s.ext || 'jpg', s.type || 'image/jpeg');
 }
 
@@ -404,7 +408,7 @@ export async function uploadEphemeral(uriOrBlob, contentType) {
   if (body.size > MAX_UPLOAD_BYTES) throw new Error('File too large');
   const { data, error } = await supabase.functions.invoke('r2-presign', { body: { purpose: 'ephemeral', contentType, size: body.size } });
   if (error || !data || !data.uploadUrl) throw new Error('view-once storage is not switched on');
-  const put = await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body });
+  const put = await fetch(data.uploadUrl, { method: 'PUT', headers: data.headers || { 'Content-Type': contentType }, body });
   if (!put.ok) throw new Error('upload failed');
   return data.key;
 }

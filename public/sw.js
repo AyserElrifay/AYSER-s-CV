@@ -20,7 +20,7 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v94';
+const CACHE = 'moments-v95';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -123,8 +123,14 @@ const MEDIA_CACHE = 'moments-media-vault-v1';
 const VIDEO_CACHE = 'moments-video-vault-v1';
 const STATIC_CACHE = 'moments-static-cache-v1';
 const MEDIA_MAX = 400;
-const isStoragePhoto = (url, req) => /\.supabase\.co$/.test(url.hostname)
-  && /^\/storage\/v1\/(object|render\/image)\/public\//.test(url.pathname)
+/* Cloudflare R2 (the media bucket's public address, written in at build
+   by scripts/inject-html.mjs from EXPO_PUBLIC_R2_PUBLIC_URL; any r2.dev
+   address too): what is there never changes under the same name, so it
+   is kept on the phone exactly like Supabase's */
+const R2_ORIGIN = '__R2_ORIGIN__';
+const isR2 = (url) => /\.r2\.dev$/.test(url.hostname) || (R2_ORIGIN.indexOf('http') === 0 && url.origin === R2_ORIGIN);
+const isStoragePhoto = (url, req) => ((/\.supabase\.co$/.test(url.hostname)
+  && /^\/storage\/v1\/(object|render\/image)\/public\//.test(url.pathname)) || isR2(url))
   && (req.destination === 'image' || /\.(jpe?g|png|webp|avif)$/i.test(url.pathname));
 async function photoFromPhone(request) {
   const key = request.url;
@@ -157,7 +163,7 @@ async function photoFromPhone(request) {
 const VIDEO_MAX = 12;
 const VIDEO_BYTES = 30 * 1024 * 1024;
 const isVaultVideo = (url, req) => (req.destination === 'video' || /\.(mp4|webm|mov|m4v)$/i.test(url.pathname))
-  && ((/\.supabase\.co$/.test(url.hostname) && /^\/storage\/v1\/object\/public\//.test(url.pathname))
+  && ((/\.supabase\.co$/.test(url.hostname) && /^\/storage\/v1\/object\/public\//.test(url.pathname)) || isR2(url)
     || (url.origin === self.location.origin && /\/media\/[^/]+\.(mp4|webm)$/i.test(url.pathname)));
 const pieceOf = async (whole, range) => {
   const buf = await whole.arrayBuffer();
