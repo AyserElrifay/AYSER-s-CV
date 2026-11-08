@@ -68,3 +68,8 @@ export async function safetyDecide(userId, ok) {
 export const dropDmSend = (offerId, memberId, body) => rpc('drop_dm_send', { p_offer: offerId, p_member: memberId || null, p_body: body });
 export const dropDmThread = (offerId, memberId) => rpc('drop_dm_thread', { p_offer: offerId, p_member: memberId || null });
 export const dropDmInbox = (offerId) => rpc('drop_dm_inbox', { p_offer: offerId });
+// after a Drop: your photos from the night (up to 3, for 48 hours); the owner decides in the Studio
+export const dropPhotoAdd = (offerId, url) => rpc('drop_photo_add', { p_offer: offerId, p_url: url });
+export const dropMyPhotos = (offerId) => rpc('drop_my_photos', { p_offer: offerId });
+export const studioDropPhotos = () => rpc('studio_drop_photos', {});
+export const studioDropPhotoDecide = (id, ok, everyoneAgreed, caption) => rpc('studio_drop_photo_decide', { p_id: id, p_ok: !!ok, p_everyone_agreed: !!everyoneAgreed, p_caption: caption || null });

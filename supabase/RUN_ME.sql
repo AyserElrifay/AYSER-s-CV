@@ -28111,6 +28111,121 @@ revoke all on function public.drop_dm_inbox(uuid) from public, anon;
 grant execute on function public.drop_dm_inbox(uuid) to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  AFTER THE DROP: HOW WAS IT, AND YOUR PHOTOS FROM THE NIGHT
+--  Ayser, November 2026 ("صفحة بعد الخروجة"): the morning after, everyone
+--  who had a seat is asked how it was (rate_event) and may add up to three
+--  photos from the night, for 48 hours. A photo is seen by its owner and
+--  the owner of Moments only — never by the rest of the group, which stays
+--  anonymous — until the owner, in the Studio, confirms everybody who can
+--  be recognised in it agreed; then it joins the Together hero
+--  (app_highlights). Otherwise it is turned down. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.drop_photos (
+  id         uuid primary key default gen_random_uuid(),
+  offer_id   uuid not null references public.offers(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  url        text not null,
+  status     text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  at         timestamptz not null default now(),
+  decided_at timestamptz
+);
+create index if not exists drop_photos_offer on public.drop_photos (offer_id, user_id);
+create index if not exists drop_photos_pending on public.drop_photos (status, at);
+alter table public.drop_photos enable row level security;   -- only through the functions below
+revoke all on public.drop_photos from anon, authenticated;
+
+-- when the Drop ended (its own end, or start + its length)
+create or replace function public.drop_closes(p_offer uuid)
+returns timestamptz language sql stable security definer set search_path = public as $$
+  select coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour') from public.offers o where o.id = p_offer;
+$$;
+revoke all on function public.drop_closes(uuid) from public, anon, authenticated;
+
+create or replace function public.drop_photo_add(p_offer uuid, p_url text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); o public.offers%rowtype; closes timestamptz;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into o from public.offers where id = p_offer and is_drop;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if not public.drop_seated(p_offer, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  closes := public.drop_closes(p_offer);
+  if now() < o.starts_at or now() > closes + interval '48 hours' then return jsonb_build_object('ok', false, 'reason', 'not_now'); end if;
+  if not public.own_upload(me, p_url) then return jsonb_build_object('ok', false, 'reason', 'bad_url'); end if;
+  if (select count(*) from public.drop_photos where offer_id = p_offer and user_id = me) >= 3 then
+    return jsonb_build_object('ok', false, 'reason', 'three');
+  end if;
+  insert into public.drop_photos (offer_id, user_id, url) values (p_offer, me, p_url);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.drop_photo_add(uuid, text) from public, anon;
+grant execute on function public.drop_photo_add(uuid, text) to authenticated;
+
+create or replace function public.drop_my_photos(p_offer uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('ok', true,
+    'open', now() between o.starts_at and public.drop_closes(o.id) + interval '48 hours',
+    'rows', coalesce((select jsonb_agg(jsonb_build_object('id', d.id, 'url', d.url, 'status', d.status) order by d.at)
+                        from public.drop_photos d where d.offer_id = o.id and d.user_id = auth.uid()), '[]'::jsonb))
+    from public.offers o where o.id = p_offer and o.is_drop and public.drop_seated(o.id, auth.uid());
+$$;
+revoke all on function public.drop_my_photos(uuid) from public, anon;
+grant execute on function public.drop_my_photos(uuid) to authenticated;
+
+-- the Studio: photos waiting for a decision
+create or replace function public.studio_drop_photos()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then return '[]'::jsonb; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('id', d.id, 'url', d.url, 'at', d.at, 'who', p.name,
+                     'drop', coalesce(o.title_ar, o.title), 'starts_at', o.starts_at) order by d.at)
+                     from public.drop_photos d join public.offers o on o.id = d.offer_id left join public.profiles p on p.id = d.user_id
+                    where d.status = 'pending'), '[]'::jsonb);
+end $$;
+revoke all on function public.studio_drop_photos() from public, anon;
+grant execute on function public.studio_drop_photos() to authenticated;
+
+create or replace function public.studio_drop_photo_decide(p_id uuid, p_ok boolean, p_everyone_agreed boolean, p_caption text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare d public.drop_photos%rowtype; o public.offers%rowtype;
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select * into d from public.drop_photos where id = p_id and status = 'pending' for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if p_ok is not true then
+    update public.drop_photos set status = 'rejected', decided_at = now() where id = p_id;
+    return jsonb_build_object('ok', true, 'status', 'rejected');
+  end if;
+  if p_everyone_agreed is not true then return jsonb_build_object('ok', false, 'reason', 'consent'); end if;
+  select * into o from public.offers where id = d.offer_id;
+  insert into public.app_highlights (media_url, poster_url, kind, caption, consent_at, added_by)
+  values (d.url, d.url, 'photo', coalesce(nullif(left(btrim(coalesce(p_caption, '')), 140), ''), left(coalesce(o.title_ar, o.title, ''), 140)), now(), auth.uid());
+  update public.drop_photos set status = 'approved', decided_at = now() where id = p_id;
+  perform public.studio_log_add('approved a photo from a Drop', coalesce(o.title, ''));
+  return jsonb_build_object('ok', true, 'status', 'approved');
+end $$;
+revoke all on function public.studio_drop_photo_decide(uuid, boolean, boolean, text) from public, anon;
+grant execute on function public.studio_drop_photo_decide(uuid, boolean, boolean, text) to authenticated;
+
+-- the morning after: "how was it" to everyone who had a seat (once per Drop and person)
+create or replace function public.drops_after_ask()
+returns int language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  insert into public.notifications (user_id, actor_id, kind, body)
+  select distinct b.user_id, b.user_id, 'drop_open', lead.id::text || '|' || left(coalesce(lead.title_ar, lead.title, ''), 80) || '|after'
+    from public.offers lead
+    join public.offers t on t.id = lead.id or t.parent_id = lead.id
+    join public.bookings b on b.offer_id = t.id and b.status in ('reserved','paid','attended')
+   where lead.is_drop and lead.parent_id is null
+     and public.drop_closes(lead.id) between now() - interval '36 hours' and now() - interval '2 hours'
+     and not exists (select 1 from public.notifications n where n.user_id = b.user_id and n.kind = 'drop_open' and n.body like lead.id::text || '|%|after');
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function public.drops_after_ask() from public, anon, authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

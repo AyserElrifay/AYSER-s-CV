@@ -14,6 +14,7 @@ import { fetchTeam, teamAction, TEAM_ROLES, studioPing, studioActivity } from '.
 import { askAdvice } from '../services/advice';
 import { fetchAllHighlights, addHighlight, setHighlightLive } from '../services/appHighlights';
 import { uploadMediaSmart } from '../lib/storage';
+import { studioDropPhotos, studioDropPhotoDecide } from '../services/mvp';
 import { useLang } from '../context/LanguageContext';
 import { fetchFeedback, markFeedbackSeen, replyFeedback } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
@@ -226,6 +227,61 @@ const pickMedia = () => new Promise((resolve) => {
   document.body.appendChild(input); input.click();
   return undefined;
 });
+/* photos people added after a Drop (drop_photo_add in RUN_ME.sql): one
+   at a time, with the same promise as above — nothing goes on Together
+   unless everybody who can be recognised in it said yes. */
+const DropPhotoRow = ({ p, onDone }) => {
+  const [agreed, setAgreed] = useState(false);
+  const [caption, setCaption] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const decide = async (ok) => {
+    if (busy || (ok && !agreed)) return;
+    setBusy(true); setMsg(null);
+    const r = await studioDropPhotoDecide(p.id, ok, agreed, caption.trim()).catch(() => null);
+    setBusy(false);
+    if (r && r.ok) { tapSuccess(); onDone(); } else setMsg(r && r.reason === 'consent' ? 'Tick the box first.' : r && r.reason === 'not_owner' ? 'Only the owner account can do this.' : 'Did not work — try again.');
+  };
+  return (
+    <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, opacity: busy ? 0.6 : 1 }}>
+      <Image source={{ uri: p.url }} resizeMode="cover" style={{ width: '100%', height: 220, borderRadius: 14, backgroundColor: C.line }} />
+      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }} numberOfLines={1}>{p.drop || 'Drop'}{p.who ? ' · from ' + p.who : ''}</Text>
+      <TextInput value={caption} onChangeText={setCaption} maxLength={140} placeholder={'One line (optional) — default: ' + (p.drop || 'the Drop')} placeholderTextColor={C.faint} style={field()} />
+      <Pressable onPress={() => { tapLight(); setAgreed((a) => !a); }} accessibilityRole="checkbox" accessibilityState={{ checked: agreed }}
+        style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 8, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: agreed ? C.text : C.line }}>
+        <Ionicons name={agreed ? 'checkbox' : 'square-outline'} size={20} color={agreed ? C.text : C.faint} />
+        <Text style={{ flex: 1, color: C.text, fontSize: 12.5, lineHeight: 18, marginStart: 8 }}>I asked everybody who can be recognised in this photo, and they all agreed to be shown on Together.</Text>
+      </Pressable>
+      <View style={{ flexDirection: 'row', marginTop: 8 }}>
+        <Pressable onPress={() => decide(true)} disabled={!agreed || busy} accessibilityRole="button" style={{ flex: 1, marginEnd: 6 }}>
+          <View style={{ borderRadius: 12, backgroundColor: C.purple, paddingVertical: 10, alignItems: 'center', opacity: agreed && !busy ? 1 : 0.45 }}>
+            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>Put it on Together</Text>
+          </View>
+        </Pressable>
+        <Pressable onPress={() => decide(false)} disabled={busy} accessibilityRole="button" style={{ flex: 1, marginStart: 6 }}>
+          <View style={{ borderRadius: 12, borderWidth: 1, borderColor: C.line, paddingVertical: 10, alignItems: 'center' }}>
+            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>Do not show it</Text>
+          </View>
+        </Pressable>
+      </View>
+      {msg ? <Text style={{ color: C.coral, fontSize: 12.5, marginTop: 6 }}>{msg}</Text> : null}
+    </View>
+  );
+};
+const DropPhotosQueue = ({ onChanged }) => {
+  const [rows, setRows] = useState(null);
+  const load = () => studioDropPhotos().then((x) => setRows(Array.isArray(x) ? x : [])).catch(() => setRows([]));
+  useEffect(() => { load(); }, []);
+  if (!rows || !rows.length) return null;
+  return (
+    <View testID="drop-photos-queue" style={{ marginBottom: 16 }}>
+      <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>{'FROM THE DROPS · ' + rows.length + ' WAITING'}</Text>
+      <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>Photos people added after an outing. Only you see them. Put one on Together only after everybody in it said yes.</Text>
+      {rows.map((p) => <DropPhotoRow key={p.id} p={p} onDone={() => { load(); onChanged(); }} />)}
+    </View>
+  );
+};
+
 const HighlightsTab = ({ userId }) => {
   const [list, setList] = useState(null);
   const [file, setFile] = useState(null);
@@ -257,6 +313,7 @@ const HighlightsTab = ({ userId }) => {
   if (list === false) return <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 40 }}>Run the latest SQL (part 27) to add Home highlights.</Text>;
   return (
     <>
+      <DropPhotosQueue onChanged={load} />
       <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 4 }}>A real evening on Moments, at the top of Home with one button: find one like it this week.</Text>
       <Pressable onPress={async () => { tapLight(); const f = await pickMedia(); if (f) setFile(f); }} style={{ marginTop: 12 }}>
         <View style={{ height: 160, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>

@@ -11,6 +11,7 @@ import {
   myHosting, hostRoster, hostCheckin, hostImHere, hostPingDone, hereNow, myWallet, requestPayout,
   pingHost, eventHostHere, rateEvent, myEventRating,
 } from '../services/hub';
+import { dropPhotoAdd, dropMyPhotos } from '../services/mvp';
 
 import { HostQr } from './StampKit';
 import { hubRequested, hubTaken } from '../lib/hubLink';   // this file is only ever loaded lazily
@@ -427,6 +428,71 @@ export const RateEvent = ({ kind, id, lang }) => {
       {stars ? <TextInput value={note} onChangeText={setNote} onBlur={() => stars && rateEvent(kind, id, stars, note.trim())} placeholder={L.note} placeholderTextColor={C.faint} maxLength={300}
         style={{ marginTop: 10, borderRadius: 12, borderWidth: 1, borderColor: C.line, padding: 10, color: C.text, fontSize: 14, outlineStyle: 'none' }} /> : null}
       {sent ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 8 }}>{L.thanks}</Text> : null}
+    </View>
+  );
+};
+
+/* after a Drop (Ayser, November 2026, "صفحة بعد الخروجة"): up to three
+   photos from the night, for 48 hours. Nobody else in the group sees
+   them; the owner of Moments looks at each in the Studio and puts it in
+   the Together hero only after everybody in it said yes. */
+const AP = {
+  ar: { t: 'صورك من الخروجة', s: 'لحد ٣ صور، لمدة ٤٨ ساعة. محدش في الجروب بيشوفها — بتروح لفريق Moments، ومفيش صورة بتظهر في «مع بعض» غير لما كل اللي فيها يوافقوا.', add: 'ضيف صورة', busy: 'بترفع…', pending: 'مستنية الموافقة', approved: 'اتنشرت', rejected: 'مش هتظهر', three: 'وصلت لـ ٣ صور.', fail: 'معرفناش نرفعها. جرّب تاني.', closed: 'وقت إضافة الصور خلص.' },
+  en: { t: 'Your photos from the night', s: 'Up to 3, for 48 hours. Nobody in the group sees them — they go to the Moments team, and none shows on Together unless everybody in it agreed.', add: 'Add a photo', busy: 'Uploading…', pending: 'Waiting for a yes', approved: 'On Together', rejected: 'Will not be shown', three: 'That is 3 photos.', fail: 'It did not upload. Try again.', closed: 'Adding photos has closed.' },
+};
+export const AfterPhotos = ({ id, userId, lang }) => {
+  const [st, setSt] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const load = () => dropMyPhotos(id).then((x) => setSt(x && x.ok ? x : null)).catch(() => {});
+  useEffect(() => { load(); }, [id]);
+  if (!st || (!st.open && !(st.rows || []).length)) return null;
+  const L = AP[lang === 'ar' ? 'ar' : 'en'];
+  const rows = st.rows || [];
+  const add = async () => {
+    if (busy || !userId || typeof document === 'undefined') return;
+    tapLight(); setMsg('');
+    const file = await new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
+      input.onchange = () => { resolve((input.files && input.files[0]) || null); input.remove(); };
+      document.body.appendChild(input); input.click();
+    });
+    if (!file) return;
+    setBusy(true);
+    try {
+      const { uploadPlanPhoto } = await import('../lib/storage');
+      const url = await uploadPlanPhoto(userId, file);
+      const r = await dropPhotoAdd(id, url);
+      if (r && r.ok) { tapSuccess(); await load(); }
+      else setMsg(r && r.reason === 'three' ? L.three : r && r.reason === 'not_now' ? L.closed : L.fail);
+    } catch (e) { setMsg(L.fail); }
+    setBusy(false);
+  };
+  const tag = (s) => (s === 'approved' ? L.approved : s === 'rejected' ? L.rejected : L.pending);
+  return (
+    <View testID="after-photos" style={{ marginTop: 16, borderRadius: 20, borderWidth: 1, borderColor: C.line, padding: 16 }}>
+      <Text style={{ color: C.text, fontSize: 16, fontWeight: '800' }}>{L.t}</Text>
+      <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 4 }}>{L.s}</Text>
+      {rows.length ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 }}>
+          {rows.map((p) => (
+            <View key={p.id} style={{ width: 96, marginEnd: 8, marginBottom: 8 }}>
+              <Image source={{ uri: p.url }} accessibilityIgnoresInvertColors style={{ width: 96, height: 96, borderRadius: 12, backgroundColor: C.line, opacity: p.status === 'rejected' ? 0.45 : 1 }} />
+              <Text numberOfLines={1} style={{ color: p.status === 'approved' ? C.purple : C.dim, fontSize: 11.5, fontWeight: '700', marginTop: 4 }}>{tag(p.status)}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {st.open && rows.length < 3 ? (
+        <Pressable testID="after-add" onPress={add} disabled={busy} accessibilityRole="button" style={{ marginTop: 12, alignSelf: 'flex-start' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: C.purple, opacity: busy ? 0.6 : 1 }}>
+            {busy ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="image-outline" size={17} color="#FFF" />}
+            <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '700', marginStart: 8 }}>{busy ? L.busy : L.add}</Text>
+          </View>
+        </Pressable>
+      ) : null}
+      {msg ? <Text style={{ color: C.coral, fontSize: 12.5, marginTop: 8 }}>{msg}</Text> : null}
     </View>
   );
 };

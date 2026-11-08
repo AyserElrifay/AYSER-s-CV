@@ -26,7 +26,7 @@ import { SeatStrip, GuessWho } from './TableTeasers';
 import { SeatBadge, seatLabel, SeatPeek, SparksDeck } from './SeatCard';
 import { tableSeats, askCard } from '../services/card';
 import { VoiceButton, VoicePlayer, voiceSeconds } from './VoiceNote';
-import { PingHostBar, RateEvent, OrganizerHub } from './OrganizerHub';   // the same chunk (LiveKit)
+import { PingHostBar, RateEvent, OrganizerHub, AfterPhotos } from './OrganizerHub';   // the same chunk (LiveKit)
 import { ArrivalTicket } from './ArrivalTicket';
 
 /* ─── THE EVENT PAGE ──────────────────────────────────────────────────
@@ -475,6 +475,8 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
               </Pressable>
             ) : null}
             {!r.is_host && !r.online ? <RateEvent kind={kind} id={id} lang={lang} /> : null}
+            {/* a Drop: your photos from the night (shown only to people who had a seat, from the start to 48 hours after) */}
+            {!r.is_host && kind === 'offer' && user ? <AfterPhotos id={id} userId={user.id} lang={lang} /> : null}
             {!r.is_host && !r.call && ex && ex.can_checkin && !ex.checked_in ? (
               <Pressable onPress={() => { tapLight(); setScan(true); }} accessibilityRole="button" style={{ marginTop: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 15, backgroundColor: C.purple }}>

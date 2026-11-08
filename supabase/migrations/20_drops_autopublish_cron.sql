@@ -47,6 +47,8 @@ begin
    where o.is_drop and o.parent_id is null and o.status in ('draft', 'live')
      and o.starts_at > now() + interval '12 hours' and o.starts_at < now() + interval '8 days'
      and not exists (select 1 from public.notifications n where n.user_id = ow.id and n.kind = 'drop_open' and n.body like o.id::text || '|%|book');
+  -- and the morning after a Drop: how was it, and your photos (RUN_ME.sql "AFTER THE DROP")
+  begin perform public.drops_after_ask(); exception when undefined_function then null; end;
   return jsonb_build_object('published', coalesce(array_length(ids, 1), 0), 'told', told, 'ids', to_jsonb(coalesce(ids, '{}'::uuid[])));
 end $$;
 revoke all on function public.drops_autopublish() from public, anon, authenticated;
