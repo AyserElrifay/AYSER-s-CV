@@ -28226,6 +28226,53 @@ end $$;
 revoke all on function public.drops_after_ask() from public, anon, authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  THE CALL BEFORE A DROP RINGS BY ITSELF
+--  Ayser, November 2026 ("خلّي رن أوتوماتيك على كل الناس الرايحة الخروجة"):
+--  three hours before a Drop starts, everybody going to each table —
+--  the people with a seat and the one who hosts it — gets one ring:
+--  "the call is open, come in". The call is the table's walkie-talkie,
+--  open from four hours before (in_arrival_window), only to the people
+--  at that table. One ring per person per table; every 10 minutes
+--  (pg_cron) it looks for Drops that are three hours away or closer.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.drops_call_ring()
+returns int language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  insert into public.notifications (user_id, actor_id, kind, body)
+  select distinct w.u, w.u, 'drop_open', w.tid::text || '|' || left(w.title, 80) || '|call'
+    from (
+      select t.id tid, coalesce(lead.title_ar, lead.title, '') title, b.user_id u
+        from public.offers t
+        join public.offers lead on lead.id = coalesce(t.parent_id, t.id)
+        join public.bookings b on b.offer_id = t.id and b.status in ('reserved','paid','attended')
+       where t.is_drop and t.status = 'live' and not coalesce(t.online, false)
+         and t.starts_at > now() and t.starts_at <= now() + interval '3 hours'
+      union
+      select t.id, coalesce(lead.title_ar, lead.title, ''), public.table_host(t.id)
+        from public.offers t
+        join public.offers lead on lead.id = coalesce(t.parent_id, t.id)
+       where t.is_drop and t.status = 'live' and not coalesce(t.online, false)
+         and t.starts_at > now() and t.starts_at <= now() + interval '3 hours'
+         and exists (select 1 from public.bookings b where b.offer_id = t.id and b.status in ('reserved','paid','attended'))
+    ) w
+   where w.u is not null
+     and exists (select 1 from public.profiles p where p.id = w.u)
+     and not exists (select 1 from public.notifications x where x.user_id = w.u and x.kind = 'drop_open' and x.body like w.tid::text || '|%|call');
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function public.drops_call_ring() from public, anon, authenticated;
+
+do $do$
+begin
+  create extension if not exists pg_cron;
+  perform cron.unschedule(jobid) from cron.job where jobname = 'drops-call-ring';
+  perform cron.schedule('drops-call-ring', '*/10 * * * *', 'select public.drops_call_ring()');
+exception when others then raise notice 'pg_cron skipped: %', sqlerrm;
+end $do$;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

@@ -20,7 +20,7 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v95';
+const CACHE = 'moments-v96';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -303,6 +303,10 @@ const PUSH_EN = {
   push_buddy: '{name} is your Moments Buddy now 🤝',
   push_buddy_ping: '{name} invites you to their table: {title}',
   push_circle_open: 'The English Circle is open — 30 minutes only.',
+  push_drop_open: "This week's outing is open: {title}",
+  push_drop_open_call: 'The call for {title} is open — come in and say hi',
+  push_drop_open_after: 'How was {title}? Rate it and share your photos',
+  push_drop_open_book: 'Book the place for 10 — {title}',
   bardi_focus: '{n} people near you are {what} right now — focus together?',
   bardi_focus_at: '{n} people near you are {what} right now — a session at {venue}?',
   bd_kind_studying: 'Studying',
@@ -329,7 +333,9 @@ self.addEventListener('push', (e) => {
     /* body doubling: "n|studying|venue" */
     const focus = d.kind === 'bardi_match' && (parts[1] === 'studying' || parts[1] === 'deep_work');
     if (focus) parts[1] = String(S['bd_kind_' + parts[1]] || parts[1]).toLowerCase();
-    const key = focus ? (parts[2] ? 'bardi_focus_at' : 'bardi_focus') : 'push_' + d.kind;
+    const drop = d.kind === 'drop_open' ? { id: String(d.drop || '').split('|')[0], tag: String(d.drop || '').split('|')[1] || '' } : null;   // drop: id|tag
+    const key = focus ? (parts[2] ? 'bardi_focus_at' : 'bardi_focus') : drop && S['push_drop_open_' + drop.tag] ? 'push_drop_open_' + drop.tag : 'push_' + d.kind;
+    const ring = !!(drop && drop.tag === 'call' && /^[0-9a-f-]{36}$/.test(drop.id));
     const line = String(S[key] || 'Moments')
       .replace('{venue}', parts[2] || '')
       .replace('{name}', d.actor || '')
@@ -344,7 +350,9 @@ self.addEventListener('push', (e) => {
       tag: d.id || d.kind || 'moments',
       // the same person writing again replaces their line — and buzzes again, like a messenger
       renotify: true,
-      data: { url: base + (d.kind === 'circle_open' ? '' : d.kind === 'plan_soon' || d.kind === 'green_invite' || d.kind === 'creator_plan' ? '?tab=TOGETHER' : d.kind === 'message' || d.kind === 'call' ? '?tab=CHATS' : '?notifications=1') },
+      // the call before a Drop rings like a call: it stays until answered, and opens the room
+      requireInteraction: ring, vibrate: ring ? [400, 200, 400, 200, 400] : undefined,
+      data: { url: base + (ring ? '?room=' + drop.id : d.kind === 'circle_open' ? '' : d.kind === 'plan_soon' || d.kind === 'green_invite' || d.kind === 'creator_plan' ? '?tab=TOGETHER' : d.kind === 'message' || d.kind === 'call' ? '?tab=CHATS' : '?notifications=1') },
     });
   })());
 });

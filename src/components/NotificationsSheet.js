@@ -95,7 +95,7 @@ function bucketOf(ts) {
 }
 const BUCKET_ORDER = ['Today', 'Yesterday', 'This week', 'This month', 'Earlier'];
 
-export const NotificationsSheet = ({ onClose }) => {
+export const NotificationsSheet = ({ onClose, openRoom }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const { t, lang } = useLang();
@@ -111,7 +111,7 @@ export const NotificationsSheet = ({ onClose }) => {
   const [greenOpen, setGreenOpen] = useState(false);   // a green invite, tapped
   const [buddiesOpen, setBuddiesOpen] = useState(false);
   const [hubFor, setHubFor] = useState(null);   // a ping opens that event in the Organizer Hub
-  const [roomFor, setRoomFor] = useState(null);   // a Drop's private line: its room
+  const [roomFor, setRoomFor] = useState(() => (openRoom ? { kind: 'offer', id: openRoom, ring: true } : null));   // a Drop's room (its private line, its call)
   const [goNowFrom, setGoNowFrom] = useState(null);    // Bardi's "make it a hangout"
   const [foodTab, setFoodTab] = useState(null);       // a food notification, tapped
   const [viewPost, setViewPost] = useState(null);
@@ -207,6 +207,8 @@ export const NotificationsSheet = ({ onClose }) => {
       return;
     }
     // the morning after a Drop: its room, where the rating and the photos are
+    // three hours before a Drop: its call (the table's walkie-talkie)
+    if (n.kind === 'drop_open' && String(n.body || '').split('|')[2] === 'call') { const id = String(n.body || '').split('|')[0]; if (id) { tapSelection(); setRoomFor({ kind: 'offer', id, ring: true }); return; } }
     if (n.kind === 'drop_open' && String(n.body || '').split('|')[2] === 'after') { const id = String(n.body || '').split('|')[0]; if (id) { tapSelection(); setRoomFor({ kind: 'offer', id }); return; } }
     if (n.kind === 'plan_soon' || n.kind === 'creator_plan' || n.kind === 'drop_open') { tapSelection(); onClose(); goToTab('TOGETHER'); return; }
     if (n.kind === 'trip_open') { tapSelection(); onClose(); openTrip(String(n.body || '').split('|')[0]); return; }
@@ -349,7 +351,7 @@ export const NotificationsSheet = ({ onClose }) => {
         <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
           <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20 }} numberOfLines={3}>
             <Text style={{ fontWeight: '800' }}>{g && !SYSTEM_KINDS.has(n.kind) ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || SYSTEM_KINDS.has(n.kind)) ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
-            {' '}<Text style={{ color: C.dim }}>{(n.kind === 'host_ping' ? pingLine(n.body, lang) : n.kind === 'drop_open' ? (String(n.body || '').split('|')[2] === 'book' ? (lang === 'ar' ? 'بتفكّرك: احجز المكان لـ ١٠ أشخاص — {t}' : 'reminds you: book the place for 10 — {t}') : String(n.body || '').split('|')[2] === 'after' ? (lang === 'ar' ? 'بتسألك: إزاي كانت {t}؟ قيّم وشارك صورك' : 'asks: how was {t}? Rate it and share your photos') : String(n.body || '').split('|')[2] === 'new' ? (lang === 'ar' ? 'فتحت خروجة الأسبوع: {t}' : "opened this week's Drop: {t}") : (lang === 'ar' ? 'فتحت Drop كنت مستنيها: {t}' : 'opened a Drop you were waiting for: {t}')) : verbOf(t, n.kind, g && g.actors.length > 1)).replace('{n}', titleFor(String(n.body || ''), lang)).replace('{t}', titleFor(String(n.body || '').split('|')[1] || '', lang)).replace('{title}', titleFor(String(n.body || '').split('|').slice(1).join('|'), lang))}</Text>
+            {' '}<Text style={{ color: C.dim }}>{(n.kind === 'host_ping' ? pingLine(n.body, lang) : n.kind === 'drop_open' ? (String(n.body || '').split('|')[2] === 'book' ? (lang === 'ar' ? 'بتفكّرك: احجز المكان لـ ١٠ أشخاص — {t}' : 'reminds you: book the place for 10 — {t}') : String(n.body || '').split('|')[2] === 'call' ? (lang === 'ar' ? 'بترنّ عليك: كول {t} مفتوح — ادخل وقول أهلاً' : 'is ringing you: the call for {t} is open — come in') : String(n.body || '').split('|')[2] === 'after' ? (lang === 'ar' ? 'بتسألك: إزاي كانت {t}؟ قيّم وشارك صورك' : 'asks: how was {t}? Rate it and share your photos') : String(n.body || '').split('|')[2] === 'new' ? (lang === 'ar' ? 'فتحت خروجة الأسبوع: {t}' : "opened this week's Drop: {t}") : (lang === 'ar' ? 'فتحت Drop كنت مستنيها: {t}' : 'opened a Drop you were waiting for: {t}')) : verbOf(t, n.kind, g && g.actors.length > 1)).replace('{n}', titleFor(String(n.body || ''), lang)).replace('{t}', titleFor(String(n.body || '').split('|')[1] || '', lang)).replace('{title}', titleFor(String(n.body || '').split('|').slice(1).join('|'), lang))}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
           {(n.kind === 'green_invite' || n.kind === 'creator_plan' || n.kind === 'booking' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision' || n.kind === 'biz_request' || n.kind === 'biz_reply') && n.body ? (
@@ -466,7 +468,7 @@ export const NotificationsSheet = ({ onClose }) => {
       {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
       {buddiesOpen ? <BuddiesSheet onClose={() => setBuddiesOpen(false)} /> : null}
       {hubFor ? <OrganizerHub start={hubFor} onClose={() => setHubFor(null)} /> : null}
-      {roomFor ? <EventRoom kind={roomFor.kind} id={roomFor.id} lang={lang} onClose={() => setRoomFor(null)} /> : null}
+      {roomFor ? <EventRoom kind={roomFor.kind} id={roomFor.id} ring={!!roomFor.ring} lang={lang} onClose={() => setRoomFor(null)} /> : null}
       {bizOpen ? <BizHub lang={lang} onClose={() => setBizOpen(false)} /> : null}
       {goNowFrom ? (
         <GoNowSheet initialKind={goNowFrom.kind}

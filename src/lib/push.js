@@ -95,7 +95,7 @@ export function takeLaunchTarget() {
   if (!web()) return null;
   const t = readOpenTarget(window.location.href);
   if (t) {
-    try { window.history.replaceState({}, '', window.location.pathname + window.location.search.replace(/[?&](notifications|tab)=[^&]*/g, '').replace(/^&/, '?') + window.location.hash); } catch (e) {}
+    try { window.history.replaceState({}, '', window.location.pathname + window.location.search.replace(/[?&](notifications|tab|room)=[^&]*/g, '').replace(/^&/, '?') + window.location.hash); } catch (e) {}
   }
   return t;
 }

@@ -74,6 +74,9 @@ Deno.serve(async (req) => {
     const parts = String(n.body).split('|');
     title = (parts.length > 1 ? parts.slice(1).join('|') : n.kind === 'green_invite' || n.kind === 'creator_plan' ? String(n.body) : '').slice(0, 80);
   }
+  // a Drop: id|title|tag — the title for the line, id|tag so the phone knows which line and which room
+  const dropParts = n.kind === 'drop_open' ? String(n.body || '').split('|') : null;
+  if (dropParts) title = String(dropParts[1] || '').slice(0, 80);
 
   /* the good word of the morning or night is the same public line for
      everybody, so the line itself goes to the lock screen: Arabic for
@@ -89,12 +92,12 @@ Deno.serve(async (req) => {
 
   let sent = 0;
   for (const s of subs) {
-    const payload = JSON.stringify({ id: n.id, kind: n.kind, actor, title: lineFor(s.lang || 'en'), lang: s.lang || 'en', body: n.kind === 'bardi_match' ? n.body : '' });
+    const payload = JSON.stringify({ id: n.id, kind: n.kind, actor, title: lineFor(s.lang || 'en'), lang: s.lang || 'en', body: n.kind === 'bardi_match' ? n.body : '', drop: dropParts ? (dropParts[0] || '') + '|' + (dropParts[2] || '') : '' });
     try {
       await webpush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
         payload,
-        { TTL: n.kind === 'circle_open' ? 1800 : n.kind === 'plan_soon' ? 3600 : n.kind === 'daily_line' ? 3 * 3600 : 6 * 3600, urgency: n.kind === 'message' || n.kind === 'call' || n.kind === 'plan_soon' || n.kind === 'circle_open' ? 'high' : 'normal' },
+        { TTL: n.kind === 'circle_open' ? 1800 : n.kind === 'plan_soon' ? 3600 : n.kind === 'daily_line' ? 3 * 3600 : 6 * 3600, urgency: n.kind === 'message' || n.kind === 'call' || n.kind === 'plan_soon' || n.kind === 'circle_open' || (dropParts && dropParts[2] === 'call') ? 'high' : 'normal' },
       );
       sent++;
     } catch (e) {

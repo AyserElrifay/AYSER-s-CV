@@ -214,7 +214,7 @@ const Walkie = ({ lang, id, onOut }) => {
   );
 };
 
-export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
+export const EventRoom = ({ kind, id, lang, onClose, arrival, ring }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -345,10 +345,11 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
                     </View>
                   </Pressable>
                 ) : null}
+                {/* opened from the ring three hours before (drops_call_ring): the call is the first thing, in the one action color */}
                 <Pressable testID="btn-walkie" onPress={() => { tapMedium(); setWalkie((v) => !v); }} accessibilityRole="button" style={{ flex: 1 }}>
-                  <View style={{ borderRadius: 999, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.bg }}>
-                    <Ionicons name="mic" size={15} color={C.bg} />
-                    <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '800', marginHorizontal: 6 }}>{tbw(lang, 'walkie')}</Text>
+                  <View style={{ borderRadius: 999, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: ring && !walkie ? 0 : 1, borderColor: C.bg, backgroundColor: ring && !walkie ? C.purple : 'transparent' }}>
+                    <Ionicons name="mic" size={15} color={ring && !walkie ? '#FFF' : C.bg} />
+                    <Text style={{ color: ring && !walkie ? '#FFF' : C.bg, fontSize: 13.5, fontWeight: '800', marginHorizontal: 6 }}>{ring && !walkie ? (lang === 'ar' ? 'ادخل الكول' : 'Join the call') : tbw(lang, 'walkie')}</Text>
                   </View>
                 </Pressable>
               </View>

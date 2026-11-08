@@ -17,6 +17,8 @@ export function readOpenTarget(href) {
   try {
     const q = new URL(href).searchParams;
     if (q.get('notifications') === '1') return { notifications: true };
+    const room = q.get('room');   // the ring before a Drop: that table's room
+    if (room && /^[0-9a-f-]{36}$/i.test(room)) return { notifications: true, room };
     const tab = q.get('tab');
     if (tab && /^[A-Z]{3,10}$/.test(tab)) return { tab };
   } catch (e) {}

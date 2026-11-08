@@ -303,7 +303,7 @@ export const HomeScreen = () => {
   useEffect(() => { if (focused && user) chatUnread().then(setChatNew); }, [focused, user, chatsOpen]);   // Chats: buddies, Mutual Sparks, the Midnight Table
   /* a tapped phone notification lands here: the list, or the tab it is about */
   useEffect(() => {
-    const go = (tg) => { if (!tg) return; if (tg.notifications) setNotifOpen(true); else if (tg.tab) goToTab(tg.tab); };
+    const go = (tg) => { if (!tg) return; if (tg.notifications) setNotifOpen(tg.room ? { room: tg.room } : true); else if (tg.tab) goToTab(tg.tab); };
     const first = takeLaunchTarget();
     if (first) setTimeout(() => go(first), 600);
     return onPushOpen(go);
@@ -846,7 +846,7 @@ export const HomeScreen = () => {
       </Modal>
       ) : null}
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
-      {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
+      {notifOpen ? <NotificationsSheet openRoom={notifOpen && notifOpen.room} onClose={() => setNotifOpen(false)} /> : null}
       {chatsOpen ? <BuddiesSheet onClose={() => setChatsOpen(false)} /> : null}
       {likersPost ? (
         <LikersSheet
