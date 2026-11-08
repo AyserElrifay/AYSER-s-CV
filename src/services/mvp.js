@@ -31,6 +31,12 @@ export const circleScreen = (room) => rpc('circle_screen', { p_room: room });
 export const circleScreenSet = (room, yt) => rpc('circle_screen_set', { p_room: room, p_yt: yt || null });
 // going live in the Circle (the team only): the server keeps who, every phone shows only that person's camera
 export const circleLiveSet = (room, on) => rpc('circle_live_set', { p_room: room, p_on: !!on });
+// the Circle as a room: chat, hands, and the organizers' mute / remove / topic (all checked on the server)
+export const circleRoom = (room, after) => rpc('circle_room', { p_room: room, p_after: after || 0 });
+export const circleSay = (room, body) => rpc('circle_say', { p_room: room, p_body: body });
+export const circleHand = (room, up) => rpc('circle_hand', { p_room: room, p_up: !!up });
+export const circleMod = (room, userId, action) => rpc('circle_mod', { p_room: room, p_user: userId, p_action: action });
+export const circleTitleSet = (room, title) => rpc('circle_title_set', { p_room: room, p_title: title || null });
 
 // the Studio (owner only, checked by the database)
 export const ownerDrops = () => rpc('owner_drops');

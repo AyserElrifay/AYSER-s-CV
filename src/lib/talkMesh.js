@@ -52,6 +52,8 @@ export async function joinMesh({ roomId, topic, me, onPeople, onError, maxBitrat
   let muted = !!startMuted;
   if (muted) local.getAudioTracks().forEach((tr) => { tr.enabled = false; });
   let closed = false;
+  const hushed = new Set();      // voices the room's organizers muted: silent on this phone
+  const shut = new Set();        // people removed from the room: no connection at all
 
   // a talk room is talk:<id>; an online workshop's room is class:<offer id> (same rules, its own policy)
   const ch = supabase.channel(topic || 'talk:' + roomId, {
@@ -88,7 +90,7 @@ export async function joinMesh({ roomId, topic, me, onPeople, onError, maxBitrat
       }
     });
     pc.onicecandidate = (e) => { if (e.candidate) signal(peerId, { ice: e.candidate.toJSON ? e.candidate.toJSON() : e.candidate }); };
-    pc.ontrack = (e) => { audio.srcObject = e.streams[0]; audio.play().catch(() => {}); listen(peerId, e.streams[0]); };
+    pc.ontrack = (e) => { audio.srcObject = e.streams[0]; audio.muted = hushed.has(peerId); audio.play().catch(() => {}); listen(peerId, e.streams[0]); };
     pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') drop(peerId); };
     return p;
   };
@@ -101,7 +103,7 @@ export async function joinMesh({ roomId, topic, me, onPeople, onError, maxBitrat
   };
 
   ch.on('broadcast', { event: 'signal' }, async ({ payload }) => {
-    if (closed || !payload || payload.to !== me.id || !payload.from) return;
+    if (closed || !payload || payload.to !== me.id || !payload.from || shut.has(payload.from)) return;
     const from = payload.from;
     try {
       if (payload.sdp) {
@@ -129,7 +131,7 @@ export async function joinMesh({ roomId, topic, me, onPeople, onError, maxBitrat
     if (closed) return;
     const list = people();
     const ids = new Set(list.map((x) => x.id));
-    list.forEach((x) => { if (x.id !== me.id && !pcs.has(x.id) && shouldOffer(me.id, x.id)) offerTo(x.id).catch(() => {}); });
+    list.forEach((x) => { if (x.id !== me.id && !shut.has(x.id) && !pcs.has(x.id) && shouldOffer(me.id, x.id)) offerTo(x.id).catch(() => {}); });
     [...pcs.keys()].forEach((id) => { if (!ids.has(id)) drop(id); });
     onPeople && onPeople(list);
   });
@@ -150,6 +152,16 @@ export async function joinMesh({ roomId, topic, me, onPeople, onError, maxBitrat
       for (let i = 0; i < e.buf.length; i++) { const v = (e.buf[i] - 128) / 128; sum += v * v; }
       return Math.min(1, Math.sqrt(sum / e.buf.length) * 5);
     },
+    /* the organizers' word (kept on the server): this voice is silent here */
+    setPeerMuted: (id, m) => {
+      if (m) hushed.add(id); else hushed.delete(id);
+      const p = pcs.get(id);
+      if (p) p.audio.muted = !!m;
+    },
+    /* removed from the room: cut off, and never connected again */
+    shutOut: (id) => { if (!id || id === me.id) return; shut.add(id); drop(id); },
+    /* a tap: play every voice that a phone's autoplay rule held back */
+    resume: () => { pcs.forEach((p) => { p.audio.play().catch(() => {}); }); if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); },
     setMuted: (m) => {
       muted = !!m;
       local.getAudioTracks().forEach((tr) => { tr.enabled = !muted; });

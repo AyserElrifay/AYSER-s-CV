@@ -44,3 +44,10 @@ export const circleTopic = (id, turn, lang) => {
   const q = CIRCLE_TOPICS[(h + (Number(turn) || 0)) % CIRCLE_TOPICS.length];
   return lang === 'ar' ? q[1] : q[0];
 };
+
+/* a café outing's own topic (Ayser, November 2026: "خلّي كل خروجة في كافيه
+   ليها topic"): one question for the whole evening, the same at every
+   table of it — chosen by its start time, so the card, every table's room
+   and every phone agree without the server keeping anything */
+export const dropTopic = (startsAt, lang) => circleTopic('drop:' + (Date.parse(startsAt) || 0), 0, lang);
+export const DROP_TOPIC_W = { en: 'Tonight’s topic', ar: 'توبيك القعدة' };

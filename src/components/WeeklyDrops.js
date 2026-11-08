@@ -7,15 +7,13 @@ import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { mv } from '../constants/mvpWords';
-import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter, circleTestEnter, circleTopicTurn, circleShuffle, circleScreen, circleScreenSet, circleLiveSet } from '../services/mvp';
-import { circleTopic } from '../constants/circleTopics';
+import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter, circleTestEnter, circleTopicTurn, circleShuffle, circleScreen, circleLiveSet, circleRoom, circleSay, circleHand, circleMod, circleTitleSet } from '../services/mvp';
 import { askUpgrade, askSafety } from '../services/membership';
 import { askCard } from '../services/card';
 import { isSaving } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
 import { joinMesh } from '../lib/talkMesh';
 import { lazyOverlay } from '../lib/lazyScreen';
-import { ytId } from '../lib/ytId';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { dropClip } from '../lib/mediaFit';
 import { SeatPill } from './SeatPill';
@@ -113,10 +111,20 @@ export const QuotaLine = ({ q: given, style }) => {
   );
 };
 
+/* the topic list loads on its own, the first time a topic is shown (it is
+   shared by the Circle and the outings' rooms, so it never rides in the
+   first download) */
+let topicsMod = null;
+const useTopics = () => {
+  const [m, setM] = useState(topicsMod);
+  useEffect(() => { if (!m) import('../constants/circleTopics').then((x) => { topicsMod = x; setM(x); }).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return m;
+};
+
 /* ── TODAY'S TOPIC (Ayser, November 2026) ── one question for the whole
    circle; the team can shuffle it, and every phone follows within seconds */
-const TOPIC_W = { en: ["TODAY'S TOPIC", 'Shuffle topic', 'Today: '], ar: ['توبيك النهارده', 'اقتراح توبيك تاني', 'النهارده: '] };
-const TopicCard = ({ id, lang, compact }) => {
+const TOPIC_W = { en: ["TODAY'S TOPIC", 'Shuffle topic', 'Today: ', "THIS SESSION'S TOPIC", 'Write the topic'], ar: ['توبيك النهارده', 'اقتراح توبيك تاني', 'النهارده: ', 'توبيك الجلسة', 'اكتب التوبيك'] };
+const TopicCard = ({ id, lang, compact, title, onWrite }) => {
   const [t, setT] = useState(null);
   const [busy, setBusy] = useState(false);
   const L = TOPIC_W[lang === 'ar' ? 'ar' : 'en'];
@@ -127,7 +135,8 @@ const TopicCard = ({ id, lang, compact }) => {
     const h = compact ? null : everySeen(get, 12000);
     return () => { alive = false; if (h) clearInterval(h); };
   }, [id, compact]);
-  const q = circleTopic(id, t ? t.turn : 0, lang);
+  const tm = useTopics();
+  const q = tm ? tm.circleTopic(id, t ? t.turn : 0, lang) : '';
   if (compact) {
     return (
       <Text testID="circle-topic-line" style={{ color: C.text, fontSize: 13.5, lineHeight: 19, marginTop: 8 }} numberOfLines={2}>
@@ -144,32 +153,32 @@ const TopicCard = ({ id, lang, compact }) => {
   };
   return (
     <View testID="circle-topic" style={{ alignSelf: 'stretch', marginTop: 14, borderRadius: 24, padding: 20, backgroundColor: '#EFEBF9', borderWidth: 1, borderColor: '#D8CFF0' }}>
-      <Text style={{ color: '#5B4B8A', fontSize: 11.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{'✦ ' + L[0]}</Text>
-      <Text style={{ color: '#18181B', fontSize: 22, fontWeight: '700', lineHeight: 30, marginTop: 8, fontFamily: Platform.OS === 'web' ? 'Georgia, serif' : undefined }}>{q}</Text>
+      <Text style={{ color: '#5B4B8A', fontSize: 11.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{'✦ ' + (title ? L[3] : L[0])}</Text>
+      <Text style={{ color: '#18181B', fontSize: 22, fontWeight: '700', lineHeight: 30, marginTop: 8, fontFamily: Platform.OS === 'web' ? 'Georgia, serif' : undefined }}>{title || q}</Text>
       {t && t.can_shuffle ? (
-        <Pressable testID="circle-shuffle" onPress={shuffle} disabled={busy} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.purple }}>
-            <Ionicons name="shuffle" size={15} color={C.ink} />
-            <Text style={{ color: C.ink, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L[1]}</Text>
-          </View>
-        </Pressable>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 14 }}>
+          {!title ? (
+            <Pressable testID="circle-shuffle" onPress={shuffle} disabled={busy} accessibilityRole="button" style={{ marginEnd: 8, marginBottom: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.purple }}>
+                <Ionicons name="shuffle" size={15} color={C.ink} />
+                <Text style={{ color: C.ink, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L[1]}</Text>
+              </View>
+            </Pressable>
+          ) : null}
+          {onWrite ? (
+            <Pressable testID="circle-title-write" onPress={() => { tapLight(); onWrite(); }} accessibilityRole="button" style={{ marginBottom: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: '#5B4B8A' }}>
+                <Ionicons name="create-outline" size={15} color="#5B4B8A" />
+                <Text style={{ color: '#5B4B8A', fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L[4]}</Text>
+              </View>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
 };
 
-/* ── THE CIRCLE'S SCREEN (Ayser, November 2026: "نعرض فيديو") ── the team
-   puts one YouTube clip about today's topic on the screen, and every
-   phone plays the same moment of it: the server keeps when it started
-   (circle_screens in RUN_ME.sql), each phone follows that clock with the
-   karaoke room's player. Sound is each phone's own choice (a tap), so a
-   room of open mics does not echo. Nobody's camera is ever on. */
-// the player is the karaoke room's, loaded only when a video is on (it lives in the Lamma chunk's file)
-const YtKaraoke = lazyOverlay(() => import('./lamma/YtKaraoke').then((m) => ({ default: m.YtKaraoke })));
-const SCREEN_W = {
-  en: { show: 'Show a video', ph: 'Paste a YouTube link', go: 'Show it to the room', down: 'Take the video down', bad: 'That is not a YouTube link.', fail: 'Did not work — try again.', hint: 'Short, about today’s topic. Everybody in the room sees it at the same moment.', same: 'The whole room sees the same moment' },
-  ar: { show: 'اعرض فيديو', ph: 'حط لينك يوتيوب', go: 'اعرضه للأوضة', down: 'شيل الفيديو', bad: 'ده مش لينك يوتيوب.', fail: 'معرفناش — جرّب تاني.', hint: 'قصير وعن توبيك النهارده. كل اللي في الأوضة بيشوفوه في نفس اللحظة.', same: 'الأوضة كلها بتشوف نفس اللحظة' },
-};
 /* ── THE CIRCLE, LIVE (Ayser, November 2026: "أنا قصدي stream") ── one
    person from the team turns their camera on for the whole room; the
    others only watch (no camera, no microphone asked to watch). The server
@@ -279,80 +288,73 @@ const CircleLive = ({ room, lang, live, canSet, onLive }) => {
   );
 };
 
-const CircleScreen = ({ room, lang }) => {
-  const L = SCREEN_W[lang === 'ar' ? 'ar' : 'en'];
-  const [st, setSt] = useState(null);       // { video, can_set, sync }
-  const [open, setOpen] = useState(false);
-  const [link, setLink] = useState('');
-  const [msg, setMsg] = useState('');
-  const [busy, setBusy] = useState(false);
-  const take = (x) => {
-    if (!x || !x.ok) return;
-    const v = x.video || null;
-    const sync = v ? { pos: Math.max(0, (Date.parse(x.now) - Date.parse(v.started_at)) / 1000), playing: true, at: Date.now() } : null;
-    setSt((old) => ({ can_set: !!x.can_set || !!(old && old.can_set), video: v, live: x.live === undefined && old ? old.live : x.live || null,
-      // the same video keeps its clock; a new one starts a new clock
-      sync: old && old.video && v && old.video.yt === v.yt && old.video.started_at === v.started_at ? old.sync : sync }));
-  };
+/* who is live, read with the room's other state (circle_screen) */
+const useLive = (room) => {
+  const [st, setSt] = useState(null);
   useEffect(() => {
     let alive = true;
-    const get = () => circleScreen(room).then((x) => { if (alive) take(x); }).catch(() => {});
+    const get = () => circleScreen(room).then((x) => { if (alive && x && x.ok) setSt({ live: x.live || null, can_set: !!x.can_set }); }).catch(() => {});
     get();
-    const h = everySeen(get, 8000);
+    const h = everySeen(get, 6000);
     return () => { alive = false; if (h) clearInterval(h); };
-  }, [room]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!st || Platform.OS !== 'web') return null;
-  const put = async (yt) => {
-    if (busy) return;
-    setMsg('');
-    if (yt === undefined) { const id = ytId(link); if (!id) { setMsg(L.bad); return; } yt = id; }
-    tapLight(); setBusy(true);
-    const r = await circleScreenSet(room, yt).catch(() => null);
-    setBusy(false);
-    if (r && r.ok) { tapSuccess(); setOpen(false); setLink(''); take({ ok: true, now: r.now || new Date().toISOString(), video: r.video, can_set: true }); }
-    else setMsg(r && r.reason === 'bad_link' ? L.bad : L.fail);
+  }, [room]);
+  return [st, setSt];
+};
+
+/* ── THE ROOM, RUN LIKE A ROOM (Ayser, November 2026: "اتعلّم من Discord") ──
+   chat, raised hands, and the organizers' mute / remove — all kept on the
+   server (circle_room in RUN_ME.sql), read every 3 seconds */
+const ROOM_W = {
+  en: { chat: 'Room chat', say: 'Write to the room…', hands: 'Hands up', lower: 'Lower', hand: 'Raise hand', handDown: 'Lower hand', mute: 'Mute', unmute: 'Unmute', remove: 'Remove', removeSure: 'Remove for good?', mutedYou: 'An organizer muted your mic.', removed: 'An organizer removed you from this room.', slow: 'One line every 2 seconds.', topicPh: 'e.g. Sara’s month in Japan — ask her anything', save: 'Save', clear: 'Back to the shuffled topics', cancel: 'Cancel', empty: 'Say hi — the room reads it.' },
+  ar: { chat: 'شات الأوضة', say: 'اكتب للأوضة…', hands: 'إيد مرفوعة', lower: 'نزّلها', hand: 'ارفع إيدك', handDown: 'نزّل إيدك', mute: 'ميوت', unmute: 'شيل الميوت', remove: 'اطرده', removeSure: 'تطرده خالص؟', mutedYou: 'المنظّم قفل المايك بتاعك.', removed: 'المنظّم طلّعك من الأوضة دي.', slow: 'سطر كل ثانيتين.', topicPh: 'مثلاً: شهر سارة في اليابان — اسألوها أي حاجة', save: 'احفظ', clear: 'ارجع للتوبيكات العادية', cancel: 'إلغاء', empty: 'قول أهلاً — الأوضة كلها بتقرا.' },
+};
+const useRoom = (room) => {
+  const [st, setSt] = useState({ msgs: [], hands: [], muted: [], removed: [], is_mod: false, title: null, me: null, gone: false });
+  const last = useRef(0);
+  const pull = () => circleRoom(room, last.current).then((x) => {
+    if (!x) return;
+    if (!x.ok) { if (x.reason === 'removed') setSt((o) => ({ ...o, gone: true })); return; }
+    const fresh = x.msgs || [];
+    if (fresh.length) last.current = fresh[fresh.length - 1].id;
+    const removed = new Set(x.removed || []);
+    setSt((o) => ({ ...o, me: x.me, is_mod: !!x.is_mod, title: x.title || null, hands: x.hands || [], muted: x.muted || [], removed: x.removed || [],
+      msgs: o.msgs.concat(fresh).filter((m) => !removed.has(m.user_id)).slice(-80) }));
+  }).catch(() => {});
+  useEffect(() => { pull(); const h = everySeen(pull, 3000); return () => { if (h) clearInterval(h); }; }, [room]); // eslint-disable-line react-hooks/exhaustive-deps
+  return [st, pull, setSt];
+};
+
+const RoomChat = ({ room, lang, rs, pull }) => {
+  const L = ROOM_W[lang === 'ar' ? 'ar' : 'en'];
+  const [text, setText] = useState('');
+  const [msg, setMsg] = useState('');
+  const send = async () => {
+    const b = text.trim();
+    if (!b) return;
+    tapLight(); setMsg('');
+    const r = await circleSay(room, b).catch(() => null);
+    if (r && r.ok) { setText(''); pull(); } else if (r && r.reason === 'slow') setMsg(L.slow);
   };
   return (
-    <View testID="circle-screen" style={{ alignSelf: 'stretch', marginTop: 12 }}>
-      <CircleLive room={room} lang={lang} live={st.live} canSet={st.can_set} onLive={(lv) => setSt((o) => ({ ...o, live: lv }))} />
-      {st.video ? (
-        <View style={{ borderRadius: 20, backgroundColor: '#17131F', paddingHorizontal: 12, paddingBottom: 12, paddingTop: 0 }}>
-          <YtKaraoke key={st.video.yt + st.video.started_at} videoId={st.video.yt} host={false} sync={st.sync} lang={lang} followLabel={L.same} />
-        </View>
-      ) : null}
-      {st.can_set ? (
-        open ? (
-          <View style={{ marginTop: 10 }}>
-            <TextInput testID="circle-screen-link" value={link} onChangeText={setLink} placeholder={L.ph} placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false}
-              onSubmitEditing={() => put()} style={{ borderRadius: 14, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 10, color: C.text, fontSize: 14.5, outlineStyle: 'none', writingDirection: 'ltr' }} />
-            <Text style={{ color: C.dim, fontSize: 12, lineHeight: 17, marginTop: 6 }}>{L.hint}</Text>
-            <Pressable testID="circle-screen-go" onPress={() => put()} disabled={busy} accessibilityRole="button" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.purple, opacity: busy ? 0.6 : 1 }}>
-                <Ionicons name="play" size={14} color="#FFF" />
-                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L.go}</Text>
-              </View>
-            </Pressable>
+    <View testID="circle-chat" style={{ alignSelf: 'stretch', marginTop: 18, borderRadius: 20, borderWidth: 1, borderColor: C.line, padding: 14 }}>
+      <Small>{L.chat.toUpperCase()}</Small>
+      <View style={{ marginTop: 8 }}>
+        {rs.msgs.length ? rs.msgs.slice(-30).map((m) => (
+          <Text key={m.id} style={{ color: C.text, fontSize: 14, lineHeight: 20, marginTop: 4 }}>
+            <Text style={{ fontWeight: '800', color: m.user_id === rs.me ? C.purple : C.text }}>{(m.name || '?') + '  '}</Text>{m.body}
+          </Text>
+        )) : <Text style={{ color: C.dim, fontSize: 13 }}>{L.empty}</Text>}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+        <TextInput testID="circle-chat-input" value={text} onChangeText={setText} onSubmitEditing={send} placeholder={L.say} placeholderTextColor={C.faint} maxLength={300} returnKeyType="send"
+          style={{ flex: 1, borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 9, color: C.text, fontSize: 14.5, outlineStyle: 'none' }} />
+        <Pressable testID="circle-chat-send" onPress={send} accessibilityRole="button" accessibilityLabel="send" hitSlop={6} style={{ marginStart: 8 }}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: text.trim() ? C.purple : C.line }}>
+            <Ionicons name="arrow-up" size={19} color="#FFF" />
           </View>
-        ) : (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
-            <Pressable testID="circle-screen-open" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" style={{ marginEnd: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: C.text }}>
-                <Ionicons name="film-outline" size={15} color={C.text} />
-                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L.show}</Text>
-              </View>
-            </Pressable>
-            {st.video ? (
-              <Pressable testID="circle-screen-down" onPress={() => put(null)} disabled={busy} accessibilityRole="button">
-                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: C.line }}>
-                  <Ionicons name="close" size={15} color={C.text} />
-                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L.down}</Text>
-                </View>
-              </Pressable>
-            ) : null}
-          </View>
-        )
-      ) : null}
-      {msg ? <Text style={{ color: C.coral, fontSize: 12.5, marginTop: 6 }}>{msg}</Text> : null}
+        </Pressable>
+      </View>
+      {msg ? <Text style={{ color: C.dim, fontSize: 12, marginTop: 6 }}>{msg}</Text> : null}
     </View>
   );
 };
@@ -361,32 +363,71 @@ const CircleScreen = ({ room, lang }) => {
 const CircleRoom = ({ room, lang, onClose }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const L = ROOM_W[lang === 'ar' ? 'ar' : 'en'];
+  const key = String(room.topic || '').replace(/^circle:/, '');   // the room's own name on the server
   const skew = useRef(Date.parse(room.now) - Date.now());       // the server's clock, not the phone's
   const [people, setPeople] = useState(room.people || []);
   const [voice, setVoice] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [pick, setPick] = useState(null);        // an organizer's menu on somebody
+  const [sure, setSure] = useState(false);
+  const [writing, setWriting] = useState(false);
+  const [title, setTitle] = useState('');
   const mesh = useRef(null);
+  const [rs, pull, setRs] = useRoom(key);
+  const [lv, setLv] = useLive(key);
   useSheetBack(onClose);
   useTick(1000);
   const left = Date.parse(room.ends_at) - (Date.now() + skew.current);
   const over = left <= 0;
+  const me = user && user.id;
+  const mutedSet = new Set(rs.muted);
+  const removedSet = new Set(rs.removed);
+  const iMuted = !!(me && mutedSet.has(me));
+  const myHand = !!(me && rs.hands.some((h) => h.user_id === me));
   useEffect(() => {
     const t = room.test ? null : everySeen(() => circleEnter(room.id).then((r) => r && r.ok && setPeople(r.people || [])), 10000);
     return () => { if (t) clearInterval(t); if (mesh.current) { mesh.current.close(); mesh.current = null; } };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (over && mesh.current) { mesh.current.close(); mesh.current = null; setVoice(false); tapMedium(); } }, [over]);
+  // the organizers' word holds on this phone: muted voices are silent, removed people are cut off
+  useEffect(() => {
+    const m = mesh.current;
+    if (!m) return;
+    people.forEach((p) => { if (p.id !== me) m.setPeerMuted(p.id, mutedSet.has(p.id)); });
+    rs.muted.forEach((id) => { if (id !== me) m.setPeerMuted(id, true); });
+    rs.removed.forEach((id) => m.shutOut(id));
+    if (iMuted && !muted) { m.setMuted(true); setMuted(true); }
+  }, [rs.muted.join(), rs.removed.join(), voice, people.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  // removed: out of the room
+  useEffect(() => { if (rs.gone) { if (mesh.current) { mesh.current.close(); mesh.current = null; } setVoice(false); } }, [rs.gone]);
   const talk = async () => {
     tapMedium();
-    const m = await joinMesh({ topic: room.topic, me: { id: user.id, name: '' }, onPeople: () => {}, onError: () => {} });
-    if (m) { mesh.current = m; setVoice(true); }
+    const m = await joinMesh({ topic: room.topic, me: { id: user.id, name: '' }, startMuted: iMuted, onPeople: () => {}, onError: () => {} });
+    if (m) { mesh.current = m; setVoice(true); if (iMuted) setMuted(true); }
   };
+  const hand = async () => { tapLight(); await circleHand(key, !myHand).catch(() => null); pull(); };
+  const mod = async (uid, action) => {
+    tapMedium();
+    const r = await circleMod(key, uid, action).catch(() => null);
+    if (r && r.ok) { tapSuccess(); setPick(null); setSure(false); pull(); }
+  };
+  const saveTitle = async (t) => {
+    const r = await circleTitleSet(key, t).catch(() => null);
+    if (r && r.ok) { tapSuccess(); setWriting(false); setRs((o) => ({ ...o, title: r.title || null })); }
+  };
+  const shown = people.filter((p) => !removedSet.has(p.id));
   return (
     <Modal visible animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 12, paddingBottom: insets.bottom + 20, paddingHorizontal: 24 }}>
+      <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16, paddingHorizontal: 20 }}>
         <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="close">
           <Ionicons name="chevron-down" size={26} color={C.text} />
         </Pressable>
-        {over ? (
+        {rs.gone ? (
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <Text testID="circle-removed" style={{ color: C.text, fontSize: 22, fontWeight: '700', lineHeight: 30 }}>{L.removed}</Text>
+          </View>
+        ) : over ? (
           /* the hook: the room closes, the table opens */
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <Text style={{ color: C.text, fontSize: 34, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -1 }}>{mv(lang, 'cDoneT')}</Text>
@@ -395,42 +436,121 @@ const CircleRoom = ({ room, lang, onClose }) => {
           </View>
         ) : (
           <View style={{ flex: 1, alignItems: 'center' }}>
-            {room.test ? <Small style={{ marginBottom: 10 }}>{lang === 'ar' ? 'أوضة تجربة · للفريق بس' : 'TEST ROOM · TEAM ONLY'}</Small> : null}
+            {room.test ? <Small style={{ marginBottom: 6 }}>{lang === 'ar' ? 'أوضة تجربة · للفريق بس' : 'TEST ROOM · TEAM ONLY'}</Small> : null}
             <ScrollView style={{ flex: 1, alignSelf: 'stretch' }} contentContainerStyle={{ alignItems: 'center', paddingBottom: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <TopicCard id={room.id} lang={lang} />
-            <CircleScreen room={String(room.topic || '').replace(/^circle:/, '')} lang={lang} />
-            <Text style={[{ color: C.text, fontSize: 48, fontWeight: '300', letterSpacing: 2, marginTop: 22 }, NUM]}>{clock(left, lang)}</Text>
-            <Small style={{ marginTop: 10 }}>{mv(lang, 'cLeft30')}</Small>
-            <Text style={[{ color: C.dim, fontSize: 15, marginTop: 28 }, NUM]}>{mv(lang, 'cPeople', { n: people.length })}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 14 }}>
-              {people.slice(0, 12).map((p) => (
-                <View key={p.id} style={{ alignItems: 'center', width: 76, marginBottom: 12 }}>
-                  <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: C.line, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: C.text, fontSize: 18, fontWeight: '600' }}>{(p.name || '?').trim().charAt(0).toUpperCase()}</Text>
+              <TopicCard id={room.id} lang={lang} title={rs.title} onWrite={rs.is_mod ? () => { setTitle(rs.title || ''); setWriting(true); } : null} />
+              {writing ? (
+                <View style={{ alignSelf: 'stretch', marginTop: 10 }}>
+                  <TextInput testID="circle-title-input" value={title} onChangeText={setTitle} placeholder={L.topicPh} placeholderTextColor={C.faint} maxLength={160} multiline
+                    style={{ borderRadius: 14, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 10, color: C.text, fontSize: 15, outlineStyle: 'none', minHeight: 60 }} />
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                    <Pressable testID="circle-title-save" onPress={() => saveTitle(title)} accessibilityRole="button" style={{ marginEnd: 8, marginBottom: 6 }}>
+                      <View style={{ borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9, backgroundColor: C.purple }}><Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800' }}>{L.save}</Text></View>
+                    </Pressable>
+                    {rs.title ? (
+                      <Pressable onPress={() => saveTitle(null)} accessibilityRole="button" style={{ marginEnd: 8, marginBottom: 6 }}>
+                        <View style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: C.line }}><Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700' }}>{L.clear}</Text></View>
+                      </Pressable>
+                    ) : null}
+                    <Pressable onPress={() => setWriting(false)} accessibilityRole="button" style={{ marginBottom: 6 }}>
+                      <View style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }}><Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{L.cancel}</Text></View>
+                    </Pressable>
                   </View>
-                  <Text style={{ color: C.dim, fontSize: 12, marginTop: 5 }} numberOfLines={1}>{(p.name || '').split(' ')[0]}</Text>
                 </View>
-              ))}
-            </View>
-            </ScrollView>
-            {voice ? (
-              <View style={{ flexDirection: 'row' }}>
-                <Pressable onPress={() => { tapLight(); const m = !muted; setMuted(m); if (mesh.current) mesh.current.setMuted(m); }} accessibilityRole="button" style={{ alignItems: 'center', marginHorizontal: 18 }}>
-                  <View style={{ width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: muted ? 'transparent' : C.text, borderWidth: 1, borderColor: C.text }}>
-                    <Ionicons name={muted ? 'mic-off' : 'mic'} size={28} color={muted ? C.text : C.bg} />
+              ) : null}
+              {lv ? (
+                <View style={{ alignSelf: 'stretch', marginTop: 12 }}>
+                  <CircleLive room={key} lang={lang} live={lv.live} canSet={lv.can_set} onLive={(x) => setLv((o) => ({ ...o, live: x }))} />
+                </View>
+              ) : null}
+              <Text style={[{ color: C.text, fontSize: 34, fontWeight: '300', letterSpacing: 2, marginTop: 14 }, NUM]}>{clock(left, lang)}</Text>
+              <Small style={{ marginTop: 6 }}>{mv(lang, 'cLeft30')}</Small>
+              {/* raised hands, in the order they went up; an organizer can lower one */}
+              {rs.hands.length ? (
+                <View testID="circle-hands" style={{ alignSelf: 'stretch', marginTop: 16, borderRadius: 18, backgroundColor: '#EFEBF9', padding: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="hand-left" size={13} color="#5B4B8A" />
+                    <Text style={{ color: '#5B4B8A', fontSize: 12, fontWeight: '900', marginStart: 6 }}>{L.hands + ' · ' + (lang === 'ar' ? rs.hands.length.toLocaleString('ar-EG') : rs.hands.length)}</Text>
                   </View>
-                  <Text style={{ color: C.dim, fontSize: 13, marginTop: 8 }}>{mv(lang, muted ? 'cUnmute' : 'cMute')}</Text>
-                </Pressable>
-                <Pressable onPress={() => { tapLight(); if (mesh.current) { mesh.current.close(); mesh.current = null; } setVoice(false); onClose(); }} accessibilityRole="button" style={{ alignItems: 'center', marginHorizontal: 18 }}>
-                  <View style={{ width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line }}>
-                    <Ionicons name="close" size={28} color={C.text} />
-                  </View>
-                  <Text style={{ color: C.dim, fontSize: 13, marginTop: 8 }}>{mv(lang, 'cLeave')}</Text>
-                </Pressable>
+                  {rs.hands.map((h, i) => (
+                    <View key={h.user_id} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                      <Text style={[{ color: '#18181B', fontSize: 14.5, fontWeight: '700' }, NUM]}>{(i + 1) + '. ' + (h.name || '?')}</Text>
+                      <View style={{ flex: 1 }} />
+                      {rs.is_mod && h.user_id !== me ? (
+                        <Pressable onPress={() => mod(h.user_id, 'lower')} accessibilityRole="button" hitSlop={6}>
+                          <Text style={{ color: '#5B4B8A', fontSize: 13, fontWeight: '800' }}>{L.lower}</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              <Text style={[{ color: C.dim, fontSize: 15, marginTop: 18 }, NUM]}>{mv(lang, 'cPeople', { n: shown.length })}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 10 }}>
+                {shown.slice(0, 12).map((p) => {
+                  const hushed = mutedSet.has(p.id);
+                  const up = rs.hands.some((h) => h.user_id === p.id);
+                  return (
+                    <Pressable key={p.id} testID={'circle-person-' + p.id} disabled={!rs.is_mod || p.id === me} onPress={() => { tapLight(); setSure(false); setPick(pick === p.id ? null : p.id); }} accessibilityRole="button" style={{ alignItems: 'center', width: 76, marginBottom: 10 }}>
+                      <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: pick === p.id ? 2 : 1, borderColor: pick === p.id ? C.purple : C.line, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: C.text, fontSize: 18, fontWeight: '600' }}>{(p.name || '?').trim().charAt(0).toUpperCase()}</Text>
+                        {hushed ? <View style={{ position: 'absolute', bottom: -2, end: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: C.text, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="mic-off" size={11} color={C.bg} /></View> : null}
+                        {up ? <View style={{ position: 'absolute', top: -4, end: -4, width: 22, height: 22, borderRadius: 11, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="hand-left" size={12} color="#FFF" /></View> : null}
+                      </View>
+                      <Text style={{ color: C.dim, fontSize: 12, marginTop: 5 }} numberOfLines={1}>{(p.name || '').split(' ')[0]}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-            ) : (
-              <View style={{ alignSelf: 'stretch' }}><Btn label={mv(lang, 'cTalk')} onPress={talk} /></View>
-            )}
+              {/* an organizer's menu on one person */}
+              {rs.is_mod && pick ? (
+                <View testID="circle-mod" style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
+                  <Pressable testID="circle-mod-mute" onPress={() => mod(pick, mutedSet.has(pick) ? 'unmute' : 'mute')} accessibilityRole="button" style={{ marginHorizontal: 4, marginBottom: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: C.text }}>
+                      <Ionicons name={mutedSet.has(pick) ? 'mic' : 'mic-off'} size={15} color={C.text} />
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{mutedSet.has(pick) ? L.unmute : L.mute}</Text>
+                    </View>
+                  </Pressable>
+                  <Pressable testID="circle-mod-remove" onPress={() => { if (sure) mod(pick, 'remove'); else { tapLight(); setSure(true); } }} accessibilityRole="button" style={{ marginHorizontal: 4, marginBottom: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: sure ? C.coral : 'transparent', borderWidth: 1, borderColor: C.coral }}>
+                      <Ionicons name="exit-outline" size={15} color={sure ? '#FFF' : C.coral} />
+                      <Text style={{ color: sure ? '#FFF' : C.coral, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{sure ? L.removeSure : L.remove}</Text>
+                    </View>
+                  </Pressable>
+                </View>
+              ) : null}
+              <RoomChat room={key} lang={lang} rs={rs} pull={pull} />
+            </ScrollView>
+            {iMuted ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6 }}>{L.mutedYou}</Text> : null}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', alignSelf: 'stretch', justifyContent: 'center', marginTop: 8 }}>
+              {voice ? (
+                <Pressable disabled={iMuted} onPress={() => { tapLight(); const m = !muted; setMuted(m); if (mesh.current) { mesh.current.setMuted(m); mesh.current.resume(); } }} accessibilityRole="button" style={{ alignItems: 'center', marginHorizontal: 12, opacity: iMuted ? 0.4 : 1 }}>
+                  <View style={{ width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', backgroundColor: muted ? 'transparent' : C.text, borderWidth: 1, borderColor: C.text }}>
+                    <Ionicons name={muted ? 'mic-off' : 'mic'} size={26} color={muted ? C.text : C.bg} />
+                  </View>
+                  <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6 }}>{mv(lang, muted ? 'cUnmute' : 'cMute')}</Text>
+                </Pressable>
+              ) : (
+                <Pressable testID="circle-talk" onPress={talk} accessibilityRole="button" style={{ alignItems: 'center', marginHorizontal: 12 }}>
+                  <View style={{ width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', backgroundColor: C.text }}>
+                    <Ionicons name="mic" size={26} color={C.bg} />
+                  </View>
+                  <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6 }}>{mv(lang, 'cTalk')}</Text>
+                </Pressable>
+              )}
+              <Pressable testID="circle-hand" onPress={hand} accessibilityRole="button" style={{ alignItems: 'center', marginHorizontal: 12 }}>
+                <View style={{ width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', backgroundColor: myHand ? C.purple : 'transparent', borderWidth: 1, borderColor: myHand ? C.purple : C.line }}>
+                  <Ionicons name="hand-left" size={24} color={myHand ? '#FFF' : C.text} />
+                </View>
+                <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6 }}>{myHand ? L.handDown : L.hand}</Text>
+              </Pressable>
+              <Pressable onPress={() => { tapLight(); if (mesh.current) { mesh.current.close(); mesh.current = null; } setVoice(false); onClose(); }} accessibilityRole="button" style={{ alignItems: 'center', marginHorizontal: 12 }}>
+                <View style={{ width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line }}>
+                  <Ionicons name="close" size={26} color={C.text} />
+                </View>
+                <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6 }}>{mv(lang, 'cLeave')}</Text>
+              </Pressable>
+            </View>
           </View>
         )}
       </View>
@@ -653,6 +773,7 @@ const DropCard = ({ d, lang, onChanged }) => {
   const giveBack = async () => { tapLight(); setBusy(true); await dropCancel(d.my_offer || d.id); setBusy(false); onChanged(); };
 
   const cat = CATS.includes(d.category) ? d.category : 'tables';
+  const topics = useTopics();
   return (
     <Card style={{ overflow: 'hidden', opacity: queued ? 0.88 : 1 }}>
       <LoopVideo uri={dropClip(d)} />
@@ -661,6 +782,15 @@ const DropCard = ({ d, lang, onChanged }) => {
       {vibe && vibe.toUpperCase() !== catWord(lang, cat).toUpperCase() ? <Small style={{ marginTop: 8 }}>{vibe.toUpperCase()}</Small> : null}
       <Text style={{ color: C.text, fontSize: 24, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.5, marginTop: 8 }}>{place}</Text>
       <Text style={{ color: C.text, fontSize: 15, marginTop: 4 }}>{when(d.starts_at, lang)}</Text>
+      {/* a café outing's own topic: something to start on with people you have not met */}
+      {cat === 'tables' && d.starts_at && topics ? (
+        <View testID="drop-topic" style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 10, borderRadius: 14, backgroundColor: '#EFEBF9', paddingHorizontal: 12, paddingVertical: 10 }}>
+          <Ionicons name="chatbubbles-outline" size={15} color="#5B4B8A" style={{ marginTop: 2 }} />
+          <Text style={{ flex: 1, color: '#18181B', fontSize: 13.5, lineHeight: 19, marginStart: 8 }}>
+            <Text style={{ fontWeight: '800', color: '#5B4B8A' }}>{topics.DROP_TOPIC_W[lang === 'ar' ? 'ar' : 'en'] + ': '}</Text>{topics.dropTopic(d.starts_at, lang)}
+          </Text>
+        </View>
+      ) : null}
       {/* real photos from an evening like this one (up to three; everyone in them agreed) */}
       {Array.isArray(d.photos) && d.photos.length ? (
         <View testID="drop-photos" style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>

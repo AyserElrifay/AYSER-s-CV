@@ -28385,6 +28385,150 @@ exception when others then raise notice 'circle live realtime policies skipped: 
 end $do$;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  THE CIRCLE, RUN LIKE A ROOM: CHAT, HANDS, MUTE, REMOVE, ITS OWN TOPIC
+--  Ayser, November 2026 ("خلّي الأورجنايزر يقدر يتحكّم … يعمل ميوت للناس
+--  أو يطرد حد … والناس تبعت شات … وتعمل raise hand … اتعلّم من
+--  Discord"): inside an English Circle
+--    · everybody in the room can write in its chat (300 characters, one
+--      line every 2 seconds) and raise or lower a hand;
+--    · the organizers — the owner and the team (circle_can_shuffle) —
+--      can lower a hand, mute somebody's voice for the room, and remove
+--      somebody: a removed person is out of the room for good
+--      (circle_here says no, so its channels and chat close to them);
+--    · the team can write the session's own topic ("Sara's month in
+--      Japan — ask her anything"), shown instead of the shuffled one.
+--  A mute is kept here and every phone silences that voice, so it holds
+--  even against a changed app. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.circle_msgs (
+  id      bigserial primary key,
+  room    text not null,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  body    text not null check (char_length(body) between 1 and 300),
+  at      timestamptz not null default now()
+);
+create index if not exists circle_msgs_room on public.circle_msgs (room, id);
+create table if not exists public.circle_hands (
+  room text not null, user_id uuid not null references public.profiles(id) on delete cascade,
+  at timestamptz not null default now(), primary key (room, user_id));
+create table if not exists public.circle_mutes (
+  room text not null, user_id uuid not null references public.profiles(id) on delete cascade,
+  by uuid, at timestamptz not null default now(), primary key (room, user_id));
+create table if not exists public.circle_kicks (
+  room text not null, user_id uuid not null references public.profiles(id) on delete cascade,
+  by uuid, at timestamptz not null default now(), primary key (room, user_id));
+create table if not exists public.circle_titles (
+  room text primary key, title text not null check (char_length(title) between 1 and 160),
+  by uuid, at timestamptz not null default now());
+alter table public.circle_msgs  enable row level security;
+alter table public.circle_hands enable row level security;
+alter table public.circle_mutes enable row level security;
+alter table public.circle_kicks enable row level security;
+alter table public.circle_titles enable row level security;
+revoke all on public.circle_msgs, public.circle_hands, public.circle_mutes, public.circle_kicks, public.circle_titles from anon, authenticated;
+
+-- in the room: as before, and never somebody the organizers removed
+create or replace function public.circle_here(p_topic text, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select not exists (select 1 from public.circle_kicks k where k.room = p_topic and k.user_id = u)
+    and ((p_topic like 'test-%' and public.circle_can_shuffle(u))
+      or exists (select 1 from public.circle_joins j join public.circle_polls p on p.id = j.poll_id
+                  where j.user_id = u and p.id::text = p_topic
+                    and now() < public.circle_winner(p) + interval '31 minutes'));
+$$;
+revoke all on function public.circle_here(text, uuid) from public, anon;
+grant execute on function public.circle_here(text, uuid) to authenticated;
+
+-- everything the room needs, every few seconds: new chat lines after p_after, hands, mutes, the topic
+create or replace function public.circle_room(p_room text, p_after bigint default 0)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if exists (select 1 from public.circle_kicks where room = p_room and user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'removed');
+  end if;
+  if not public.circle_here(p_room, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  return jsonb_build_object('ok', true, 'me', me, 'is_mod', public.circle_can_shuffle(me),
+    'title', (select title from public.circle_titles where room = p_room),
+    'msgs', coalesce((select jsonb_agg(x order by x.id) from (
+              select m.id, m.user_id, split_part(coalesce(p.name, ''), ' ', 1) as name, m.body, m.at
+                from public.circle_msgs m left join public.profiles p on p.id = m.user_id
+               where m.room = p_room and m.id > coalesce(p_after, 0)
+                 and not exists (select 1 from public.circle_kicks k where k.room = p_room and k.user_id = m.user_id)
+               order by m.id desc limit 60) x), '[]'::jsonb),
+    'hands', coalesce((select jsonb_agg(jsonb_build_object('user_id', h.user_id, 'name', split_part(coalesce(p.name, ''), ' ', 1)) order by h.at)
+               from public.circle_hands h left join public.profiles p on p.id = h.user_id where h.room = p_room), '[]'::jsonb),
+    'muted', coalesce((select jsonb_agg(user_id) from public.circle_mutes where room = p_room), '[]'::jsonb),
+    'removed', coalesce((select jsonb_agg(user_id) from public.circle_kicks where room = p_room), '[]'::jsonb));
+end $$;
+revoke execute on function public.circle_room(text, bigint) from public, anon;
+grant execute on function public.circle_room(text, bigint) to authenticated;
+
+create or replace function public.circle_say(p_room text, p_body text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); b text := btrim(coalesce(p_body, ''));
+begin
+  if me is null or not public.circle_here(p_room, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  if b = '' or char_length(b) > 300 then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
+  if exists (select 1 from public.circle_msgs where room = p_room and user_id = me and at > now() - interval '2 seconds') then
+    return jsonb_build_object('ok', false, 'reason', 'slow');
+  end if;
+  insert into public.circle_msgs (room, user_id, body) values (p_room, me, b);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.circle_say(text, text) from public, anon;
+grant execute on function public.circle_say(text, text) to authenticated;
+
+create or replace function public.circle_hand(p_room text, p_up boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null or not public.circle_here(p_room, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  if p_up then insert into public.circle_hands (room, user_id) values (p_room, me) on conflict do nothing;
+  else delete from public.circle_hands where room = p_room and user_id = me; end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.circle_hand(text, boolean) from public, anon;
+grant execute on function public.circle_hand(text, boolean) to authenticated;
+
+-- the organizers: lower a hand, mute / unmute a voice, remove somebody
+create or replace function public.circle_mod(p_room text, p_user uuid, p_action text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if not public.circle_can_shuffle(me) or not public.circle_here(p_room, me) then return jsonb_build_object('ok', false, 'reason', 'not_mod'); end if;
+  if p_user is null or p_user = me then return jsonb_build_object('ok', false, 'reason', 'self'); end if;
+  if public.circle_can_shuffle(p_user) and p_action in ('mute', 'remove') then return jsonb_build_object('ok', false, 'reason', 'team'); end if;
+  if p_action = 'lower' then delete from public.circle_hands where room = p_room and user_id = p_user;
+  elsif p_action = 'mute' then insert into public.circle_mutes (room, user_id, by) values (p_room, p_user, me) on conflict do nothing;
+  elsif p_action = 'unmute' then delete from public.circle_mutes where room = p_room and user_id = p_user;
+  elsif p_action = 'remove' then
+    insert into public.circle_kicks (room, user_id, by) values (p_room, p_user, me) on conflict do nothing;
+    delete from public.circle_hands where room = p_room and user_id = p_user;
+  else return jsonb_build_object('ok', false, 'reason', 'shape');
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.circle_mod(text, uuid, text) from public, anon;
+grant execute on function public.circle_mod(text, uuid, text) to authenticated;
+
+-- the session's own topic (null or '' goes back to the shuffled one)
+create or replace function public.circle_title_set(p_room text, p_title text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t text := btrim(coalesce(p_title, ''));
+begin
+  if not public.circle_can_shuffle(auth.uid()) or not public.circle_here(p_room, auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_mod'); end if;
+  if t = '' then delete from public.circle_titles where room = p_room; return jsonb_build_object('ok', true, 'title', null); end if;
+  if char_length(t) > 160 then return jsonb_build_object('ok', false, 'reason', 'long'); end if;
+  insert into public.circle_titles (room, title, by) values (p_room, t, auth.uid())
+  on conflict (room) do update set title = excluded.title, by = excluded.by, at = now();
+  return jsonb_build_object('ok', true, 'title', t);
+end $$;
+revoke execute on function public.circle_title_set(text, text) from public, anon;
+grant execute on function public.circle_title_set(text, text) to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

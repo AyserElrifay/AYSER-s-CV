@@ -214,6 +214,16 @@ const Walkie = ({ lang, id, onOut }) => {
   );
 };
 
+/* the topic list loads on its own, the first time a topic is shown (it is
+   shared by the Circle and the outings' rooms, so it never rides in the
+   first download) */
+let topicsMod = null;
+const useTopics = () => {
+  const [m, setM] = useState(topicsMod);
+  useEffect(() => { if (!m) import('../constants/circleTopics').then((x) => { topicsMod = x; setM(x); }).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return m;
+};
+
 export const EventRoom = ({ kind, id, lang, onClose, arrival, ring }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -239,6 +249,7 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival, ring }) => {
   const [mapUrl, setMapUrl] = useState(null);
   const [lineSaved, setLineSaved] = useState(false);
   const [lineOpen, setLineOpen] = useState(false);  // a Drop: the private line to the organizer
+  const topics = useTopics();   // a café outing's topic
   const [seats, setSeats] = useState(null);        // who sits where, blurred until the QR (RUN_ME.sql table_seats)
   const [peek, setPeek] = useState(null);
   const [meIn, setMeIn] = useState(false);       // I scanned the table's QR: Guess Who opens
@@ -326,6 +337,12 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival, ring }) => {
             </View>
             <Text selectable numberOfLines={4} style={{ color: C.bg, fontSize: 15, lineHeight: 21, marginTop: 6 }}>{r.pin || tbw(lang, 'pinEmpty')}</Text>
             {r.is_drop ? <Text style={{ color: C.bg, opacity: 0.8, fontSize: 13, fontWeight: '700', marginTop: 6 }}>{lookFor(lang, r.category, r.table_no)}</Text> : null}
+            {/* a café outing's topic, the same at every table (constants/circleTopics.js) */}
+            {r.is_drop && (r.category || 'tables') === 'tables' && r.starts_at && topics ? (
+              <Text testID="room-drop-topic" style={{ color: C.bg, fontSize: 13.5, lineHeight: 19, marginTop: 8 }}>
+                <Text style={{ fontWeight: '800' }}>{topics.DROP_TOPIC_W[lang === 'ar' ? 'ar' : 'en'] + ': '}</Text>{topics.dropTopic(r.starts_at, lang)}
+              </Text>
+            ) : null}
             {r.map ? (
               <Pressable onPress={() => { tapLight(); const s = String(r.map); const m = s.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/) || s.match(/[?&](?:q|query|ll|destination|center)=(-?\d{1,2}\.\d+)(?:,|%2C)\s*(-?\d{1,3}\.\d+)/) || s.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/); if (m) { showOnMap({ lat: Number(m[1]), lng: Number(m[2]), title: r.title }); onClose && onClose(); } else { try { navigator.clipboard.writeText(s); } catch (e) {} } }} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.bg, paddingHorizontal: 12, paddingVertical: 7 }}>
