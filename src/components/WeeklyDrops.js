@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { everySeen } from '../lib/everySeen';
-import { View, Text, Pressable, Modal, ActivityIndicator, Linking, Platform, ScrollView } from 'react-native';
+import { View, Text, Pressable, Modal, ActivityIndicator, Linking, Platform, ScrollView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, NUM } from '../constants/theme';
@@ -460,6 +460,14 @@ const DropCard = ({ d, lang, onChanged }) => {
       {vibe && vibe.toUpperCase() !== catWord(lang, cat).toUpperCase() ? <Small style={{ marginTop: 8 }}>{vibe.toUpperCase()}</Small> : null}
       <Text style={{ color: C.text, fontSize: 24, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.5, marginTop: 8 }}>{place}</Text>
       <Text style={{ color: C.text, fontSize: 15, marginTop: 4 }}>{when(d.starts_at, lang)}</Text>
+      {/* real photos from an evening like this one (up to three; everyone in them agreed) */}
+      {Array.isArray(d.photos) && d.photos.length ? (
+        <View testID="drop-photos" style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
+          {d.photos.slice(0, 3).map((u) => (
+            <Image key={u} source={{ uri: u }} accessibilityIgnoresInvertColors style={{ width: 64, height: 64, borderRadius: 12, backgroundColor: C.line }} resizeMode="cover" />
+          ))}
+        </View>
+      ) : null}
       {/* a trip (Ayser: the velvet rope, not a discount): one price, and who it is for */}
       {cat === 'roam' ? (
         <View style={{ marginTop: 12 }}>

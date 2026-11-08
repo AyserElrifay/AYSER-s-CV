@@ -25372,6 +25372,7 @@ returns jsonb language sql stable security definer set search_path = public as $
       'neighborhood', o.neighborhood, 'neighborhood_ar', o.neighborhood_ar, 'city', o.city,
       'vibe', o.vibe, 'vibe_ar', o.vibe_ar, 'starts_at', o.starts_at,
       'price', nullif(o.price, 0), 'currency', coalesce(o.currency, 'EGP'), 'video_url', o.video_url,
+      'photos', (select coalesce(jsonb_agg(x), '[]'::jsonb) from unnest(o.photos[1:3]) x where x ~* '^https://'),
       'min_level', o.min_level,
       'applied', (select a.status from public.trip_applications a where a.offer_id = o.id and a.user_id = auth.uid() and a.status <> 'withdrawn'),
       'state', coalesce(st.state, 'open'),
