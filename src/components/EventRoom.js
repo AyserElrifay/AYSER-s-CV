@@ -20,6 +20,7 @@ import { FlagBadge } from './TableFlag';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { showOnMap } from '../lib/mapBus';
 const CallScreen = lazyOverlay(() => import('./CallScreen').then((m) => ({ default: m.CallScreen })));
+const OrganizerLine = lazyOverlay(() => import('./OrganizerLine').then((m) => ({ default: m.OrganizerLine })));
 import { TableIcebreakers } from './ScaleKit';
 import { SeatStrip, GuessWho } from './TableTeasers';
 import { SeatBadge, seatLabel, SeatPeek, SparksDeck } from './SeatCard';
@@ -237,6 +238,7 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
   const [tel, setTel] = useState(null);            // the host's own line: phone and exact pin
   const [mapUrl, setMapUrl] = useState(null);
   const [lineSaved, setLineSaved] = useState(false);
+  const [lineOpen, setLineOpen] = useState(false);  // a Drop: the private line to the organizer
   const [seats, setSeats] = useState(null);        // who sits where, blurred until the QR (RUN_ME.sql table_seats)
   const [peek, setPeek] = useState(null);
   const [meIn, setMeIn] = useState(false);       // I scanned the table's QR: Guess Who opens
@@ -538,7 +540,7 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
             {/* offline: the people going, briefly */}
             {chatState ? (
               <View style={{ marginTop: 18 }}>
-                <Text style={{ color: C.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.4 }}>{w(lang, 'chat')}</Text>
+                <Text style={{ color: C.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.4 }}>{r.chat && r.chat.organizer_only ? (lang === 'ar' ? 'من المنظّم' : 'From the organizer') : w(lang, 'chat')}</Text>
                 {chatState === 'soon' ? (
                   /* in the chat from the moment you claimed; it opens 4 hours before */
                   <View testID="chat-locked" style={{ marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 12, flexDirection: 'row', alignItems: 'center' }}>
@@ -573,7 +575,24 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
                     </View>
                   );
                 })}
-                {chatState === 'open' || chatState === 'capsule' ? (
+                {/* a Drop's group (Ayser, November 2026): only the organizer writes, nobody is listed;
+                    anybody writes to the organizer privately (OrganizerLine) */}
+                {r.chat && r.chat.organizer_only ? (
+                  <View testID="organizer-only" style={{ marginTop: 12 }}>
+                    {!r.is_host ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="megaphone-outline" size={15} color={C.dim} />
+                        <Text style={{ color: C.dim, fontSize: 13, lineHeight: 18, flex: 1 }}>{lang === 'ar' ? 'المنظّم بس اللي بيكتب هنا، واللي جايين مش ظاهرين لبعض.' : 'Only the organizer writes here, and the people coming are not shown to each other.'}</Text>
+                      </View>
+                    ) : null}
+                    <Pressable testID="organizer-line" onPress={() => { tapLight(); setLineOpen(true); }} accessibilityRole="button"
+                      style={{ marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: C.text, paddingHorizontal: 14, paddingVertical: 9 }}>
+                      <Ionicons name="lock-closed-outline" size={15} color={C.text} />
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700' }}>{r.is_host ? (lang === 'ar' ? 'الرسائل الخاصة' : 'Private messages') : (lang === 'ar' ? 'ابعت للمنظّم رسالة خاصة' : 'Message the organizer privately')}</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+                {(chatState === 'open' || chatState === 'capsule') && !(r.chat && r.chat.organizer_only && !r.is_host) ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
                     <TextInput value={draft} onChangeText={setDraft} placeholder={chatState === 'capsule' ? w2(lang, 6) : w(lang, 'say')} placeholderTextColor={C.faint} maxLength={chatState === 'capsule' ? 280 : 500} onSubmitEditing={send}
                       style={{ flex: 1, color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.line, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, textAlign: lang === 'ar' ? 'right' : 'left' }} />
@@ -597,6 +616,7 @@ export const EventRoom = ({ kind, id, lang, onClose, arrival }) => {
             {msg ? <Text style={{ color: C.coral, fontSize: 13, marginTop: 10, textAlign: 'center' }}>{msg}</Text> : null}
           </ScrollView>
         )}
+        {lineOpen && r && r.ok ? <OrganizerLine offerId={id} isHost={!!r.is_host} lang={lang} onClose={() => setLineOpen(false)} /> : null}
       </View>
     </Modal>
   );

@@ -61,3 +61,10 @@ export async function safetyDecide(userId, ok) {
   if (r && r.ok && r.delete_path) { try { await supabase.storage.from('verification').remove([r.delete_path]); } catch (e) {} }
   return r;
 }
+
+/* a Drop's private line to its organizer (RUN_ME.sql "A DROP'S GROUP"):
+   a member writes to the organizer and reads their own thread; the
+   organizer reads every member's thread and answers each one */
+export const dropDmSend = (offerId, memberId, body) => rpc('drop_dm_send', { p_offer: offerId, p_member: memberId || null, p_body: body });
+export const dropDmThread = (offerId, memberId) => rpc('drop_dm_thread', { p_offer: offerId, p_member: memberId || null });
+export const dropDmInbox = (offerId) => rpc('drop_dm_inbox', { p_offer: offerId });

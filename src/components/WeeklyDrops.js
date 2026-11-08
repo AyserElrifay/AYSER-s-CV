@@ -35,7 +35,6 @@ const pointOf = (u) => {
 /* the weekend: Thursday, Friday, Saturday in Cairo */
 const weekendDay = (at) => { try { const w = new Date(at).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Africa/Cairo' }); return w === 'Thu' || w === 'Fri' || w === 'Sat'; } catch (e) { return false; } };
 const copyText = async (txt) => { try { await navigator.clipboard.writeText(txt); return true; } catch (e) { return false; } };
-const WhatsAppBook = lazyOverlay(() => import('./WhatsAppBook').then((m) => ({ default: m.WhatsAppBook })));
 
 /* Ayser, November 2026: Roam waits as Coming Soon until the Studio opens it
    (app setting roam_open; drop_claim answers 'soon' meanwhile) */
@@ -572,8 +571,8 @@ const DropCard = ({ d, lang, onChanged }) => {
       ) : (
         <>
           <Btn label={cat === 'impact' ? jw(lang, 'impact') : mv(lang, 'claim')} onPress={claim} busy={busy} />
-          {/* while the gateway waits: book by writing to the team */}
-          <WhatsAppBook lang={lang} userId={user && user.id} title={(lang === 'ar' && d.title_ar) || d.title || place || ''} at={d.starts_at} style={{ marginTop: 8 }} />
+          {/* no WhatsApp (Ayser, November 2026): the seat puts you in the Drop's group, where the organizer writes
+              and you can write to the organizer privately (EventRoom → OrganizerLine) */}
         </>
       )}
       {note ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 10, lineHeight: 18 }}>{note}</Text> : null}

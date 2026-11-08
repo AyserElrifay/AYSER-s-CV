@@ -38,11 +38,12 @@ const LikersSheet = lazyOverlay(() => import('./LikersSheet').then((m) => ({ def
 const ProfileModal = lazyOverlay(() => import('./ProfileModal').then((m) => ({ default: m.ProfileModal })));
 const KitchenSheet = lazyOverlay(() => import('./KitchenSheet').then((m) => ({ default: m.KitchenSheet })));
 const OrganizerHub = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.OrganizerHub })));
+const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
 /* a ping to the organizer: kind|id|reason|title (RUN_ME.sql ping_host) */
 const pingLine = (body, lang) => {
   const [, , reason, ...rest] = String(body || '').split('|'); const tt = rest.join('|');
-  if (lang === 'ar') return (reason === 'sos' ? 'بعت SOS من ' : reason === 'late' ? 'هيتأخر على ' : 'وصل ومش لاقي الترابيزة في ') + tt;
-  return (reason === 'sos' ? 'sent an SOS from ' : reason === 'late' ? 'is running late for ' : "has arrived and can't find the table at ") + tt;
+  if (lang === 'ar') return (reason === 'msg' ? 'بعتلك رسالة خاصة عن ' : reason === 'reply' ? 'ردّ عليك (المنظّم) في ' : reason === 'sos' ? 'بعت SOS من ' : reason === 'late' ? 'هيتأخر على ' : 'وصل ومش لاقي الترابيزة في ') + tt;
+  return (reason === 'msg' ? 'sent you a private message about ' : reason === 'reply' ? 'replied to you (organizer) about ' : reason === 'sos' ? 'sent an SOS from ' : reason === 'late' ? 'is running late for ' : "has arrived and can't find the table at ") + tt;
 };
 const BuddiesSheet = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.BuddiesSheet })));
 const GreenSheet = lazyOverlay(() => import('./green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
@@ -110,6 +111,7 @@ export const NotificationsSheet = ({ onClose }) => {
   const [greenOpen, setGreenOpen] = useState(false);   // a green invite, tapped
   const [buddiesOpen, setBuddiesOpen] = useState(false);
   const [hubFor, setHubFor] = useState(null);   // a ping opens that event in the Organizer Hub
+  const [roomFor, setRoomFor] = useState(null);   // a Drop's private line: its room
   const [goNowFrom, setGoNowFrom] = useState(null);    // Bardi's "make it a hangout"
   const [foodTab, setFoodTab] = useState(null);       // a food notification, tapped
   const [viewPost, setViewPost] = useState(null);
@@ -187,7 +189,14 @@ export const NotificationsSheet = ({ onClose }) => {
   const openNotif = async (n) => {
     /* an invitation opens the week it is in, where Join is one tap */
     if (n.kind === 'green_invite') { tapSelection(); setGreenOpen(true); return; }
-    if (n.kind === 'host_ping') { tapSelection(); const [k, id, , ...rest] = String(n.body || '').split('|'); if (k && id) setHubFor({ kind: k, id, title: rest.join('|') }); return; }
+    if (n.kind === 'host_ping') {
+      tapSelection();
+      const [k, id, reason, ...rest] = String(n.body || '').split('|');
+      // a private message about a Drop (either way) opens that Drop's room, where the private line is
+      if (k && id && (reason === 'msg' || reason === 'reply')) { setRoomFor({ kind: k, id }); return; }
+      if (k && id) setHubFor({ kind: k, id, title: rest.join('|') });
+      return;
+    }
     // a new buddy, or a message from one: the Buddies page, where the chat is
     if (n.kind === 'buddy' || n.kind === 'message' || n.kind === 'spark') { tapSelection(); setBuddiesOpen(true); return; }
     // a buddy's invitation to their table: the trip page, or the plans of the week
@@ -455,6 +464,7 @@ export const NotificationsSheet = ({ onClose }) => {
       {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
       {buddiesOpen ? <BuddiesSheet onClose={() => setBuddiesOpen(false)} /> : null}
       {hubFor ? <OrganizerHub start={hubFor} onClose={() => setHubFor(null)} /> : null}
+      {roomFor ? <EventRoom kind={roomFor.kind} id={roomFor.id} lang={lang} onClose={() => setRoomFor(null)} /> : null}
       {bizOpen ? <BizHub lang={lang} onClose={() => setBizOpen(false)} /> : null}
       {goNowFrom ? (
         <GoNowSheet initialKind={goNowFrom.kind}

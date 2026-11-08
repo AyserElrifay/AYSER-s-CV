@@ -23520,7 +23520,7 @@ create or replace function public.push_on_notification()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare v_url text; v_hook text;
 begin
-  if new.kind not in ('message','call','mate_request','mate_accept','comment','tag','green_invite','bardi_match','plan_soon','food_order','food_status','venue_decision','trip_open','team_reply','level_up','event_update','buddy','buddy_ping','arrived','spark','circle_open','drop_open') then
+  if new.kind not in ('message','call','mate_request','mate_accept','comment','tag','green_invite','bardi_match','plan_soon','food_order','food_status','venue_decision','trip_open','team_reply','level_up','event_update','buddy','buddy_ping','arrived','spark','circle_open','drop_open','host_ping') then
     return new;
   end if;
   if not exists (select 1 from public.push_subscriptions where user_id = new.user_id) then return new; end if;
@@ -25872,6 +25872,10 @@ begin
   if me is null or not exists (select 1 from public.seat_list(p_kind, p_id) s where s.user_id = me) then
     return jsonb_build_object('ok', false, 'reason', 'not_in');
   end if;
+  -- a Drop's group is anonymous: only its organizer sees who is coming
+  if p_kind = 'offer' and exists (select 1 from public.offers x where x.id = p_id and x.is_drop) and not public.drop_organizer(p_id, me) then
+    return jsonb_build_object('ok', false, 'reason', 'private');
+  end if;
   return jsonb_build_object('ok', true, 'me_in', public.event_in(p_kind, p_id, me), 'seats',
     (select coalesce(jsonb_agg(jsonb_build_object(
         'uid', s.user_id, 'seat', s.seat, 'host', s.is_host,
@@ -25894,6 +25898,10 @@ declare me uuid := auth.uid(); s record; c public.profile_cards%rowtype; o boole
 begin
   if me is null or not exists (select 1 from public.seat_list(p_kind, p_id) x where x.user_id = me) then
     return jsonb_build_object('ok', false, 'reason', 'not_in');
+  end if;
+  -- a Drop's group is anonymous: only its organizer sees who is coming
+  if p_kind = 'offer' and exists (select 1 from public.offers x where x.id = p_id and x.is_drop) and not public.drop_organizer(p_id, me) then
+    return jsonb_build_object('ok', false, 'reason', 'private');
   end if;
   select * into s from public.seat_list(p_kind, p_id) x where x.user_id = p_user;
   if not found or public.blocked_between(me, p_user) then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
@@ -27883,8 +27891,9 @@ begin
       'host_tel', case when not host and now() >= o.starts_at - interval '24 hours' and now() <= closes then coalesce(o.host_tel, public.host_phone(hid)) end,
       'taken', public.offer_seats_taken(o.id), 'total', o.seats,
       'chat', case when o.online or sq is null then null else jsonb_build_object('squad_id', sq,
-                'opens_at', o.starts_at - interval '4 hours', 'closes_at', closes,
-                'open', now() between o.starts_at - interval '4 hours' and closes) end,
+                'opens_at', o.starts_at - case when o.is_drop then interval '7 days' else interval '4 hours' end, 'closes_at', closes,
+                'open', now() between o.starts_at - case when o.is_drop then interval '7 days' else interval '4 hours' end and closes,
+                'organizer_only', o.is_drop) end,
       'call', case when not o.online then null else jsonb_build_object(
                 'opens_at', o.starts_at - interval '15 minutes', 'ended', o.room_ended_at is not null,
                 'can_join', (paid or host) and o.room_ended_at is null and now() >= o.starts_at - interval '15 minutes'
@@ -27926,6 +27935,180 @@ returns int language sql stable security definer set search_path = public as $$
 $$;
 revoke execute on function public.pass_level(uuid) from public, anon;
 grant execute on function public.pass_level(uuid) to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
+--  A DROP'S GROUP: THE ORGANIZER SPEAKS, NOBODY IS LISTED, ANYONE CAN
+--  WRITE TO THE ORGANIZER PRIVATELY
+--  Ayser, November 2026: "متخليش WhatsApp — خلي يحوله لشات جروب، والناس
+--  مش باينة ولا تقدر تبعت غير الأورجنيزر، وممكن يبعت للأورجنيزر بريفت".
+--   · claiming a seat already puts you in the Drop's group (booking_room);
+--     the group opens a week before (event_room, event_capsule_window);
+--   · only the organizer's messages are written there (messages_gate);
+--   · who else is in it is not readable: squad_members shows you yourself
+--     and, to the organizer, everybody; table_seats / seat_card say
+--     'private' to anybody else;
+--   · a private line to the organizer and back (drop_dms): each member's
+--     own thread, seen by that member and the organizer only.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+create or replace function public.drop_of_squad(sq uuid)
+returns uuid language sql stable security definer set search_path = public as $$
+  select o.id from public.offers o where o.squad_id = sq and o.is_drop limit 1;
+$$;
+revoke all on function public.drop_of_squad(uuid) from public, anon;
+grant execute on function public.drop_of_squad(uuid) to authenticated;   -- the squad_members policy calls it
+
+-- the organizer of a Drop table: its leader (or its maker), the parent Drop's, or the owner
+create or replace function public.drop_organizer(p_offer uuid, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  -- coalesce: a Drop table with no parent compares to NULL, and "not NULL" would let anybody through
+  select coalesce(u is not null and (
+       public.table_host(p_offer) is not distinct from u
+    or public.table_host((select parent_id from public.offers where id = p_offer)) is not distinct from u
+    or exists (select 1 from public.offer_leaders l
+                where l.offer_id in (p_offer, (select parent_id from public.offers where id = p_offer)) and l.profile_id = u and l.verified)
+    or (u = auth.uid() and coalesce(public.is_app_owner(), false))), false);
+$$;
+revoke all on function public.drop_organizer(uuid, uuid) from public, anon;
+grant execute on function public.drop_organizer(uuid, uuid) to authenticated;   -- the squad_members policy calls it
+
+-- a seat at this Drop table (or at the Drop it belongs to)
+create or replace function public.drop_seated(p_offer uuid, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and exists (
+    select 1 from public.bookings b join public.offers t on t.id = b.offer_id
+     where b.user_id = u and b.status in ('reserved','paid','attended')
+       and (t.id = p_offer or t.parent_id = p_offer or t.id = (select parent_id from public.offers where id = p_offer)));
+$$;
+revoke all on function public.drop_seated(uuid, uuid) from public, anon, authenticated;
+
+-- the group opens a week before a Drop (other events: two hours before, as they were)
+create or replace function public.event_capsule_window(sq uuid)
+returns table (opens timestamptz, ends timestamptz, closes timestamptz)
+language sql stable security definer set search_path = public as $$
+  select * from (
+    select g.starts_at - interval '2 hours', g.starts_at + make_interval(mins => coalesce(g.minutes, 180)),
+           g.starts_at + make_interval(mins => coalesce(g.minutes, 180)) + interval '24 hours'
+      from public.green_gatherings g where g.squad_id = sq and g.cancelled_at is null
+    union all
+    select o.starts_at - case when o.is_drop then interval '7 days' else interval '2 hours' end,
+           coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour'),
+           coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour') + interval '24 hours'
+      from public.offers o where o.squad_id = sq and o.starts_at is not null and not o.online
+  ) w limit 1;
+$$;
+
+-- the gate, once more: in a Drop's group only the organizer writes
+create or replace function public.messages_gate()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare w record; d uuid;
+begin
+  if new.dm_thread_id is not null then
+    if length(coalesce(new.body, '')) > 500 or not public.dm_can_send(new.dm_thread_id, new.user_id) then return null; end if;
+    update public.dm_participants set accepted = true
+     where thread_id = new.dm_thread_id and user_id = new.user_id and accepted is distinct from true;
+    return new;
+  end if;
+  d := public.drop_of_squad(new.squad_id);
+  if d is not null and not public.drop_organizer(d, new.user_id) then return null; end if;
+  select * into w from public.event_capsule_window(new.squad_id);
+  if not found or now() < w.opens then return null; end if;
+  if now() > w.closes then return null; end if;
+  if now() > w.ends and length(coalesce(new.body, '')) > 280 then return null; end if;
+  return new;
+end $$;
+revoke all on function public.messages_gate() from public, anon, authenticated;
+drop trigger if exists messages_gate on public.messages;
+create trigger messages_gate before insert on public.messages
+  for each row execute function public.messages_gate();
+
+-- who is in a group: in a Drop's group, yourself — and, for the organizer, everybody
+drop policy if exists "squad members are viewable by everyone" on public.squad_members;
+drop policy if exists "squad members: drops stay anonymous" on public.squad_members;
+create policy "squad members: drops stay anonymous" on public.squad_members for select using (
+  user_id = auth.uid()
+  or public.drop_of_squad(squad_id) is null
+  or public.drop_organizer(public.drop_of_squad(squad_id), auth.uid()));
+
+-- the private line to the organizer
+create table if not exists public.drop_dms (
+  id        uuid primary key default gen_random_uuid(),
+  offer_id  uuid not null references public.offers(id) on delete cascade,
+  member_id uuid not null references public.profiles(id) on delete cascade,
+  from_id   uuid not null references public.profiles(id) on delete cascade,
+  body      text not null check (length(body) between 1 and 1000),
+  at        timestamptz not null default now()
+);
+create index if not exists drop_dms_thread on public.drop_dms (offer_id, member_id, at);
+alter table public.drop_dms enable row level security;   -- only through the functions below
+revoke all on public.drop_dms from anon, authenticated;
+
+create or replace function public.drop_dm_send(p_offer uuid, p_member uuid, p_body text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); o public.offers%rowtype; mem uuid; reason text; b text := btrim(coalesce(p_body, ''));
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if length(b) < 1 or length(b) > 1000 then return jsonb_build_object('ok', false, 'reason', 'length'); end if;
+  select * into o from public.offers where id = p_offer and is_drop;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if public.drop_organizer(p_offer, me) and p_member is not null and p_member <> me then
+    if not public.drop_seated(p_offer, p_member) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+    mem := p_member; reason := 'reply';
+  elsif public.drop_seated(p_offer, me) then
+    mem := me; reason := 'msg';
+  else
+    return jsonb_build_object('ok', false, 'reason', 'not_in');
+  end if;
+  if (select count(*) from public.drop_dms where from_id = me and at > now() - interval '1 hour') >= 30 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  insert into public.drop_dms (offer_id, member_id, from_id, body) values (p_offer, mem, me, b);
+  if reason = 'reply' then
+    insert into public.notifications (user_id, actor_id, kind, body)
+    values (mem, me, 'host_ping', 'offer|' || p_offer::text || '|reply|' || left(coalesce(o.title_ar, o.title, ''), 80));
+  else
+    insert into public.notifications (user_id, actor_id, kind, body)
+    select h, me, 'host_ping', 'offer|' || p_offer::text || '|msg|' || left(coalesce(o.title_ar, o.title, ''), 80)
+      from (select public.table_host(p_offer) h union select public.table_host(o.parent_id)) x
+     where h is not null and h <> me;
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.drop_dm_send(uuid, uuid, text) from public, anon;
+grant execute on function public.drop_dm_send(uuid, uuid, text) to authenticated;
+
+-- one thread: a member reads their own; the organizer reads any member's
+create or replace function public.drop_dm_thread(p_offer uuid, p_member uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); mem uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if public.drop_organizer(p_offer, me) and p_member is not null then mem := p_member;
+  elsif public.drop_seated(p_offer, me) then mem := me;
+  else return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  return jsonb_build_object('ok', true, 'member', mem, 'rows', coalesce((
+    select jsonb_agg(jsonb_build_object('id', d.id, 'mine', d.from_id = me, 'body', d.body, 'at', d.at) order by d.at)
+      from (select * from public.drop_dms where offer_id = p_offer and member_id = mem order by at desc limit 200) d), '[]'::jsonb));
+end $$;
+revoke all on function public.drop_dm_thread(uuid, uuid) from public, anon;
+grant execute on function public.drop_dm_thread(uuid, uuid) to authenticated;
+
+-- the organizer's inbox for one Drop table: who wrote, the last line
+create or replace function public.drop_dm_inbox(p_offer uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null or not public.drop_organizer(p_offer, me) then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+  return jsonb_build_object('ok', true, 'threads', coalesce((
+    select jsonb_agg(x order by x->>'at' desc) from (
+      select jsonb_build_object('member', d.member_id, 'name', p.name, 'body', d.body, 'at', d.at,
+                                'waiting', d.from_id = d.member_id) x
+        from (select distinct on (member_id) * from public.drop_dms where offer_id = p_offer order by member_id, at desc) d
+        join public.profiles p on p.id = d.member_id) t), '[]'::jsonb));
+end $$;
+revoke all on function public.drop_dm_inbox(uuid) from public, anon;
+grant execute on function public.drop_dm_inbox(uuid) to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
