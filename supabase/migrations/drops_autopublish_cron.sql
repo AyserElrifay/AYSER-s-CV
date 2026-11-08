@@ -5,13 +5,14 @@
 --  draft Drops of the next 7 days whose place is written (no "SET THE",
 --  "CONFIRM", "حدّد", "أكّد") are published — so the only thing left to
 --  do by hand is to write the place. A draft still missing its place
---  stays a draft and nobody sees it. Returns what it published.
+--  stays a draft and nobody sees it. Everybody in the Drop's country gets
+--  one "a Drop opened" notification. Returns what it published and told.
 --  Also: the kayak draft gets the place Ayser chose (Zamalek), once.
 -- ════════════════════════════════════════════════════════════════════
 
 create or replace function public.drops_autopublish()
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare ids uuid[];
+declare ids uuid[]; told int := 0;
 begin
   with up as (
     update public.offers o set status = 'live', updated_at = now()
@@ -21,7 +22,18 @@ begin
        and (coalesce(o.neighborhood, '') || ' ' || coalesce(o.neighborhood_ar, '')) !~ '(SET THE|CONFIRM|حدّد|أكّد)'
     returning o.id)
   select array_agg(id) into ids from up;
-  return jsonb_build_object('published', coalesce(array_length(ids, 1), 0), 'ids', to_jsonb(coalesce(ids, '{}'::uuid[])));
+  /* and everybody in that country hears it once — the same "a Drop
+     opened" the waitlist gets (kind drop_open, opens Together); not who
+     already holds a seat, never twice for one Drop */
+  insert into public.notifications (user_id, actor_id, kind, body)
+  select p.id, p.id, 'drop_open', o.id::text || '|' || left(coalesce(o.title, ''), 80)
+    from public.offers o
+    join public.profiles p on (p.country is null or upper(p.country) in (upper(coalesce(o.country, 'EG')), 'EGYPT', 'مصر'))
+   where o.id = any(coalesce(ids, '{}'::uuid[]))
+     and not exists (select 1 from public.notifications n where n.user_id = p.id and n.kind = 'drop_open' and n.body like o.id::text || '|%')
+     and not exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = p.id and b.status in ('reserved','paid','attended'));
+  get diagnostics told = row_count;
+  return jsonb_build_object('published', coalesce(array_length(ids, 1), 0), 'told', told, 'ids', to_jsonb(coalesce(ids, '{}'::uuid[])));
 end $$;
 revoke all on function public.drops_autopublish() from public, anon, authenticated;
 
