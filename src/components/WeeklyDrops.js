@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { everySeen } from '../lib/everySeen';
-import { View, Text, Pressable, Modal, ActivityIndicator, Linking, Platform, ScrollView, Image } from 'react-native';
+import { View, Text, Pressable, Modal, ActivityIndicator, Linking, Platform, ScrollView, Image, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { mv } from '../constants/mvpWords';
-import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter, circleTestEnter, circleTopicTurn, circleShuffle } from '../services/mvp';
+import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter, circleTestEnter, circleTopicTurn, circleShuffle, circleScreen, circleScreenSet } from '../services/mvp';
 import { circleTopic } from '../constants/circleTopics';
 import { askUpgrade, askSafety } from '../services/membership';
 import { askCard } from '../services/card';
@@ -15,6 +15,7 @@ import { isSaving } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
 import { joinMesh } from '../lib/talkMesh';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { ytId } from '../lib/ytId';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { dropClip } from '../lib/mediaFit';
 import { SeatPill } from './SeatPill';
@@ -157,6 +158,95 @@ const TopicCard = ({ id, lang, compact }) => {
   );
 };
 
+/* ── THE CIRCLE'S SCREEN (Ayser, November 2026: "نعرض فيديو") ── the team
+   puts one YouTube clip about today's topic on the screen, and every
+   phone plays the same moment of it: the server keeps when it started
+   (circle_screens in RUN_ME.sql), each phone follows that clock with the
+   karaoke room's player. Sound is each phone's own choice (a tap), so a
+   room of open mics does not echo. Nobody's camera is ever on. */
+// the player is the karaoke room's, loaded only when a video is on (it lives in the Lamma chunk's file)
+const YtKaraoke = lazyOverlay(() => import('./lamma/YtKaraoke').then((m) => ({ default: m.YtKaraoke })));
+const SCREEN_W = {
+  en: { show: 'Show a video', ph: 'Paste a YouTube link', go: 'Show it to the room', down: 'Take the video down', bad: 'That is not a YouTube link.', fail: 'Did not work — try again.', hint: 'Short, about today’s topic. Everybody in the room sees it at the same moment.', same: 'The whole room sees the same moment' },
+  ar: { show: 'اعرض فيديو', ph: 'حط لينك يوتيوب', go: 'اعرضه للأوضة', down: 'شيل الفيديو', bad: 'ده مش لينك يوتيوب.', fail: 'معرفناش — جرّب تاني.', hint: 'قصير وعن توبيك النهارده. كل اللي في الأوضة بيشوفوه في نفس اللحظة.', same: 'الأوضة كلها بتشوف نفس اللحظة' },
+};
+const CircleScreen = ({ room, lang }) => {
+  const L = SCREEN_W[lang === 'ar' ? 'ar' : 'en'];
+  const [st, setSt] = useState(null);       // { video, can_set, sync }
+  const [open, setOpen] = useState(false);
+  const [link, setLink] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const take = (x) => {
+    if (!x || !x.ok) return;
+    const v = x.video || null;
+    const sync = v ? { pos: Math.max(0, (Date.parse(x.now) - Date.parse(v.started_at)) / 1000), playing: true, at: Date.now() } : null;
+    setSt((old) => ({ can_set: !!x.can_set || !!(old && old.can_set), video: v,
+      // the same video keeps its clock; a new one starts a new clock
+      sync: old && old.video && v && old.video.yt === v.yt && old.video.started_at === v.started_at ? old.sync : sync }));
+  };
+  useEffect(() => {
+    let alive = true;
+    const get = () => circleScreen(room).then((x) => { if (alive) take(x); }).catch(() => {});
+    get();
+    const h = everySeen(get, 8000);
+    return () => { alive = false; if (h) clearInterval(h); };
+  }, [room]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!st || Platform.OS !== 'web') return null;
+  const put = async (yt) => {
+    if (busy) return;
+    setMsg('');
+    if (yt === undefined) { const id = ytId(link); if (!id) { setMsg(L.bad); return; } yt = id; }
+    tapLight(); setBusy(true);
+    const r = await circleScreenSet(room, yt).catch(() => null);
+    setBusy(false);
+    if (r && r.ok) { tapSuccess(); setOpen(false); setLink(''); take({ ok: true, now: r.now || new Date().toISOString(), video: r.video, can_set: true }); }
+    else setMsg(r && r.reason === 'bad_link' ? L.bad : L.fail);
+  };
+  return (
+    <View testID="circle-screen" style={{ alignSelf: 'stretch', marginTop: 12 }}>
+      {st.video ? (
+        <View style={{ borderRadius: 20, backgroundColor: '#17131F', paddingHorizontal: 12, paddingBottom: 12, paddingTop: 0 }}>
+          <YtKaraoke key={st.video.yt + st.video.started_at} videoId={st.video.yt} host={false} sync={st.sync} lang={lang} followLabel={L.same} />
+        </View>
+      ) : null}
+      {st.can_set ? (
+        open ? (
+          <View style={{ marginTop: 10 }}>
+            <TextInput testID="circle-screen-link" value={link} onChangeText={setLink} placeholder={L.ph} placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false}
+              onSubmitEditing={() => put()} style={{ borderRadius: 14, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 10, color: C.text, fontSize: 14.5, outlineStyle: 'none', writingDirection: 'ltr' }} />
+            <Text style={{ color: C.dim, fontSize: 12, lineHeight: 17, marginTop: 6 }}>{L.hint}</Text>
+            <Pressable testID="circle-screen-go" onPress={() => put()} disabled={busy} accessibilityRole="button" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.purple, opacity: busy ? 0.6 : 1 }}>
+                <Ionicons name="play" size={14} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L.go}</Text>
+              </View>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+            <Pressable testID="circle-screen-open" onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" style={{ marginEnd: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: C.text }}>
+                <Ionicons name="film-outline" size={15} color={C.text} />
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L.show}</Text>
+              </View>
+            </Pressable>
+            {st.video ? (
+              <Pressable testID="circle-screen-down" onPress={() => put(null)} disabled={busy} accessibilityRole="button">
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: C.line }}>
+                  <Ionicons name="close" size={15} color={C.text} />
+                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L.down}</Text>
+                </View>
+              </Pressable>
+            ) : null}
+          </View>
+        )
+      ) : null}
+      {msg ? <Text style={{ color: C.coral, fontSize: 12.5, marginTop: 6 }}>{msg}</Text> : null}
+    </View>
+  );
+};
+
 /* ── the 30-minute room ── */
 const CircleRoom = ({ room, lang, onClose }) => {
   const insets = useSafeAreaInsets();
@@ -196,7 +286,9 @@ const CircleRoom = ({ room, lang, onClose }) => {
         ) : (
           <View style={{ flex: 1, alignItems: 'center' }}>
             {room.test ? <Small style={{ marginBottom: 10 }}>{lang === 'ar' ? 'أوضة تجربة · للفريق بس' : 'TEST ROOM · TEAM ONLY'}</Small> : null}
+            <ScrollView style={{ flex: 1, alignSelf: 'stretch' }} contentContainerStyle={{ alignItems: 'center', paddingBottom: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <TopicCard id={room.id} lang={lang} />
+            <CircleScreen room={String(room.topic || '').replace(/^circle:/, '')} lang={lang} />
             <Text style={[{ color: C.text, fontSize: 48, fontWeight: '300', letterSpacing: 2, marginTop: 22 }, NUM]}>{clock(left, lang)}</Text>
             <Small style={{ marginTop: 10 }}>{mv(lang, 'cLeft30')}</Small>
             <Text style={[{ color: C.dim, fontSize: 15, marginTop: 28 }, NUM]}>{mv(lang, 'cPeople', { n: people.length })}</Text>
@@ -210,7 +302,7 @@ const CircleRoom = ({ room, lang, onClose }) => {
                 </View>
               ))}
             </View>
-            <View style={{ flex: 1 }} />
+            </ScrollView>
             {voice ? (
               <View style={{ flexDirection: 'row' }}>
                 <Pressable onPress={() => { tapLight(); const m = !muted; setMuted(m); if (mesh.current) mesh.current.setMuted(m); }} accessibilityRole="button" style={{ alignItems: 'center', marginHorizontal: 18 }}>

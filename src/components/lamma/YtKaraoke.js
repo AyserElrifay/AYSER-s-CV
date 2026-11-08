@@ -16,11 +16,7 @@ import { tapLight } from '../../utils/feedback';
 
    No YouTube script is loaded: the player is driven with its own
    postMessage commands (enablejsapi=1). */
-export const ytId = (s) => {
-  const t = String(s || '').trim();
-  const m = t.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/) || t.match(/^([A-Za-z0-9_-]{11})$/);
-  return m ? m[1] : null;
-};
+export { ytId } from '../../lib/ytId';
 
 const W = {
   en: { sound: 'Sound on this phone', muted: 'Muted on this phone', host: 'You control the song for the whole room', follow: 'Following the host’s player', blocked: 'If the video says it cannot be played here, its owner does not allow embedding — pick another one.' },
@@ -28,7 +24,7 @@ const W = {
 };
 const ww = (lang, k) => W[lang === 'ar' ? 'ar' : 'en'][k];
 
-export const YtKaraoke = ({ videoId, host, sync, onHostTick, lang }) => {
+export const YtKaraoke = ({ videoId, host, sync, onHostTick, lang, followLabel }) => {
   const frame = useRef(null);
   const info = useRef({ t: 0, state: -1 });
   const [ready, setReady] = useState(false);
@@ -96,7 +92,7 @@ export const YtKaraoke = ({ videoId, host, sync, onHostTick, lang }) => {
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
         <Ionicons name={host ? 'radio-outline' : 'sync-outline'} size={14} color="rgba(255,255,255,0.6)" />
-        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginStart: 6, flex: 1 }}>{ww(lang, host ? 'host' : 'follow')}</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginStart: 6, flex: 1 }}>{host ? ww(lang, 'host') : followLabel || ww(lang, 'follow')}</Text>
         {!host ? (
           <Pressable testID="yt-sound" onPress={() => { tapLight(); setSound((v) => !v); }} accessibilityRole="switch" accessibilityState={{ checked: sound }} accessibilityLabel={ww(lang, 'sound')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#D9C08C', backgroundColor: sound ? '#D9C08C' : 'transparent' }}>

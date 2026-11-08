@@ -28273,6 +28273,56 @@ exception when others then raise notice 'pg_cron skipped: %', sqlerrm;
 end $do$;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  A VIDEO FOR THE CIRCLE'S TOPIC
+--  Ayser, November 2026 ("نعرض فيديو"): the team can put one YouTube
+--  video on the English Circle's screen — a short clip about today's
+--  topic — and every phone in the room plays the same moment of it
+--  (started_at is the server's clock; the phones follow it). Only the
+--  video's 11-character YouTube id is kept: it plays in YouTube's own
+--  embedded player, as its owner allows. Only the owner and the team
+--  (circle_can_shuffle) put one up or take it down; only the people in
+--  that room read it (circle_here). Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.circle_screens (
+  room       text primary key check (room ~ '^(test-)?[0-9a-f-]{36}$'),
+  yt         text not null check (yt ~ '^[A-Za-z0-9_-]{11}$'),
+  started_at timestamptz not null default now(),
+  set_by     uuid
+);
+alter table public.circle_screens enable row level security;   -- only through the functions below
+revoke all on public.circle_screens from anon, authenticated;
+
+create or replace function public.circle_screen(p_room text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when public.circle_here(p_room, auth.uid()) then
+    jsonb_build_object('ok', true, 'now', now(), 'can_set', public.circle_can_shuffle(auth.uid()),
+      'video', (select jsonb_build_object('yt', c.yt, 'started_at', c.started_at) from public.circle_screens c where c.room = p_room))
+  else jsonb_build_object('ok', false) end;
+$$;
+revoke execute on function public.circle_screen(text) from public, anon;
+grant execute on function public.circle_screen(text) to authenticated;
+
+create or replace function public.circle_screen_set(p_room text, p_yt text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.circle_can_shuffle(auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_team'); end if;
+  if p_room is null or p_room !~ '^(test-)?[0-9a-f-]{36}$'
+     or not exists (select 1 from public.circle_polls where id::text = regexp_replace(p_room, '^test-', '')) then
+    return jsonb_build_object('ok', false, 'reason', 'gone');
+  end if;
+  if p_yt is null or p_yt = '' then
+    delete from public.circle_screens where room = p_room;
+    return jsonb_build_object('ok', true, 'video', null);
+  end if;
+  if p_yt !~ '^[A-Za-z0-9_-]{11}$' then return jsonb_build_object('ok', false, 'reason', 'bad_link'); end if;
+  insert into public.circle_screens (room, yt, started_at, set_by) values (p_room, p_yt, now(), auth.uid())
+  on conflict (room) do update set yt = excluded.yt, started_at = now(), set_by = auth.uid();
+  return jsonb_build_object('ok', true, 'video', jsonb_build_object('yt', p_yt, 'started_at', now()), 'now', now());
+end $$;
+revoke execute on function public.circle_screen_set(text, text) from public, anon;
+grant execute on function public.circle_screen_set(text, text) to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

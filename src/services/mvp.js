@@ -26,6 +26,9 @@ export const circleEnter = (poll) => rpc('circle_enter', { p_poll: poll });
 export const circleTestEnter = (poll) => rpc('circle_test_enter', { p_poll: poll });
 export const circleTopicTurn = (poll) => rpc('circle_topic', { p_poll: poll });
 export const circleShuffle = (poll) => rpc('circle_shuffle', { p_poll: poll });
+// the Circle's screen: one YouTube video the whole room plays at the same moment (the team puts it up)
+export const circleScreen = (room) => rpc('circle_screen', { p_room: room });
+export const circleScreenSet = (room, yt) => rpc('circle_screen_set', { p_room: room, p_yt: yt || null });
 
 // the Studio (owner only, checked by the database)
 export const ownerDrops = () => rpc('owner_drops');

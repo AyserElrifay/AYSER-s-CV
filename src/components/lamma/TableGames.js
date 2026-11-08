@@ -9,7 +9,10 @@ import { useLang } from '../../context/LanguageContext';
 import { getProfile } from '../../services/profiles';
 import { tapLight, tapMedium, tapSuccess, tapCelebrate } from '../../utils/feedback';
 import { sfxPop } from '../../utils/sfx';
-import { YtKaraoke, ytId } from './YtKaraoke';
+import { ytId } from '../../lib/ytId';
+import { lazyOverlay } from '../../lib/lazyScreen';
+// the YouTube player loads when a karaoke song starts (the English Circle shares it)
+const YtKaraoke = lazyOverlay(() => import('./YtKaraoke').then((m) => ({ default: m.YtKaraoke })));
 import { appSettings } from '../../services/offers';
 import { useSheetBack } from '../../hooks/useSheetBack';
 import { SPY_PACKS, TABOO, BOMB, SONGS, parseCustom, pick } from './tableContent';
