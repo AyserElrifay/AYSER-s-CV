@@ -1,0 +1,74 @@
+name: Connect R2 when its keys arrive
+
+# Ayser, November 2026: "أي حاجة ممكن تعملها أوتوماتيك اعملها". Every day
+# this looks for the R2 repository secrets. The first time they are all
+# there (and the database does not know the R2 address yet) it connects
+# R2 — keys to the r2-presign function, bucket CORS, a read-back check,
+# the highlights moved off Supabase (scripts/r2-connect.sh) — and then
+# rebuilds the site so uploads go to R2. Before that, and after, it does
+# nothing and says so in one line.
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'   # every six hours
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write   # to start the site rebuild once R2 is connected
+
+concurrency:
+  group: r2-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: dvddiyztpyyuultndzso
+      SITE_ORIGIN: https://therealmoments.com
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID || vars.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || vars.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || vars.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET || vars.R2_BUCKET }}
+      R2_EPHEMERAL_BUCKET: ${{ secrets.R2_EPHEMERAL_BUCKET || vars.R2_EPHEMERAL_BUCKET }}
+      R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL || vars.R2_PUBLIC_URL }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Are the keys here, and is R2 not connected yet?
+        id: need
+        run: |
+          if [ -z "$R2_ACCOUNT_ID" ] || [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ] || [ -z "$R2_PUBLIC_URL" ]; then
+            echo "R2 keys not in the repository yet — nothing to do."; echo "go=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          jq -n '{query: "select coalesce((select value #>> '"'"'{}'"'"' from public.app_settings where key = '"'"'r2_public_url'"'"'), '"'"''"'"') as u"}' > /tmp/q.json
+          u=$(curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data-binary @/tmp/q.json | jq -r '.[0].u // ""')
+          if [ -n "$u" ]; then echo "R2 already connected ($u) — nothing to do."; echo "go=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "R2 keys found and R2 not connected yet — connecting."; echo "go=1" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.need.outputs.go == '1'
+
+      - uses: supabase/setup-cli@v1
+        if: steps.need.outputs.go == '1'
+        with:
+          version: 2.118.0   # same pin as setup-backend.yml
+
+      - name: Connect R2
+        id: connect
+        if: steps.need.outputs.go == '1'
+        run: |
+          supabase functions deploy r2-presign --project-ref "$REF"
+          bash scripts/r2-connect.sh
+          jq -n '{query: "select coalesce((select value #>> '"'"'{}'"'"' from public.app_settings where key = '"'"'r2_public_url'"'"'), '"'"''"'"') as u"}' > /tmp/q.json
+          u=$(curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data-binary @/tmp/q.json | jq -r '.[0].u // ""')
+          if [ -z "$u" ]; then echo "::warning::R2 did not finish connecting — the lines above say why. Tried again in six hours."; exit 0; fi
+          echo "done=1" >> "$GITHUB_OUTPUT"
+
+      - name: Rebuild the site so uploads go to R2
+        if: steps.connect.outputs.done == '1'
+        run: gh workflow run deploy-web.yml --repo "$GITHUB_REPOSITORY" --ref main && echo "Site rebuild started."
