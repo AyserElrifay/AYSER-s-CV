@@ -20,14 +20,26 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v96';
+const CACHE = 'moments-v97';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
 /* Safari on iPhone plays a video handed over by a service worker badly (a
    black box on the Together hero, November 2026): there it goes straight
-   to the network, the phone's own media cache does the rest */
-const SAFARI = (() => { try { const u = self.navigator.userAgent || ''; return /Safari/.test(u) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS|Android/.test(u); } catch (e) { return false; } })();
+   to the network, the phone's own media cache does the rest.
+   Every browser on an iPhone or iPad is WebKit underneath, and Moments
+   opened from the Home Screen does NOT say "Safari" in its user agent —
+   checking for the word missed exactly the people using the app (Ayser,
+   November 2026: "This clip didn't record properly" on a clip that plays
+   fine). So: any iPhone/iPad, any iOS browser, any WebKit that is not
+   Chrome or Firefox. */
+const SAFARI = (() => {
+  try {
+    const u = self.navigator.userAgent || '';
+    if (/iPad|iPhone|iPod|CriOS|FxiOS|EdgiOS/.test(u)) return true;
+    return /AppleWebKit/.test(u) && !/Chrome|Chromium|Android|Firefox/.test(u);
+  } catch (e) { return false; }
+})();
 
 self.addEventListener('install', () => {
   self.skipWaiting();
