@@ -27,13 +27,26 @@ begin
      opened" the waitlist gets (kind drop_open, opens Together); not who
      already holds a seat, never twice for one Drop */
   insert into public.notifications (user_id, actor_id, kind, body)
-  select p.id, p.id, 'drop_open', o.id::text || '|' || left(coalesce(o.title, ''), 80)
+  select p.id, p.id, 'drop_open', o.id::text || '|' || left(coalesce(o.title_ar, o.title, ''), 80) || '|new'
     from public.offers o
     join public.profiles p on (p.country is null or upper(p.country) in (upper(coalesce(o.country, 'EG')), 'EGYPT', 'مصر'))
    where o.id = any(coalesce(ids, '{}'::uuid[]))
      and not exists (select 1 from public.notifications n where n.user_id = p.id and n.kind = 'drop_open' and n.body like o.id::text || '|%')
      and not exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = p.id and b.status in ('reserved','paid','attended'));
   get diagnostics told = row_count;
+  /* the owner, a week ahead (and at once for one closer than that): book
+     the place for ten. Once per Drop. Draft or live — the table has to be
+     booked either way. */
+  insert into public.notifications (user_id, actor_id, kind, body)
+  select ow.id, ow.id, 'drop_open',
+         o.id::text || '|' || left(coalesce(o.title_ar, o.title, ''), 60) || ' — ' || left(coalesce(v.name, o.neighborhood_ar, o.neighborhood, ''), 60)
+           || '، ' || to_char(o.starts_at at time zone 'Africa/Cairo', 'DD/MM HH24:MI') || '|book'
+    from public.offers o
+    left join public.drop_venues v on v.offer_id = o.id
+    cross join (select u.id from auth.users u where lower(u.email) = 'ayseryourlifecoach@gmail.com' limit 1) ow
+   where o.is_drop and o.parent_id is null and o.status in ('draft', 'live')
+     and o.starts_at > now() + interval '12 hours' and o.starts_at < now() + interval '8 days'
+     and not exists (select 1 from public.notifications n where n.user_id = ow.id and n.kind = 'drop_open' and n.body like o.id::text || '|%|book');
   return jsonb_build_object('published', coalesce(array_length(ids, 1), 0), 'told', told, 'ids', to_jsonb(coalesce(ids, '{}'::uuid[])));
 end $$;
 revoke all on function public.drops_autopublish() from public, anon, authenticated;

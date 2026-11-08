@@ -23520,7 +23520,7 @@ create or replace function public.push_on_notification()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare v_url text; v_hook text;
 begin
-  if new.kind not in ('message','call','mate_request','mate_accept','comment','tag','green_invite','bardi_match','plan_soon','food_order','food_status','venue_decision','trip_open','team_reply','level_up','event_update','buddy','buddy_ping','arrived','spark','circle_open') then
+  if new.kind not in ('message','call','mate_request','mate_accept','comment','tag','green_invite','bardi_match','plan_soon','food_order','food_status','venue_decision','trip_open','team_reply','level_up','event_update','buddy','buddy_ping','arrived','spark','circle_open','drop_open') then
     return new;
   end if;
   if not exists (select 1 from public.push_subscriptions where user_id = new.user_id) then return new; end if;
