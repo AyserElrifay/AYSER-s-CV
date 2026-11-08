@@ -29,6 +29,8 @@ export const circleShuffle = (poll) => rpc('circle_shuffle', { p_poll: poll });
 // the Circle's screen: one YouTube video the whole room plays at the same moment (the team puts it up)
 export const circleScreen = (room) => rpc('circle_screen', { p_room: room });
 export const circleScreenSet = (room, yt) => rpc('circle_screen_set', { p_room: room, p_yt: yt || null });
+// going live in the Circle (the team only): the server keeps who, every phone shows only that person's camera
+export const circleLiveSet = (room, on) => rpc('circle_live_set', { p_room: room, p_on: !!on });
 
 // the Studio (owner only, checked by the database)
 export const ownerDrops = () => rpc('owner_drops');

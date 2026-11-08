@@ -7,7 +7,7 @@ import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { mv } from '../constants/mvpWords';
-import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter, circleTestEnter, circleTopicTurn, circleShuffle, circleScreen, circleScreenSet } from '../services/mvp';
+import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter, circleTestEnter, circleTopicTurn, circleShuffle, circleScreen, circleScreenSet, circleLiveSet } from '../services/mvp';
 import { circleTopic } from '../constants/circleTopics';
 import { askUpgrade, askSafety } from '../services/membership';
 import { askCard } from '../services/card';
@@ -170,6 +170,115 @@ const SCREEN_W = {
   en: { show: 'Show a video', ph: 'Paste a YouTube link', go: 'Show it to the room', down: 'Take the video down', bad: 'That is not a YouTube link.', fail: 'Did not work — try again.', hint: 'Short, about today’s topic. Everybody in the room sees it at the same moment.', same: 'The whole room sees the same moment' },
   ar: { show: 'اعرض فيديو', ph: 'حط لينك يوتيوب', go: 'اعرضه للأوضة', down: 'شيل الفيديو', bad: 'ده مش لينك يوتيوب.', fail: 'معرفناش — جرّب تاني.', hint: 'قصير وعن توبيك النهارده. كل اللي في الأوضة بيشوفوه في نفس اللحظة.', same: 'الأوضة كلها بتشوف نفس اللحظة' },
 };
+/* ── THE CIRCLE, LIVE (Ayser, November 2026: "أنا قصدي stream") ── one
+   person from the team turns their camera on for the whole room; the
+   others only watch (no camera, no microphone asked to watch). The server
+   says who is live (circle_live_set, the team only); every phone shows a
+   picture only from that person (src/lib/liveCore.js). */
+const LIVE_W = {
+  en: { go: 'Go live with your camera', end: 'End the live', live: 'LIVE', you: 'You are live', viewers: '{n} watching', cam: 'Allow the camera to go live.', flip: 'Flip camera', wait: 'Connecting to the live…', fail: 'Did not work — try again.' },
+  ar: { go: 'ابدأ لايف بالكاميرا', end: 'وقّف اللايف', live: 'لايف', you: 'إنت لايف دلوقتي', viewers: '{n} بيتفرجوا', cam: 'اسمح بالكاميرا عشان تبدأ اللايف.', flip: 'اقلب الكاميرا', wait: 'بيوصل اللايف…', fail: 'معرفناش — جرّب تاني.' },
+};
+const VideoBox = ({ stream, mirror }) => {
+  const ref = useRef(null);
+  useEffect(() => { const v = ref.current; if (v) { v.srcObject = stream || null; if (stream) v.play().catch(() => {}); } }, [stream]);
+  return React.createElement('video', { ref, autoPlay: true, playsInline: true, muted: true,
+    style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block', background: '#000', transform: mirror ? 'scaleX(-1)' : 'none' } });
+};
+const CircleLive = ({ room, lang, live, canSet, onLive }) => {
+  const { user } = useAuth();
+  const L = LIVE_W[lang === 'ar' ? 'ar' : 'en'];
+  const me = user && user.id;
+  const mine = !!(live && me && live.user_id === me);
+  const [own, setOwn] = useState(null);        // my live: { stream, viewers, stop }
+  const [facing, setFacing] = useState('user');
+  const [seen, setSeen] = useState(null);      // the picture I am watching
+  const [count, setCount] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const ownRef = useRef(null);
+  ownRef.current = own;
+  // watching: only the person the server says is live, and never myself
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !live || !me || live.user_id === me) { setSeen(null); return undefined; }
+    let w = null; let alive = true;
+    import('../lib/circleLive').then((m) => m.watchLive({ room, meId: me, hostId: live.user_id, onStream: (s) => alive && setSeen(s) })).then((x) => { if (alive) w = x; else if (x) x.stop(); }).catch(() => {});
+    return () => { alive = false; setSeen(null); if (w) w.stop(); };
+  }, [room, me, live && live.user_id, live && live.started_at]); // eslint-disable-line react-hooks/exhaustive-deps
+  // how many are watching me
+  useEffect(() => { if (!own) return undefined; const h = setInterval(() => setCount(own.viewers()), 2000); return () => clearInterval(h); }, [own]);
+  // leaving the room ends my live
+  useEffect(() => () => { const o = ownRef.current; if (o) { o.stop(); circleLiveSet(room, false).catch(() => {}); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // the server moved the live to somebody else: my camera goes off
+  useEffect(() => { if (own && !mine && live) { own.stop(); setOwn(null); } }, [mine, live]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (Platform.OS !== 'web') return null;
+  const start = async (face) => {
+    if (busy || !me) return;
+    tapMedium(); setBusy(true); setMsg('');
+    const m = await import('../lib/circleLive');
+    if (own) { own.stop(); setOwn(null); }
+    const g = await m.goLive({ room, meId: me, facing: face || facing });
+    if (g.error) { setBusy(false); setMsg(L.cam); return; }
+    const r = await circleLiveSet(room, true).catch(() => null);
+    setBusy(false);
+    if (!r || !r.ok) { g.stop(); setMsg(L.fail); return; }
+    setOwn(g); onLive(r.live); tapSuccess();
+  };
+  const end = async () => {
+    tapLight();
+    if (own) { own.stop(); setOwn(null); }
+    const r = await circleLiveSet(room, false).catch(() => null);
+    if (r && r.ok) onLive(null);
+  };
+  const frame = (child, label) => (
+    <View style={{ borderRadius: 20, overflow: 'hidden', backgroundColor: '#000', aspectRatio: 16 / 9, marginBottom: 10 }}>
+      {child}
+      <View style={{ position: 'absolute', top: 10, start: 10, flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, backgroundColor: C.purple }}>
+        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#FFF', marginEnd: 6 }} />
+        <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', letterSpacing: lang === 'ar' ? 0 : 1 }}>{label}</Text>
+      </View>
+    </View>
+  );
+  return (
+    <View testID="circle-live">
+      {own ? frame(<VideoBox stream={own.stream} mirror={facing === 'user'} />, L.you + ' · ' + L.viewers.replace('{n}', lang === 'ar' ? Number(count).toLocaleString('ar-EG') : count)) : null}
+      {!own && live && !mine ? frame(seen ? <VideoBox stream={seen} /> : (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color="#FFF" /><Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 8 }}>{L.wait}</Text></View>
+      ), L.live + (live.name ? ' · ' + live.name : '')) : null}
+      {canSet ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 6 }}>
+          {own || mine ? (
+            <>
+              <Pressable testID="circle-live-end" onPress={end} accessibilityRole="button" style={{ marginEnd: 8, marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.text }}>
+                  <Ionicons name="stop" size={14} color={C.bg} />
+                  <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L.end}</Text>
+                </View>
+              </Pressable>
+              {own ? (
+                <Pressable testID="circle-live-flip" onPress={() => { const f = facing === 'user' ? 'environment' : 'user'; setFacing(f); start(f); }} accessibilityRole="button" accessibilityLabel={L.flip} style={{ marginBottom: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: C.line }}>
+                    <Ionicons name="camera-reverse-outline" size={16} color={C.text} />
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L.flip}</Text>
+                  </View>
+                </Pressable>
+              ) : null}
+            </>
+          ) : (
+            <Pressable testID="circle-live-go" onPress={() => start()} disabled={busy} accessibilityRole="button" style={{ marginBottom: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.purple, opacity: busy ? 0.6 : 1 }}>
+                {busy ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="videocam" size={15} color="#FFF" />}
+                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{L.go}</Text>
+              </View>
+            </Pressable>
+          )}
+        </View>
+      ) : null}
+      {msg ? <Text style={{ color: C.coral, fontSize: 12.5, marginBottom: 6 }}>{msg}</Text> : null}
+    </View>
+  );
+};
+
 const CircleScreen = ({ room, lang }) => {
   const L = SCREEN_W[lang === 'ar' ? 'ar' : 'en'];
   const [st, setSt] = useState(null);       // { video, can_set, sync }
@@ -181,7 +290,7 @@ const CircleScreen = ({ room, lang }) => {
     if (!x || !x.ok) return;
     const v = x.video || null;
     const sync = v ? { pos: Math.max(0, (Date.parse(x.now) - Date.parse(v.started_at)) / 1000), playing: true, at: Date.now() } : null;
-    setSt((old) => ({ can_set: !!x.can_set || !!(old && old.can_set), video: v,
+    setSt((old) => ({ can_set: !!x.can_set || !!(old && old.can_set), video: v, live: x.live === undefined && old ? old.live : x.live || null,
       // the same video keeps its clock; a new one starts a new clock
       sync: old && old.video && v && old.video.yt === v.yt && old.video.started_at === v.started_at ? old.sync : sync }));
   };
@@ -205,6 +314,7 @@ const CircleScreen = ({ room, lang }) => {
   };
   return (
     <View testID="circle-screen" style={{ alignSelf: 'stretch', marginTop: 12 }}>
+      <CircleLive room={room} lang={lang} live={st.live} canSet={st.can_set} onLive={(lv) => setSt((o) => ({ ...o, live: lv }))} />
       {st.video ? (
         <View style={{ borderRadius: 20, backgroundColor: '#17131F', paddingHorizontal: 12, paddingBottom: 12, paddingTop: 0 }}>
           <YtKaraoke key={st.video.yt + st.video.started_at} videoId={st.video.yt} host={false} sync={st.sync} lang={lang} followLabel={L.same} />

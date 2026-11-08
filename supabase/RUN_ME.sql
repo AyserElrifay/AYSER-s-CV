@@ -28323,6 +28323,68 @@ revoke execute on function public.circle_screen_set(text, text) from public, ano
 grant execute on function public.circle_screen_set(text, text) to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  THE CIRCLE, LIVE: ONE CAMERA FOR THE ROOM
+--  Ayser, November 2026 ("أنا قصدي stream"): somebody from the team can
+--  go live in an English Circle — their camera, to everybody in the room.
+--  Nobody else's camera is ever asked for. The picture goes phone to phone
+--  (WebRTC) over the room's own private channel, circlelive:<room>, which
+--  only the people in that room may use (circle_here). Who is live is
+--  kept HERE, and set only by the owner or the team (circle_can_shuffle):
+--  every phone shows a picture only from that person, so nobody else can
+--  push a camera into the room, even by changing the app. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.circle_lives (
+  room       text primary key check (room ~ '^(test-)?[0-9a-f-]{36}$'),
+  user_id    uuid not null,
+  started_at timestamptz not null default now()
+);
+alter table public.circle_lives enable row level security;   -- only through the functions below
+revoke all on public.circle_lives from anon, authenticated;
+
+create or replace function public.circle_screen(p_room text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when public.circle_here(p_room, auth.uid()) then
+    jsonb_build_object('ok', true, 'now', now(), 'can_set', public.circle_can_shuffle(auth.uid()),
+      'video', (select jsonb_build_object('yt', c.yt, 'started_at', c.started_at) from public.circle_screens c where c.room = p_room),
+      'live', (select jsonb_build_object('user_id', l.user_id, 'name', split_part(coalesce(p.name, ''), ' ', 1), 'started_at', l.started_at)
+                 from public.circle_lives l left join public.profiles p on p.id = l.user_id where l.room = p_room))
+  else jsonb_build_object('ok', false) end;
+$$;
+revoke execute on function public.circle_screen(text) from public, anon;
+grant execute on function public.circle_screen(text) to authenticated;
+
+create or replace function public.circle_live_set(p_room text, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if not public.circle_can_shuffle(me) then return jsonb_build_object('ok', false, 'reason', 'not_team'); end if;
+  if p_room is null or p_room !~ '^(test-)?[0-9a-f-]{36}$'
+     or not exists (select 1 from public.circle_polls where id::text = regexp_replace(p_room, '^test-', '')) then
+    return jsonb_build_object('ok', false, 'reason', 'gone');
+  end if;
+  if p_on is not true then
+    delete from public.circle_lives where room = p_room;
+    return jsonb_build_object('ok', true, 'live', null);
+  end if;
+  -- one camera at a time: going live takes the room over from whoever was live
+  insert into public.circle_lives (room, user_id, started_at) values (p_room, me, now())
+  on conflict (room) do update set user_id = me, started_at = now();
+  return jsonb_build_object('ok', true, 'live', jsonb_build_object('user_id', me, 'started_at', now()));
+end $$;
+revoke execute on function public.circle_live_set(text, boolean) from public, anon;
+grant execute on function public.circle_live_set(text, boolean) to authenticated;
+
+do $do$ begin
+  drop policy if exists "circle live read" on realtime.messages;
+  create policy "circle live read" on realtime.messages for select to authenticated
+    using (realtime.topic() like 'circlelive:%' and public.circle_here(substr(realtime.topic(), 12), auth.uid()));
+  drop policy if exists "circle live write" on realtime.messages;
+  create policy "circle live write" on realtime.messages for insert to authenticated
+    with check (realtime.topic() like 'circlelive:%' and public.circle_here(substr(realtime.topic(), 12), auth.uid()));
+exception when others then raise notice 'circle live realtime policies skipped: %', sqlerrm;
+end $do$;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
