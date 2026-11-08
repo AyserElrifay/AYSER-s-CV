@@ -3,7 +3,7 @@
 --  Ayser, November 2026, sent his own clip of the Nile at night — water
 --  and the far bank, nobody in it (public/media/nile-night.mp4, 5 s,
 --  location data stripped). It plays behind the "Sunset felucca" draft
---  from weekend_drops_plan.sql. The other clip from that night shows
+--  from 10_weekend_drops_plan.sql. The other clip from that night shows
 --  people's faces and is NOT used until each of them has agreed.
 -- ════════════════════════════════════════════════════════════════════
 do $do$

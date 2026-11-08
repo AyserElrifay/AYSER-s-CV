@@ -1,7 +1,8 @@
 -- ════════════════════════════════════════════════════════════════════
---  THIS FRIDAY'S DROP OPENS BY ITSELF (pg_cron, Mondays 07:00 UTC)
+--  THIS FRIDAY'S DROP OPENS BY ITSELF (pg_cron, every day 07:00 UTC)
 --  Ayser, November 2026: "أي حاجة ممكن تعملها أوتوماتيك اعملها". The
---  weeks ahead wait as drafts (weekend_drops_plan.sql). Every Monday the
+--  weeks ahead wait as drafts (10_weekend_drops_plan.sql). Every day (it was
+--  Mondays; "فين الخروجة" on a Sunday said that was too late) the
 --  draft Drops of the next 7 days whose place is written (no "SET THE",
 --  "CONFIRM", "حدّد", "أكّد") are published — so the only thing left to
 --  do by hand is to write the place. A draft still missing its place
@@ -41,7 +42,7 @@ do $do$
 begin
   create extension if not exists pg_cron;
   perform cron.unschedule(jobid) from cron.job where jobname = 'drops-autopublish';
-  perform cron.schedule('drops-autopublish', '0 7 * * 1', 'select public.drops_autopublish()');
+  perform cron.schedule('drops-autopublish', '0 7 * * *', 'select public.drops_autopublish()');
 exception when others then raise notice 'pg_cron skipped: %', sqlerrm;
 end $do$;
 
@@ -58,3 +59,7 @@ begin
   on conflict (offer_id) do update set name = excluded.name;
   insert into public.app_settings (key, value) values ('drops_kayak_place_v1', jsonb_build_object('at', now()));
 end $do$;
+
+-- and once now, on every deploy: what is due opens straight away (idempotent —
+-- only drafts of the next 7 days with a place; nobody is told twice)
+select public.drops_autopublish();

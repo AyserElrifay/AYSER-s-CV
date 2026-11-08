@@ -130,7 +130,7 @@ jobs:
             exit 1
           fi
           echo "Schema applied."
-          # then every file in supabase/migrations/, in name order (auto_cleanup_cron.sql …)
+          # then every file in supabase/migrations/, in name order — the number in front sets it (00_auto_cleanup_cron.sql …)
           for f in $(ls supabase/migrations/*.sql 2>/dev/null | sort); do
             jq -Rs '{query: .}' "$f" > /tmp/q.json
             code=$(curl -sS -o /tmp/sql.out -w '%{http_code}' \
